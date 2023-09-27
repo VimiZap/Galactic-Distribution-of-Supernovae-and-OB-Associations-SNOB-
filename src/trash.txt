@@ -1,0 +1,30 @@
+def axisymmetric_disk_model_2(N, r_s, h):
+    """
+    N: number of stars
+    r_s: distance from the Sun to the Galactic center
+    h: scale-length of the disk
+    """
+    r = np.random.exponential(h, N) # random numbers from the exponential distribution
+    theta = np.random.uniform(0, 2*np.pi, N) # random numbers from the uniform distribution
+    x = r*np.cos(theta) + r_s # x coordinates of the stars
+    y = r*np.sin(theta) # y coordinates of the stars
+    return x, y
+
+def total_integrand_axisymmetric(b,r,l):
+    const = total_galactic_n_luminosity / (a_d * 4 * np.pi * np.radians(1) * np.sqrt(2*np.pi) * sigma)
+    return const * np.exp(-0.5 * (r*np.sin(b)/sigma)**2) * np.exp((-np.sqrt((r * np.cos(b))**2 + r_s ** 2 - 2*r_s*np.cos(b)*np.cos(l)))/h) * np.cos(b)
+
+def total_integral_axisymmetric(l):
+    lat_lim = np.radians(3.5)
+    return dblquad(total_integrand_axisymmetric, 0, r_max, -lat_lim, lat_lim, args=(l,))
+
+def vectorized_total_integral_axisymmetric(l):
+    return np.vectorize(total_integral_axisymmetric)(l)
+
+def integral_axisymmetric(l): # integrate over the radial distance and the latitude
+    lat_lim = np.radians(3.5)
+    return dblquad(integrand_axisymmetric, 0, r_max, -lat_lim, lat_lim, args=(l,))
+
+
+def vectorized_integral_axisymmetric(l): # vectorize the function integral_axisymmetric
+    return np.vectorize(integral_axisymmetric)(l)
