@@ -4,13 +4,13 @@ from scipy.integrate import dblquad
 from scipy.integrate import quad
 
 # constants
-h = 2.5                 # kpc, scale length of the disk
+h = 2.5                 # kpc, scale length of the disk. The value Higdon and Lingenfelter used
 r_s = 7.6               # kpc, estimate for distance from the Sun to the Galactic center. Same value the atuhors used
 rho_min = 0.39 * r_s    # kpc, minimum distance from galactic center to bright H 2 regions. Evaluates to 3.12 kpc
 rho_max = 1.30 * r_s    # kpc, maximum distance from galactic center to bright H 2 regions. Evaluates to 10.4 kpc
 sigma = 0.15            # kpc, scale height of the disk
-total_galactic_n_luminosity = 1 #1.85e40       #total galactic N 2 luminosity in erg/s
-r_max = r_s + rho_max   # kpc, maximum distance from the Sun to rho_max. Evaluates to 18 kpc
+total_galactic_n_luminosity = 1.85e40       #total galactic N 2 luminosity in erg/s
+measured_nii = 1.175e-4 # erg/s/cm^2/sr, measured N II 205 micron line intensity. Estimated from the graph in the paper
 # kpc^2, source-weighted Galactic-disk area. See https://iopscience.iop.org/article/10.1086/303587/pdf, equation 37
 # note that the authors where this formula came from used different numbers, and got a value of 47 kpc^2.
 # With these numbers, we get a value of 22.489 kpc^2
@@ -109,15 +109,22 @@ def integral_axisymmetric():
         integral.append(value * db) # multiply by db to get the integral over the latitude
 
     # when done with integrating over r and b, return the value as we are not integrating over l
-    return longitudes, integral / (np.radians(1) * np.radians(5)) # devide by delta-b and delta-l in radians, respectively, for the averaging the paper mentions
+    return longitudes, integral / (np.radians(1)) #* np.radians(5)) # devide by delta-b and delta-l in radians, respectively, for the averaging the paper mentions
 
 
 def plot_axisymmetric():
     longitudes, integrated_spectrum = integral_axisymmetric()
+    abs_diff = np.abs(longitudes - np.radians(30))  # Calculate the absolute differences between the 30 degrees longitude and all elements in longitudes
+    closest_index = np.argmin(abs_diff) # Find the index of the element with the smallest absolute difference
+    modelled_value_30_degrees = integrated_spectrum[closest_index] # Retrieve the closest value from the integrated spectrum
+    normalization_factor = measured_nii / modelled_value_30_degrees # Calculate the normalization factor
+    #print(np.degrees(longitudes[closest_index]), modelled_value_30_degrees, normalization_factor)
+    integrated_spectrum = integrated_spectrum * normalization_factor # normalize the modelled emissivity to the measured value at 30 degrees longitude
     plt.plot(np.linspace(0, 100, len(longitudes)), integrated_spectrum)
     # Redefine the x-axis labels to match the values in longitudes
     x_ticks = (180, 150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210, 180)
     plt.xticks(np.linspace(0, 100, 13), x_ticks)
+    plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
     plt.xlabel("Galactic longitude l (degrees)")
     plt.ylabel("Modelled emissivity")
     plt.title("Modelled emissivity of the Galactic disk")
