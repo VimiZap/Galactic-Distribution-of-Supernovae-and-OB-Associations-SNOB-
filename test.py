@@ -1,36 +1,37 @@
-from scipy.integrate import quad
-from scipy.integrate import dblquad
 import numpy as np
-def integrand(x, y, a, b):
-    return a*x**2 + b*y
 
-def dbleintegrand(y, x, a, b):
-    return a*x**2 + b*y
+a = np.array([[1, 2, 3], [4,5,6]])
+b = a[:, np.newaxis]
+c = a.T
+""" print(a.shape, b.shape, c.shape)
+print(a)
+print(b.T)
+print(c)
+print(a[:, ::-1]) """
 
-a = 2
-b = 2
-y = np.linspace(0, 1, 100)
+# Original 2D array
+original_array = np.array([[1, 2],
+                           [3, 4],
+                           [5, 6]])
 
+# Create a new 2D array with negative values and reverse order
+negative_array = -np.flipud(original_array)
+print(negative_array)  
+# Concatenate the two arrays along the second axis (columns)
+transformed_array = np.concatenate((negative_array, original_array), axis=0)
 
-def funcint(y, a, b):
-    return quad(integrand, 0, 1, args=(y,a,b))
+# Output the transformed array
+print(original_array)
+print(original_array.T)
+print(transformed_array)
 
-def funcintvec(y, a, b):
-    return np.vectorize(funcint)(y, a, b)
+array1 = np.random.rand(1039, 2)  # Replace this with your actual data
+array2 = np.random.rand(214, 2)   # Replace this with your actual data
 
-def funcdoubleint(a, b):
-    return dblquad(dbleintegrand, 0, 1, 0, 1, args=(a,b))
-
-dl = 0.5
-a1 = np.arange(180, 0, -0.01)
-l2 = np.arange(359, 179, -dl)
-print(a1)
-print(l2)
-""" I = funcintvec(y, a, b)
-i = funcint(0.5, a, b)
-i2 = quad(integrand, 0, 1, args=(0.5,a,b))
-print(I)
-print(i)
-print(i2)
-doubleint = funcdoubleint(a, b)
-print(doubleint) """
+# Expand dimensions of array1 to have shape (1039, 1, 2)
+expanded_array1 = array1[:, np.newaxis, :]
+print(expanded_array1.shape)
+# Create a 3D array by broadcasting array1 and array2
+result = expanded_array1 + array2
+print(result.shape)
+# The result will be a 3D array with shape (1039, 214, 2)

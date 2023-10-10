@@ -28,3 +28,39 @@ def integral_axisymmetric(l): # integrate over the radial distance and the latit
 
 def vectorized_integral_axisymmetric(l): # vectorize the function integral_axisymmetric
     return np.vectorize(integral_axisymmetric)(l)
+
+
+def generate_transverse_points(arm_medians, transverse_distances):
+    """
+    Args:
+        arm_medians: array of distances \rho to the arm median
+    Returns:
+        a matrix of transverse points (rho's) for the spiral arm
+    """
+    # for each point in arm_medians, generate the transverse points
+    transverse = []
+    for arm_median in arm_medians:
+        transverse_points = arm_median - transverse_distances
+        transverse_points = np.append(transverse_points, arm_median + transverse_distances)
+        transverse.append(transverse_points)
+    return np.array(transverse) 
+    
+def plot_spiral_arms():
+    """
+    Plots the spiral arms
+    """
+    transverse_distances, transverse_densities = generate_non_uniform_spacing(d_min=0.01) #d_min: minimum distance from the spiral arm
+    for i in range(len(arm_angles)):
+        theta, rho = spiral_arm_medians(arm_angles[i], pitch_angles[i])
+        x = rho*np.cos(theta)
+        y = rho*np.sin(theta)
+        plt.plot(x, y)
+        transverse = generate_transverse_points(rho, transverse_distances)
+        for j in range(len(transverse)):
+            rotation_point = (rho[j]*np.cos(theta[j]), rho[j]*np.sin(theta[j]))
+            x, y = transverse[j]*np.cos(theta[j]), transverse[j]*np.sin(theta[j])
+            rotated_points = rotate_point(np.array([x,y]).T, np.radians(pitch_angles[i]), rotation_point)
+            plt.scatter(rotated_points[:, 0], rotated_points[:, 1])
+    plt.gca().set_aspect('equal')
+    plt.savefig("output/spiral_arms_w_transverse_contribution.png")  # save plot in the output folder
+    plt.show()

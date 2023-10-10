@@ -1,7 +1,5 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.integrate import dblquad
-from scipy.integrate import quad
 
 # constants
 h = 2.5                 # kpc, scale length of the disk. The value Higdon and Lingenfelter used
@@ -13,7 +11,7 @@ total_galactic_n_luminosity = 1.85e40       #total galactic N 2 luminosity in er
 measured_nii = 1.175e-4 # erg/s/cm^2/sr, measured N II 205 micron line intensity. Estimated from the graph in the paper
 # kpc^2, source-weighted Galactic-disk area. See https://iopscience.iop.org/article/10.1086/303587/pdf, equation 37
 # note that the authors where this formula came from used different numbers, and got a value of 47 kpc^2.
-# With these numbers, we get a value of 22.489 kpc^2
+# With these numbers, we get a value of 22.489 kpc^2. Compare this to the area of pi*(rho_max**2 - rho_min**2) = 309.21 kpc^2
 a_d = 2*np.pi*h**2 * ((1+rho_min/h)*np.exp(-rho_min/h) - (1+rho_max/h)*np.exp(-rho_max/h)) 
 
 
@@ -121,6 +119,7 @@ def plot_axisymmetric():
     #print(np.degrees(longitudes[closest_index]), modelled_value_30_degrees, normalization_factor)
     integrated_spectrum = integrated_spectrum * normalization_factor # normalize the modelled emissivity to the measured value at 30 degrees longitude
     plt.plot(np.linspace(0, 100, len(longitudes)), integrated_spectrum)
+    print(np.sum(integrated_spectrum))
     # Redefine the x-axis labels to match the values in longitudes
     x_ticks = (180, 150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210, 180)
     plt.xticks(np.linspace(0, 100, 13), x_ticks)
