@@ -125,19 +125,22 @@ def generate_transverse_points(arm_medians, transverse_distances, thetas, pitch_
     return final_transverse_points
 
 
-def generate_end_points(rho, theta, d_rho, d_theta = 1):
+def generate_end_points(rho, theta, pitch_angle, transverse_distances, point='start'):
     """
     Args:
-        rho: 2d array with rhos for start and end of spiral arm
-        theta: 2d array with thetas for start and end of spiral arm
-        d_rho: array with increments for rho
-        d_theta: how many degrees to increment theta by
+        rho: radial distance to one of the end points of the spiral arm
+        theta: angular distance to one of the end points of the spiral arm
     Returns:
         a 
     """
-    cumsum = np.cumsum(d_rho)
-    #for i in range(np.radians(180)):
-
+    angles_arc = np.linspace(0, np.pi, num=180) + theta - pitch_angle 
+    if point == 'start':
+        angles_arc += np.pi
+    x_arc = rho * np.cos(theta) + transverse_distances * np.cos(angles_arc)[:, np.newaxis]
+    y_arc = rho * np.sin(theta) + transverse_distances * np.sin(angles_arc)[:, np.newaxis]
+    #x = np.cos(thetas)[:, np.newaxis] * rhos
+    #y = np.sin(thetas)[:, np.newaxis] * rhos
+    return np.array([x_arc, y_arc]).T
 
 
 
@@ -158,8 +161,13 @@ def plot_spiral_arms():
         # Flatten the 3D array into 2D arrays
         x_coords = transverse_points[:, :, 0].flatten()
         y_coords = transverse_points[:, :, 1].flatten()
+        # generate the end points
+        start_arm = generate_end_points(rho[0], theta[0], pitch_angles[i], transverse_distances, 'start')
+        end_arm = generate_end_points(rho[-1], theta[-1], pitch_angles[i], transverse_distances, 'end')
         colour = np.linspace(0, 1, len(x_coords)) # this generates a colour gradient along the spiral arm
         plt.scatter(x_coords, y_coords, s=1, c=colours[i])  # You can adjust the marker size (s) as needed
+        plt.scatter(start_arm[:, :, 0].flatten(), start_arm[:, :, 1].flatten(), s=1, c=colours[i])
+        plt.scatter(end_arm[:, :, 0].flatten(), end_arm[:, :, 1].flatten(), s=1, c=colours[i])
         plt.plot(x, y)
     plt.gca().set_aspect('equal')
     plt.savefig("output/spiral_arms_2_w_transverse_contribution.png")  # save plot in the output folder
