@@ -64,3 +64,15 @@ def plot_spiral_arms():
     plt.gca().set_aspect('equal')
     plt.savefig("output/spiral_arms_w_transverse_contribution.png")  # save plot in the output folder
     plt.show()
+
+    def rotate_point(point, angle, rotation_point=(0, 0)):
+    """
+    Args:
+        point: point or points to rotate. (x,y) coordinates, (n, 2) matrix with n = number of points
+        angle: angle to rotate the point by. Radians
+        rotation_point: the point to rotate around. (x,y) coordinates
+    Returns:
+        rotated point
+    """
+    rotation_matrix = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
+    return np.matmul(point - rotation_point, rotation_matrix.T) + rotation_point
