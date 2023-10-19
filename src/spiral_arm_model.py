@@ -6,7 +6,7 @@ import seaborn as sns
 
 
 # constants
-h = 2.5                 # kpc, scale length of the disk. The value Higdon and Lingenfelter used
+h = 2.4                 # kpc, scale length of the disk. The value Higdon and Lingenfelter used
 r_s = 7.6               # kpc, estimate for distance from the Sun to the Galactic center. Same value the atuhors used
 rho_min = 2.9           # kpc, minimum distance from galactic center to the beginning of the spiral arms.
 rho_max = 35            # kpc, maximum distance from galactic center to the end of the spiral arms.
@@ -19,9 +19,36 @@ measured_nii = 1.175e-4 # erg/s/cm^2/sr, measured N II 205 micron line intensity
 a_d = 2*np.pi*h**2 * ((1+rho_min/h)*np.exp(-rho_min/h) - (1+rho_max/h)*np.exp(-rho_max/h)) 
 # starting angles for the spiral arms, respectively Norma-Cygnus, Perseus, Sagittarius-Carina, Scutum-Crux
 arm_angles = np.radians([70, 160, 250, 340])
-# pitch angles for the spiral arms, respectively Norma-Cygnus, Perseus, Sagittarius-Carina, Scutum-Crux
+# pitch angles for the spiral arms, respectively Norma-Cygnus(NC), Perseus(P), Sagittarius-Carina(SA), Scutum-Crux(SC)
 pitch_angles = np.radians(np.array([13.5, 13.5, 13.5, 15.5]))
+# the fractional contribution described in the text.
+fractions = [0.18, 0.36, 0.18, 0.28]
 number_of_end_points = 181 # number of points to use for the circular projection at the end points of the spiral arms
+
+
+def rho_func(l, b, r):
+    """
+    Args:
+        r: distance from the Sun to the star/ a point in the Galaxy
+        l: Galactic longitude, radians
+        b: Galactic latitude, radians
+    Returns:
+        distance from the Galactic center to the star/ a point in the Galaxy
+    """
+    return np.sqrt((r * np.cos(b))**2 + r_s**2 - 2 * r_s * r * np.cos(b) * np.cos(l)) # kpc, distance from the Sun to the star/ spacepoint
+
+
+def theta_func(l, b, r):
+    """
+    Args:
+        r: distance from the Sun to the star/ a point in the Galaxy
+        l: Galactic longitude, radians
+        b: Galactic latitude, radians
+    Returns:
+        angle from the Sun to the star/ a point in the Galaxy
+    """
+    return np.arctan2(r_s - r*np.cos(b)*np.cos(l), r * np.cos(b) * np.sin(l))
+    #return np.arctan2(r * np.cos(b) * np.sin(l), r * np.cos(b) * np.cos(l) - r_s) # radians, angle from the Sun to the star/ spacepoint))
 
 
 def spiral_arm_medians(arm_angle, pitch_angle):
@@ -95,7 +122,6 @@ def generate_non_uniform_spacing(sigma_arm = 0.5, d_min = 0.01, d_max = 5, scali
     d_rho[-1] = d_rho[-1] - diff
     d_rho.sort()
     transverse_distances = np.cumsum(d_rho)
-    print(transverse_distances[-1])
     transverse_densities = arm_transverse_density(transverse_distances, sigma_arm)
     return transverse_distances, transverse_densities
 
@@ -145,7 +171,6 @@ def generate_end_points(rho, theta, pitch_angle, transverse_distances, point='st
     x_arc = rho * np.cos(theta) + transverse_distances * np.cos(angles_arc)[:, np.newaxis]
     y_arc = rho * np.sin(theta) + transverse_distances * np.sin(angles_arc)[:, np.newaxis]
     return np.concatenate((x_arc[:, :, np.newaxis], y_arc[:, :, np.newaxis]), axis=2)
-
 
 
 def plot_spiral_arms():
@@ -230,6 +255,7 @@ def generate_spiral_arm_densities(rho, transverse_densities_initial):
     # calculate the densities for the arm median
     arm_median_densities = arm_median_density(rho) #1D array
     # calculate the transverse densities for the arm. Does not contain the contrbution from the circular projection at the end points, but has the arm median density
+    # note the transverse densities is described by a Gausiian distribution, that's why the following works
     arm_transverse_densities = transverse_densities * arm_median_densities[:, np.newaxis] #2D array
     # calculate the densities for the end points projected in a circle around the end points
     density_start_arm = transverse_densities_initial * arm_median_densities[0] # this is a 1D array, but the same values goes for every index in start_arm along axis 0
@@ -327,6 +353,8 @@ def calc_effective_area_per_spiral_arm():
         rho_coords, theta_coords = generate_spiral_arm_points_spherical_coords(rho, theta, pitch_angles[i], transverse_distances)
         # generate the spiral arm densities
         density_spiral_arm = generate_spiral_arm_densities(rho, transverse_densities_initial)
+        # in accordance with equation (9) in short.paper.2.0, the densities shall be scaled by their radial distance from the galactic centre
+        density_spiral_arm *= rho_coords
         # Convert to Cartesian coordinates
         x = rho_coords*np.cos(theta_coords)
         y = rho_coords*np.sin(theta_coords)
@@ -334,11 +362,99 @@ def calc_effective_area_per_spiral_arm():
         interpolated_density = griddata((x, y), density_spiral_arm, (grid_x, grid_y), method='linear', fill_value=0)
         # add the interpolated density to the total galactic density
         effective_area = np.append(effective_area, np.sum(interpolated_density) * d_x * d_y)
+    filepath = "output/effective_area_per_spiral_arm.txt"
+    np.savetxt(filepath, effective_area)
     return effective_area
 
-            
 
-plot_interpolated_galactic_densities()
+def calc_modelled_emissivity(fractional_contribution, readfile = "true"):
+
+    if readfile == "true":
+        effective_area = np.loadtxt("output/effective_area_per_spiral_arm.txt")
+    else:
+        effective_area = calc_effective_area_per_spiral_arm()
+    print(effective_area)
+    fractional_contribution = [0.18, 0.36, 0.18, 0.28] # fractional contribution of each spiral arm to the total NII 205 micron line intensity
+    dr = 0.1   # increments in dr (kpc):
+    dl = 0.1   # increments in dl (degrees):
+    db = 0.01   # increments in db (degrees):
+
+    # latitude range, integrate from -3.5 to 3.5 degrees, converted to radians
+    latidue_range = np.radians(3.5)
+    latitudes = np.arange(-latidue_range, latidue_range, db)
+
+    # np.array with values for galactic longitude l in radians.
+    l1 = np.arange(180, 0, -dl)
+    l2 = np.arange(359, 179, -dl)
+    longitudes = np.radians(np.concatenate((l1, l2)))
+    # np.array with values for distance from the Sun to the star/ a point in the Galaxy
+    radial_distances = np.arange(0, r_s + rho_max + 5, dr) #r_s + rho_max + 5 is the maximum distance from the Sun to the outer edge of the Galaxy. +5 is due to the circular projection at the end points of the spiral arms
+    # Create a meshgrid of all combinations
+    lon_grid, lat_grid, radial_grid = np.meshgrid(longitudes, latitudes, radial_distances, indexing='ij')
+    # Combine the grids into a 2-D array
+    coordinates = np.column_stack((lon_grid.ravel(), lat_grid.ravel(), radial_grid.ravel()))     # Now 'coordinates' is a 2-D array with all combinations of (longitude, latitude, radial_distance)
+    rho_coords_galaxy = rho_func(coordinates[:, 0], coordinates[:, 1], coordinates[:, 2])
+    theta_coords_galaxy = theta_func(coordinates[:, 0], coordinates[:, 1], coordinates[:, 2])
+    x_coords = rho_coords_galaxy * np.cos(theta_coords_galaxy)
+    y_coords = rho_coords_galaxy * np.sin(theta_coords_galaxy)
+    z_coords = coordinates[:, 2] * np.sin(coordinates[:, 1])
+    height_distribution_values = height_distribution(z_coords)
+    latitudinal_cosinus = 1 # np.cos(coordinates[:, 1])
+    densities_as_func_of_long = np.zeros((len(pitch_angles), len(longitudes)))
+    transverse_distances, transverse_densities_initial = generate_non_uniform_spacing(d_min=0.01) #d_min: minimum distance from the spiral arm
+    print(x_coords.shape, y_coords.shape, height_distribution_values.shape)
+    for i in range(len(arm_angles)):
+        print("Calculating spiral arm number: ", i+1)
+        # generate the spiral arm medians
+        theta, rho = spiral_arm_medians(arm_angles[i], pitch_angles[i])
+        # generate the spiral arm points in spherical coordinates
+        rho_coords_arm, theta_coords_arm = generate_spiral_arm_points_spherical_coords(rho, theta, pitch_angles[i], transverse_distances)
+        # generate the spiral arm densities
+        density_spiral_arm = generate_spiral_arm_densities(rho, transverse_densities_initial)
+        # Convert to Cartesian coordinates
+        x_arm = rho_coords_arm*np.cos(theta_coords_arm)
+        y_arm = rho_coords_arm*np.sin(theta_coords_arm)
+        # calculate interpolated density for the spiral arm
+        interpolated_density = griddata((x_arm, y_arm), density_spiral_arm, (x_coords, y_coords), method='linear', fill_value=0)
+        # multiply the interpolated density with the height distribution and also the infinitesimal increments in l and b to get the integral
+        # multiply also in the other constants
+        interpolated_density *= height_distribution_values * db * dl * fractional_contribution[i] * effective_area [i] * latitudinal_cosinus/ (4 * np.pi * np.radians(1))
+        # reshape this 1D array into 2D array to facilitate for the summation over the different longitudes
+        interpolated_density = interpolated_density.reshape((len(longitudes), len(radial_distances) * len(latitudes)))
+        print(interpolated_density.shape)
+        # sum up to get the density as a function of longitude
+        density_distribution = interpolated_density.sum(axis=1) # sum up all the values for the different longitudes
+        print("density distribution:", density_distribution.shape, "longitudes: ", longitudes.shape)
+        densities_as_func_of_long[i] += density_distribution
+    return longitudes, densities_as_func_of_long #* np.radians(5)) # devide by delta-b and delta-l in radians, respectively, for the averaging the paper mentions
+
+
+def plot_modelled_emissivity():
+    """
+    Plots the modelled emissivity of the Galactic disk as a function of Galactic longitude.
+    """
+    longitudes, densities_as_func_of_long = calc_modelled_emissivity()
+    print("interpolated densities: ", densities_as_func_of_long.shape)
+    plt.plot(np.linspace(0, 100, len(longitudes)), densities_as_func_of_long[0], label="NC")
+    plt.plot(np.linspace(0, 100, len(longitudes)), densities_as_func_of_long[1], label="P")
+    plt.plot(np.linspace(0, 100, len(longitudes)), densities_as_func_of_long[2], label="SA")
+    plt.plot(np.linspace(0, 100, len(longitudes)), densities_as_func_of_long[3], label="SC")
+    plt.plot(np.linspace(0, 100, len(longitudes)), np.sum(densities_as_func_of_long, axis=0), label="Total")
+    print(np.sum(densities_as_func_of_long))
+    # Redefine the x-axis labels to match the values in longitudes
+    x_ticks = (180, 150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210, 180)
+    plt.xticks(np.linspace(0, 100, 13), x_ticks)
+    plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+    plt.xlabel("Galactic longitude l (degrees)")
+    plt.ylabel("Modelled emissivity")
+    plt.title("Modelled emissivity of the Galactic disk")
+    plt.legend()
+    plt.savefig("output/modelled_emissivity_3.png", dpi=1200)
+    plt.show()
+
+#plot_interpolated_galactic_densities()
 #plot_spiral_arms()
 #calc_modelled_emissivity()
 #plot_model_spiral_arm_densities()
+#calc_effective_area_per_spiral_arm()
+plot_modelled_emissivity()

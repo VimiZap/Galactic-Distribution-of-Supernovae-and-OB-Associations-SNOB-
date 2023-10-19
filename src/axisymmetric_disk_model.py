@@ -127,7 +127,7 @@ def plot_axisymmetric():
     plt.xlabel("Galactic longitude l (degrees)")
     plt.ylabel("Modelled emissivity")
     plt.title("Modelled emissivity of the Galactic disk")
-    plt.savefig("output/modelled_emissivity.png")  # save plot in the output folder
+    plt.savefig("output/modelled_emissivity_axisymmetric.png")  # save plot in the output folder
     plt.show()
 
 
