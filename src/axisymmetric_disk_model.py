@@ -87,7 +87,7 @@ def integral_axisymmetric():
 
     # np.array with values for galactic longitude l in radians.
     l1 = np.arange(180, 0, -dl)
-    l2 = np.arange(359, 179, -dl)
+    l2 = np.arange(360, 179, -dl)
     longitudes = np.radians(np.concatenate((l1, l2)))
 
     # np.array with values for distance from the Sun to the star/ a point in the Galaxy
