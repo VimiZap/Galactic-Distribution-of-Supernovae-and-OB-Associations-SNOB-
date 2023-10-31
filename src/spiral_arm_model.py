@@ -418,10 +418,10 @@ def calc_modelled_emissivity(fractional_contribution=fractional_contribution_def
     # generate the set of coordinates
     dr = 0.01   # increments in dr (kpc):
     dl = 0.2   # increments in dl (degrees):
-    db = 0.2   # increments in db (degrees):
+    db = 1   # increments in db (degrees):
     # latitude range, integrate from -3.5 to 3.5 degrees, converted to radians
-    latitude_range = np.radians(3.5)
-    latitudes = np.arange(-latitude_range, latitude_range, db)
+    #latitude_range = np.radians(3.5)
+    latitudes = np.radians(np.arange(-3.5, 3.5, db))
     print("latidues shape: ", latitudes.shape)
     # np.array with values for galactic longitude l in radians.
     l1 = np.arange(180, 0, -dl)
@@ -449,16 +449,14 @@ def calc_modelled_emissivity(fractional_contribution=fractional_contribution_def
     interpolated_densities = interpolate_density(x_grid, y_grid, method, h, sigma_arm)
     common_multiplication_factor = height_distribution_values * db * dl * latitudinal_cosinus/ (4 * np.pi * np.radians(1) * 10e4)
     ##############################################################################################################
-    total_galactic_density = np.sum(interpolated_densities, axis=0)
+    """ total_galactic_density = np.sum(interpolated_densities, axis=0)
     print("Shape of total_galactic_density: ", total_galactic_density.shape)
     print("Shape of total_galactic_density.flatten(): ", total_galactic_density.flatten().shape)
     #plot heatmap of the interpolated densities:
     print("plotting...")
-    """ plt.scatter(x_grid, y_grid, c=range(len(x_grid)), cmap='viridis', s=1)
-    plt.show() """
     plt.scatter(x_grid, y_grid, c=total_galactic_density, cmap='viridis', s=1)
-    #plt.scatter(0, 0, c = 'magenta', s=2, label='Galactic centre')
-    #plt.scatter(0, r_s, c = 'gold', s=2, label='Sun')
+    plt.scatter(0, 0, c = 'magenta', s=2, label='Galactic centre')
+    plt.scatter(0, r_s, c = 'gold', s=2, label='Sun')
     plt.gca().set_aspect('equal')
     plt.xlabel('Distance in kpc from the Galactic center')
     plt.ylabel('Distance in kpc from the Galactic center')
@@ -466,16 +464,20 @@ def calc_modelled_emissivity(fractional_contribution=fractional_contribution_def
     plt.legend(loc='upper right')
     cbar = plt.colorbar()
     cbar.set_label('Density')
-    plt.savefig("output/fakdifak8.png", dpi=600)
+    plt.savefig("output/fakdifak8.png", dpi=600) """
     
     ##############################################################################################################
     for i in range(len(arm_angles)):
         print("Calculating spiral arm number: ", i+1)
         interpolated_density_arm = interpolated_densities[i] * fractional_contribution[i] * effective_area[i] * common_multiplication_factor
         # reshape this 1D array into 2D array to facilitate for the summation over the different longitudes
-        interpolated_density_arm = interpolated_density_arm.reshape((len(longitudes), len(radial_distances) * len(latitudes)))
+        #interpolated_density_arm = interpolated_density_arm.reshape((len(longitudes), len(radial_distances) * len(latitudes)))
+        interpolated_density_arm = interpolated_density_arm.reshape((len(radial_distances), len(longitudes), len(latitudes)))
+        print("interpolated_density_arm.shape ", interpolated_density_arm.shape)
         # sum up to get the density as a function of longitude
-        density_distribution = interpolated_density_arm.sum(axis=1) # sum up all the values for the different longitudes
+        density_distribution = interpolated_density_arm.sum(axis=(0, 2)) # sum up all the values for the different longitudes
+        print("density_distribution.shape", density_distribution.shape)
+
         densities_as_func_of_long[i] += density_distribution
     return longitudes, densities_as_func_of_long #* np.radians(5)) # devide by delta-b and delta-l in radians, respectively, for the averaging the paper mentions
 
@@ -572,18 +574,21 @@ def test_fractional_contribution(method='linear', readfile='true', h=h_default, 
     # wspace=0.6 became too tight
     for i in range(num_rows):
         for j in range(num_cols):
-            print("Calculating spiral arm number: ", i * num_cols + j + 1)
+            print("Calculating with fractional contribution list: ", i * num_cols + j + 1)
             ax = axes[i, j]
             longitudes, densities_as_func_of_long = calc_modelled_emissivity(fractional_contribution[i * num_cols + j], method, readfile)
-            ax.plot(np.linspace(0, 100, len(longitudes)), densities_as_func_of_long[0], label=f"NC. f={fractional_contribution[i * num_cols + j][0]}")
-            ax.plot(np.linspace(0, 100, len(longitudes)), densities_as_func_of_long[1], label=f"P. $\ $ f={fractional_contribution[i * num_cols + j][1]}")
-            ax.plot(np.linspace(0, 100, len(longitudes)), densities_as_func_of_long[2], label=f"SA. f={fractional_contribution[i * num_cols + j][2]}")
-            ax.plot(np.linspace(0, 100, len(longitudes)), densities_as_func_of_long[3], label=f"SC. f={fractional_contribution[i * num_cols + j][3]}")
-            ax.plot(np.linspace(0, 100, len(longitudes)), np.sum(densities_as_func_of_long, axis=0), label="Total")
+            print(longitudes.shape, densities_as_func_of_long.shape, np.sum(densities_as_func_of_long, axis=0).shape)
+            print(np.linspace(0, 100, len(longitudes)))
+            print(np.sum(densities_as_func_of_long, axis=0))
+            ax.plot(np.linspace(0, 360, len(longitudes)), densities_as_func_of_long[0], label=f"NC. f={fractional_contribution[i * num_cols + j][0]}")
+            ax.plot(np.linspace(0, 360, len(longitudes)), densities_as_func_of_long[1], label=f"P. $\ $ f={fractional_contribution[i * num_cols + j][1]}")
+            ax.plot(np.linspace(0, 360, len(longitudes)), densities_as_func_of_long[2], label=f"SA. f={fractional_contribution[i * num_cols + j][2]}")
+            ax.plot(np.linspace(0, 360, len(longitudes)), densities_as_func_of_long[3], label=f"SC. f={fractional_contribution[i * num_cols + j][3]}")
+            ax.plot(np.linspace(0, 360, len(longitudes)), np.sum(densities_as_func_of_long, axis=0), label="Total")
             ax.text(0.02, 0.95, fr'$H_\rho$ = {h} kpc & $\sigma_A$ = {sigma_arm} kpc', transform=ax.transAxes, fontsize=8, color='black')
             # Redefine the x-axis labels to match the values in longitudes
-            x_ticks = (180, 150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210, 180)
-            ax.set_xticks(np.linspace(0, 100, 13), x_ticks)
+            #x_ticks = (180, 150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210, 180)
+            #ax.set_xticks(x_ticks) #np.linspace(0, 360, 13), 
             ax.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
             ax.set_xlabel("Galactic longitude l (degrees)")
             ax.set_ylabel("Modelled emissivity")
@@ -591,8 +596,9 @@ def test_fractional_contribution(method='linear', readfile='true', h=h_default, 
             ax.legend()         
     print("Done with plotting. Saving figure...") 
     plt.suptitle('Testing different values for the fractional contribution of each spiral arm')
-    plt.savefig("output/test_fractional_contribution", dpi=1200, bbox_inches='tight')
+    plt.savefig("output/test_fractional_contribution2", dpi=1200, bbox_inches='tight')
     #plt.show()  # To display the plot
+
 
 
 def test_disk_scale_length(method='linear', readfile='true', fractional_contribution=fractional_contribution_default, sigma_arm=sigma_arm_default):
@@ -636,497 +642,6 @@ def test_transverse_scale_length(method='linear', readfile='true', fractional_co
     plt.savefig('output/transverse_scale_length', dpi=1200)
     plt.show()
 
-def test_rho_theta_func():
-    # generate the set of coordinates
-    dr = 0.1   # increments in dr (kpc):
-    dl = 1   # increments in dl (degrees):
-    db = 0.01   # increments in db (degrees):
-    # latitude range, integrate from -3.5 to 3.5 degrees, converted to radians
-    latitude_range = np.radians(3.5)
-    latitudes = np.arange(-latitude_range, latitude_range, db)
-    # np.array with values for galactic longitude l in radians.
-    l1 = np.arange(180, 0, -dl)
-    l2 = np.arange(360, 179, -dl)
-    longitudes = np.radians(np.concatenate((l1, l2)))
-    print(longitudes)
-    radiis = (0, 0.1, 0.5, 1)
-    rhos_0 = rho_func(longitudes, 0, 0)
-    thetas_0 = theta_func(longitudes, 0, 0)
-    x_0 = rhos_0 * np.cos(thetas_0)
-    y_0 = rhos_0 * np.sin(thetas_0)
-    
-    rhos_0_1 = rho_func(longitudes, 0, 0.1)
-    thetas_0_1 = theta_func(longitudes, 0, 0.1)
-    x_0_1 = rhos_0_1 * np.cos(thetas_0_1)
-    y_0_1 = rhos_0_1 * np.sin(thetas_0_1)
-    
-    rhos_0_5 = rho_func(longitudes, 0, 0.5)
-    thetas_0_5 = theta_func(longitudes, 0, 0.5)
-    x_0_5 = rhos_0_5 * np.cos(thetas_0_5)
-    y_0_5 = rhos_0_5 * np.sin(thetas_0_5)
-    
-    rhos_1 = rho_func(longitudes, 0, 1)
-    thetas_1 = theta_func(longitudes, 0, 1)
-    x_1 = rhos_1 * np.cos(thetas_1)
-    y_1 = rhos_1 * np.sin(thetas_1)
-    
-    rhos_2 = rho_func(longitudes, 0, 2)
-    thetas_2 = theta_func(longitudes, 0, 2)
-    x_2 = rhos_2 * np.cos(thetas_2)
-    y_2 = rhos_2 * np.sin(thetas_2)
-    
-    plt.scatter(x_0, y_0, cmap='viridis', c=range(len(y_0)), label="0")
-    plt.scatter(x_0_1, y_0_1, cmap='viridis', c=range(len(y_0_1)), label="0.1")
-    plt.scatter(x_0_5, y_0_5, cmap='viridis', c=range(len(y_0_5)), label="0.5")
-    plt.scatter(x_1, y_1, cmap='viridis', c=range(len(y_1)), label="1")
-    plt.scatter(x_2, y_2, cmap='viridis', c=range(len(y_2)), label="2")
-    plt.gca().set_aspect('equal')
-    plt.show()
-    plt.legend()
-    plt.show()
-
-
-def test_interpolation_griddata_cubic(h=h_default, sigma_arm=sigma_arm_default):
-    # generate the set of coordinates
-    dr = 0.1   # increments in dr (kpc):
-    dl = 0.1   # increments in dl (degrees):
-    db = 0.01   # increments in db (degrees):
-    # latitude range, integrate from -3.5 to 3.5 degrees, converted to radians
-    latitude_range = np.radians(3.5)
-    latitudes = np.arange(-latitude_range, latitude_range, db)
-    # np.array with values for galactic longitude l in radians.
-    l1 = np.arange(180, 0, -dl)
-    l2 = np.arange(360, 179, -dl)
-    longitudes = np.radians(np.concatenate((l1, l2)))
-    # np.array with values for distance from the Sun to the star/ a point in the Galaxy
-    radial_distances = np.arange(0, r_s + rho_max + 5, dr) #r_s + rho_max + 5 is the maximum distance from the Sun to the outer edge of the Galaxy. +5 is due to the circular projection at the end points of the spiral arms
-    # Create a meshgrid of all combinations
-    lon_grid, lat_grid, radial_grid = np.meshgrid(longitudes, latitudes, radial_distances, indexing='ij')
-    # Combine the grids into a 2-D array
-    coordinates = np.column_stack((lon_grid.ravel(), lat_grid.ravel(), radial_grid.ravel()))     # Now 'coordinates' is a 2-D array with all combinations of (longitude, latitude, radial_distance)
-    rho_coords_galaxy = rho_func(coordinates[:, 0], coordinates[:, 1], coordinates[:, 2])
-    theta_coords_galaxy = theta_func(coordinates[:, 0], coordinates[:, 1], coordinates[:, 2])
-    x_grid = rho_coords_galaxy * np.cos(theta_coords_galaxy)
-    y_grid = rho_coords_galaxy * np.sin(theta_coords_galaxy)
-    z_grid = coordinates[:, 2] * np.sin(coordinates[:, 1])
-    # make sample data
-    d_theta = 0.01
-    d_rho = 0.01
-    rho = np.arange(0, 20, d_rho)
-    theta = np.arange(0, 2*np.pi, d_theta)
-    rho, theta = np.meshgrid(rho, theta, indexing='ij')
-    coords = np.column_stack((rho.ravel(), theta.ravel()))  
-    rho = coords[:, 0]
-    theta = coords[:, 1]
-    values = np.exp(-rho/h)
-    x = rho*np.cos(theta)
-    y = rho*np.sin(theta)
-    # interpolate data
-    interpolated_densities = griddata((x, y), values, (x_grid, y_grid), method='cubic', fill_value=0)
-    ###
-    #interpolated_densities = griddata((rho, theta), values, (rho_coords_galaxy, theta_coords_galaxy), method='linear', fill_value=0)
-    ###
-    """ plt.scatter(x, y, c=values, cmap='viridis', s=20, label="original data")
-    plt.gca().set_aspect('equal')
-    plt.legend()
-    plt.savefig('output/test_interpolation_griddata12_original', dpi=1200) """
-    plt.scatter(x_grid, y_grid, c=interpolated_densities.flatten(), cmap='viridis', s=1, label="interpolated data")
-    plt.gca().set_aspect('equal')
-    plt.legend()
-    plt.savefig('output/test_interpolation_griddata_cubic', dpi=1200)
-
-
-def test_interpolation_griddata_spherical_linear(h=h_default, sigma_arm=sigma_arm_default):
-    # generate the set of coordinates
-    dr = 0.1   # increments in dr (kpc):
-    dl = 0.1   # increments in dl (degrees):
-    db = 0.01   # increments in db (degrees):
-    # latitude range, integrate from -3.5 to 3.5 degrees, converted to radians
-    latitude_range = np.radians(3.5)
-    latitudes = np.arange(-latitude_range, latitude_range, db)
-    # np.array with values for galactic longitude l in radians.
-    l1 = np.arange(180, 0, -dl)
-    l2 = np.arange(360, 179, -dl)
-    longitudes = np.radians(np.concatenate((l1, l2)))
-    # np.array with values for distance from the Sun to the star/ a point in the Galaxy
-    radial_distances = np.arange(0, r_s + rho_max + 5, dr) #r_s + rho_max + 5 is the maximum distance from the Sun to the outer edge of the Galaxy. +5 is due to the circular projection at the end points of the spiral arms
-    # Create a meshgrid of all combinations
-    lon_grid, lat_grid, radial_grid = np.meshgrid(longitudes, latitudes, radial_distances, indexing='ij')
-    # Combine the grids into a 2-D array
-    coordinates = np.column_stack((lon_grid.ravel(), lat_grid.ravel(), radial_grid.ravel()))     # Now 'coordinates' is a 2-D array with all combinations of (longitude, latitude, radial_distance)
-    rho_coords_galaxy = rho_func(coordinates[:, 0], coordinates[:, 1], coordinates[:, 2])
-    theta_coords_galaxy = theta_func(coordinates[:, 0], coordinates[:, 1], coordinates[:, 2])
-    x_grid = rho_coords_galaxy * np.cos(theta_coords_galaxy)
-    y_grid = rho_coords_galaxy * np.sin(theta_coords_galaxy)
-    z_grid = coordinates[:, 2] * np.sin(coordinates[:, 1])
-    # make sample data
-    d_theta = 0.01
-    d_rho = 0.01
-    rho = np.arange(0, 20, d_rho)
-    theta = np.arange(0, 2*np.pi, d_theta)
-    rho, theta = np.meshgrid(rho, theta, indexing='ij')
-    coords = np.column_stack((rho.ravel(), theta.ravel()))  
-    rho = coords[:, 0]
-    theta = coords[:, 1]
-    values = np.exp(-rho/h)
-    x = rho*np.cos(theta)
-    y = rho*np.sin(theta)
-    # interpolate data
-    ###
-    interpolated_densities = griddata((rho, theta), values, (rho_coords_galaxy, theta_coords_galaxy), method='linear', fill_value=0)
-    ###
-    plt.scatter(x_grid, y_grid, c=interpolated_densities.flatten(), cmap='viridis', s=1, label="interpolated data")
-    plt.gca().set_aspect('equal')
-    plt.legend()
-    plt.savefig('output/test_interpolation_spherical_linear', dpi=1200)
-    
-
-def test_interpolation_griddata_spherical_cubic(h=h_default, sigma_arm=sigma_arm_default):
-    # generate the set of coordinates
-    dr = 0.1   # increments in dr (kpc):
-    dl = 0.1   # increments in dl (degrees):
-    db = 0.01   # increments in db (degrees):
-    # latitude range, integrate from -3.5 to 3.5 degrees, converted to radians
-    latitude_range = np.radians(3.5)
-    latitudes = np.arange(-latitude_range, latitude_range, db)
-    # np.array with values for galactic longitude l in radians.
-    l1 = np.arange(180, 0, -dl)
-    l2 = np.arange(360, 179, -dl)
-    longitudes = np.radians(np.concatenate((l1, l2)))
-    # np.array with values for distance from the Sun to the star/ a point in the Galaxy
-    radial_distances = np.arange(0, r_s + rho_max + 5, dr) #r_s + rho_max + 5 is the maximum distance from the Sun to the outer edge of the Galaxy. +5 is due to the circular projection at the end points of the spiral arms
-    # Create a meshgrid of all combinations
-    lon_grid, lat_grid, radial_grid = np.meshgrid(longitudes, latitudes, radial_distances, indexing='ij')
-    # Combine the grids into a 2-D array
-    coordinates = np.column_stack((lon_grid.ravel(), lat_grid.ravel(), radial_grid.ravel()))     # Now 'coordinates' is a 2-D array with all combinations of (longitude, latitude, radial_distance)
-    rho_coords_galaxy = rho_func(coordinates[:, 0], coordinates[:, 1], coordinates[:, 2])
-    theta_coords_galaxy = theta_func(coordinates[:, 0], coordinates[:, 1], coordinates[:, 2])
-    x_grid = rho_coords_galaxy * np.cos(theta_coords_galaxy)
-    y_grid = rho_coords_galaxy * np.sin(theta_coords_galaxy)
-    z_grid = coordinates[:, 2] * np.sin(coordinates[:, 1])
-    # make sample data
-    d_theta = 0.01
-    d_rho = 0.01
-    rho = np.arange(0, 20, d_rho)
-    theta = np.arange(0, 2*np.pi, d_theta)
-    rho, theta = np.meshgrid(rho, theta, indexing='ij')
-    coords = np.column_stack((rho.ravel(), theta.ravel()))  
-    rho = coords[:, 0]
-    theta = coords[:, 1]
-    values = np.exp(-rho/h)
-    x = rho*np.cos(theta)
-    y = rho*np.sin(theta)
-    # interpolate data
-    ###
-    interpolated_densities = griddata((rho, theta), values, (rho_coords_galaxy, theta_coords_galaxy), method='cubic', fill_value=0)
-    ###
-    plt.scatter(x_grid, y_grid, c=interpolated_densities.flatten(), cmap='viridis', s=1, label="interpolated data")
-    plt.gca().set_aspect('equal')
-    plt.legend()
-    plt.savefig('output/test_interpolation_spherical_cubic', dpi=1200)
-
-
-def test_interpolation_CloughTocher2DInterpolator(h=h_default, sigma_arm=sigma_arm_default):
-    # generate the set of coordinates
-    dr = 0.1   # increments in dr (kpc):
-    dl = 0.1   # increments in dl (degrees):
-    db = 0.01   # increments in db (degrees):
-    # latitude range, integrate from -3.5 to 3.5 degrees, converted to radians
-    latitude_range = np.radians(3.5)
-    latitudes = np.arange(-latitude_range, latitude_range, db)
-    # np.array with values for galactic longitude l in radians.
-    l1 = np.arange(180, 0, -dl)
-    l2 = np.arange(360, 179, -dl)
-    longitudes = np.radians(np.concatenate((l1, l2)))
-    # np.array with values for distance from the Sun to the star/ a point in the Galaxy
-    radial_distances = np.arange(0, r_s + rho_max + 5, dr) #r_s + rho_max + 5 is the maximum distance from the Sun to the outer edge of the Galaxy. +5 is due to the circular projection at the end points of the spiral arms
-    # Create a meshgrid of all combinations
-    lon_grid, lat_grid, radial_grid = np.meshgrid(longitudes, latitudes, radial_distances, indexing='ij')
-    # Combine the grids into a 2-D array
-    coordinates = np.column_stack((lon_grid.ravel(), lat_grid.ravel(), radial_grid.ravel()))     # Now 'coordinates' is a 2-D array with all combinations of (longitude, latitude, radial_distance)
-    rho_coords_galaxy = rho_func(coordinates[:, 0], coordinates[:, 1], coordinates[:, 2])
-    theta_coords_galaxy = theta_func(coordinates[:, 0], coordinates[:, 1], coordinates[:, 2])
-    x_grid = rho_coords_galaxy * np.cos(theta_coords_galaxy)
-    y_grid = rho_coords_galaxy * np.sin(theta_coords_galaxy)
-    z_grid = coordinates[:, 2] * np.sin(coordinates[:, 1])
-    # make sample data
-    d_theta = 0.01
-    d_rho = 0.01
-    rho = np.arange(0, 20, d_rho)
-    theta = np.arange(0, 2*np.pi, d_theta)
-    rho, theta = np.meshgrid(rho, theta, indexing='ij')
-    coords = np.column_stack((rho.ravel(), theta.ravel()))  
-    rho = coords[:, 0]
-    theta = coords[:, 1]
-    values = np.exp(-rho/h)
-    x = rho*np.cos(theta)
-    y = rho*np.sin(theta)
-    # interpolate data
-    #interpolated_densities = griddata((x, y), values, (x_grid, y_grid), fill_value=0)
-    interp = CloughTocher2DInterpolator(list(zip(x, y)), values)
-    interpolated_densities = interp(x_grid, y_grid)
-    plt.scatter(x_grid, y_grid, c=interpolated_densities, cmap='viridis', s=1, label="interpolated data")
-    plt.gca().set_aspect('equal')
-    plt.legend()
-    plt.savefig('output/test_interpolation_CloughTocher2DInterpolator', dpi=1200)
-
-
-def test_interpolation_LinearNDInterpolator(h=h_default, sigma_arm=sigma_arm_default):
-    # generate the set of coordinates
-    dr = 0.1   # increments in dr (kpc):
-    dl = 0.1   # increments in dl (degrees):
-    db = 0.01   # increments in db (degrees):
-    # latitude range, integrate from -3.5 to 3.5 degrees, converted to radians
-    latitude_range = np.radians(3.5)
-    latitudes = np.arange(-latitude_range, latitude_range, db)
-    # np.array with values for galactic longitude l in radians.
-    l1 = np.arange(180, 0, -dl)
-    l2 = np.arange(360, 179, -dl)
-    longitudes = np.radians(np.concatenate((l1, l2)))
-    # np.array with values for distance from the Sun to the star/ a point in the Galaxy
-    radial_distances = np.arange(0, r_s + rho_max + 5, dr) #r_s + rho_max + 5 is the maximum distance from the Sun to the outer edge of the Galaxy. +5 is due to the circular projection at the end points of the spiral arms
-    # Create a meshgrid of all combinations
-    lon_grid, lat_grid, radial_grid = np.meshgrid(longitudes, latitudes, radial_distances, indexing='ij')
-    # Combine the grids into a 2-D array
-    coordinates = np.column_stack((lon_grid.ravel(), lat_grid.ravel(), radial_grid.ravel()))     # Now 'coordinates' is a 2-D array with all combinations of (longitude, latitude, radial_distance)
-    rho_coords_galaxy = rho_func(coordinates[:, 0], coordinates[:, 1], coordinates[:, 2])
-    theta_coords_galaxy = theta_func(coordinates[:, 0], coordinates[:, 1], coordinates[:, 2])
-    x_grid = rho_coords_galaxy * np.cos(theta_coords_galaxy)
-    y_grid = rho_coords_galaxy * np.sin(theta_coords_galaxy)
-    z_grid = coordinates[:, 2] * np.sin(coordinates[:, 1])
-    # make sample data
-    d_theta = 0.01
-    d_rho = 0.01
-    rho = np.arange(0, 20, d_rho)
-    theta = np.arange(0, 2*np.pi, d_theta)
-    rho, theta = np.meshgrid(rho, theta, indexing='ij')
-    coords = np.column_stack((rho.ravel(), theta.ravel()))  
-    rho = coords[:, 0]
-    theta = coords[:, 1]
-    values = np.exp(-rho/h)
-    x = rho*np.cos(theta)
-    y = rho*np.sin(theta)
-    # interpolate data
-    #interpolated_densities = griddata((x, y), values, (x_grid, y_grid), fill_value=0)
-    interp = LinearNDInterpolator(list(zip(x, y)), values)
-    interpolated_densities = interp(x_grid, y_grid)
-    plt.scatter(x_grid, y_grid, c=interpolated_densities, cmap='viridis', s=1, label="interpolated data")
-    plt.gca().set_aspect('equal')
-    plt.legend()
-    plt.savefig('output/test_interpolation_LinearNDInterpolator', dpi=1200)
-
-
-def test_long_lat_rad_coords_generation():
-    # generate the set of coordinates
-    dr = 0.1   # increments in dr (kpc):
-    dl = 0.5   # increments in dl (degrees):
-    db = 0.1   # increments in db (degrees):
-    # latitude range, integrate from -3.5 to 3.5 degrees, converted to radians
-    latitude_range = np.radians(3.5)
-    latitudes = np.arange(-latitude_range, latitude_range, db)
-    # np.array with values for galactic longitude l in radians.
-    l1 = np.arange(180, 0, -dl)
-    l2 = np.arange(360, 179, -dl)
-    longitudes = np.radians(np.concatenate((l1, l2)))
-    # np.array with values for distance from the Sun to the star/ a point in the Galaxy
-    radial_distances = np.arange(0, r_s, dr) #r_s + rho_max + 5 is the maximum distance from the Sun to the outer edge of the Galaxy. +5 is due to the circular projection at the end points of the spiral arms
-    # Create a meshgrid of all combinations
-    lon_grid, lat_grid, radial_grid = np.meshgrid(longitudes, latitudes, radial_distances, indexing='ij')
-    # Combine the grids into a 2-D array
-    coordinates = np.column_stack((lon_grid.ravel(), lat_grid.ravel(), radial_grid.ravel()))     # Now 'coordinates' is a 2-D array with all combinations of (longitude, latitude, radial_distance)
-    rho_coords_galaxy = rho_func(coordinates[:, 0], coordinates[:, 1], coordinates[:, 2])
-    theta_coords_galaxy = theta_func(coordinates[:, 0], coordinates[:, 1], coordinates[:, 2])
-    x_grid = rho_coords_galaxy * np.cos(theta_coords_galaxy)
-    y_grid = rho_coords_galaxy * np.sin(theta_coords_galaxy)
-    z_grid = coordinates[:, 2] * np.sin(coordinates[:, 1])
-    # Now I want to plot the x_grid and y_grid to see if they are correct
-    # Use a colormap for the points. The plotted points will be colored according to the value of the array index
-    # If the plotted points are correct, then the gradient shall go from theta=180 to theta=360 in the direction of the clockwise rotation
-    # And alway go from the centre and outwards
-    plt.scatter(x_grid, y_grid, c=range(len(x_grid)), cmap='viridis', s=1)
-    plt.gca().set_aspect('equal')
-    plt.savefig('output/test_long_lat_rad_coords_generation_r_s_2.png', dpi=1200)
-    plt.show()
-
-
-def test_invdisttree(fractional_contribution=fractional_contribution_default, method='linear', readfile = "true", h=h_default, sigma_arm=sigma_arm_default):
-    
-    N = 10000
-    Ndim = 2
-    Nask = N  # N Nask 1e5: 24 sec 2d, 27 sec 3d on mac g4 ppc
-    Nnear = 8  # 8 2d, 11 3d => 5 % chance one-sided -- Wendel, mathoverflow.com
-    leafsize = 10
-    eps = .1  # approximate nearest, dist <= (1 + eps) * true nearest
-    p = 1  # weights ~ 1 / distance**p
-    
-    # generate the set of coordinates
-    dr = 0.1   # increments in dr (kpc):
-    dl = 0.1   # increments in dl (degrees):
-    db = 0.01   # increments in db (degrees):
-    # latitude range, integrate from -3.5 to 3.5 degrees, converted to radians
-    latitude_range = np.radians(3.5)
-    latitudes = np.arange(-latitude_range, latitude_range, db)
-    # np.array with values for galactic longitude l in radians.
-    l1 = np.arange(180, 0, -dl)
-    l2 = np.arange(360, 179, -dl)
-    longitudes = np.radians(np.concatenate((l1, l2)))
-    # np.array with values for distance from the Sun to the star/ a point in the Galaxy
-    radial_distances = np.arange(0, r_s + rho_max + 5, dr) #r_s + rho_max + 5 is the maximum distance from the Sun to the outer edge of the Galaxy. +5 is due to the circular projection at the end points of the spiral arms
-    # Create a meshgrid of all combinations
-    lon_grid, lat_grid, radial_grid = np.meshgrid(longitudes, latitudes, radial_distances, indexing='ij')
-    # Combine the grids into a 2-D array
-    coordinates = np.column_stack((lon_grid.ravel(), lat_grid.ravel(), radial_grid.ravel()))     # Now 'coordinates' is a 2-D array with all combinations of (longitude, latitude, radial_distance)
-    rho_coords_galaxy = rho_func(coordinates[:, 0], coordinates[:, 1], coordinates[:, 2])
-    theta_coords_galaxy = theta_func(coordinates[:, 0], coordinates[:, 1], coordinates[:, 2])
-    x_grid = rho_coords_galaxy * np.cos(theta_coords_galaxy)
-    y_grid = rho_coords_galaxy * np.sin(theta_coords_galaxy)
-    z_grid = coordinates[:, 2] * np.sin(coordinates[:, 1])
-    # coordinates made. Now we need to calculate the density for each point
-    height_distribution_values = height_distribution(z_grid)
-    latitudinal_cosinus = np.cos(coordinates[:, 1])
-    densities_as_func_of_long = np.zeros((len(pitch_angles), len(longitudes)))
-    
-    transverse_distances, transverse_densities_initial = generate_non_uniform_spacing(sigma_arm) #d_min: minimum distance from the spiral arm
-    interpolated_densities = []
-    for i in range(len(arm_angles)):
-        print("arm number: ", i)
-        # generate the spiral arm medians
-        theta, rho = spiral_arm_medians(arm_angles[i], pitch_angles[i])
-        # generate the spiral arm points in spherical coordinates
-        rho_coords, theta_coords = generate_spiral_arm_points_spherical_coords(rho, theta, pitch_angles[i], transverse_distances)
-        # generate the spiral arm densities
-        density_spiral_arm = generate_spiral_arm_densities(rho, transverse_densities_initial, h)
-        # Convert to Cartesian coordinates
-        x = rho_coords*np.cos(theta_coords)
-        y = rho_coords*np.sin(theta_coords)
-        # calculate interpolated density for the spiral arm
-        #interpolated_densities.append(griddata((x, y), density_spiral_arm, (grid_x, grid_y), method=method, fill_value=0))
-        invdisttree = Invdisttree( np.array([x,y]).T, density_spiral_arm, leafsize=leafsize, stat=1 )
-        interpol = invdisttree( np.array([x_grid, y_grid]).T, nnear=Nnear, eps=eps, p=p )
-        interpolated_densities.append(interpol)
-    #interpolated_densities = interpolate_density(x_grid, y_grid, method, h, sigma_arm)
-    common_multiplication_factor = height_distribution_values * db * dl * latitudinal_cosinus/ (4 * np.pi * np.radians(1) * 10e4)
-    ##############################################################################################################
-    total_galactic_density = np.sum(interpolated_densities, axis=0)
-    #plot heatmap of the interpolated densities:
-    print("plotting...")
-    plt.scatter(x_grid, y_grid, c=range(len(x_grid)), cmap='viridis', s=1)
-    plt.show()
-    plt.scatter(x_grid, y_grid, c=total_galactic_density.flatten(), cmap='viridis', s=20)
-    #plt.scatter(0, 0, c = 'magenta', s=2, label='Galactic centre')
-    #plt.scatter(0, r_s, c = 'gold', s=2, label='Sun')
-    plt.gca().set_aspect('equal')
-    plt.xlabel('Distance in kpc from the Galactic center')
-    plt.ylabel('Distance in kpc from the Galactic center')
-    plt.title('Heatmap of the interpolated densities of spiral arms in our model')
-    plt.legend(loc='upper right')
-    cbar = plt.colorbar()
-    cbar.set_label('Density')
-    plt.savefig("output/fakdifak_invdisttree.png", dpi=600)
-    
-
-def test_spherical_interpolation(fractional_contribution=fractional_contribution_default, method='linear', readfile="true", h=h_default, sigma_arm=sigma_arm_default):
-    print("Calculating modelled emissivity")
-    if readfile == "true":
-        effective_area = np.loadtxt("output/effective_area_per_spiral_arm.txt")
-    else:
-        effective_area = calc_effective_area_per_spiral_arm(method)
-    # generate the set of coordinates
-    dr = 0.01
-    dl = 0.2 # should increase this
-    db = 0.2 # and decrease this
-    #latitudes = np.radians(np.arange(-3.5, 3.5, db)) #18
-    latitude_range = np.radians(3.5)
-    latitudes = np.arange(-latitude_range, latitude_range, db) #running test number 19 together with old latitudes to get fewer points here
-    print("latidues shape: ", latitudes.shape)
-
-    l1 = np.arange(180, 0, -dl)
-    l2 = np.arange(360 -dl, 180, -dl)
-    longitudes = np.radians(np.concatenate((l1, l2)))
-    print("longitudes shape: ", longitudes.shape)
-    
-    radial_distances = np.arange(0, r_s + rho_max + 5, dr) #np.arange(0, 35, drho)
-    print("radial_distances shape", radial_distances.shape)
-    ################ 15
-    radial_grid, lon_grid, lat_grid = np.meshgrid(radial_distances, longitudes, latitudes, indexing='ij')
-    print("Meshed done")
-    coordinates = np.column_stack((radial_grid.ravel(), lon_grid.ravel(), lat_grid.ravel()))
-    print("Column stacked shape: ", coordinates.shape)
-
-    print("calculating rho_gal")
-    rho_gal = rho_func(coordinates[:, 1], coordinates[:, 2], coordinates[:, 0])
-    print("calculating theta_gal")
-    theta_gal = theta_func(coordinates[:, 1], coordinates[:, 2], coordinates[:, 0]) 
-    
-    print("Calculating x_grid and y_grid")
-    x_grid = rho_gal * np.cos(theta_gal)
-    y_grid = rho_gal * np.sin(theta_gal)
-    z_grid = coordinates[:, 0] * np.sin(coordinates[:, 2]) #9
-    print(x_grid.shape, y_grid.shape, z_grid.shape)
-    # coordinates made. Now we need to calculate the density for each point
-    height_distribution_values = height_distribution(z_grid)
-    latitudinal_cosinus = np.cos(coordinates[:, 2])
-    densities_as_func_of_long = np.zeros((len(pitch_angles), len(longitudes)))
-    interpolated_densities = interpolate_density(x_grid, y_grid, method, h, sigma_arm)
-    common_multiplication_factor = height_distribution_values * db * dl * latitudinal_cosinus/ (4 * np.pi * np.radians(1) * 10e4)
-    ##############################################################################################################
-    total_galactic_density = np.sum(interpolated_densities, axis=0)
-    #plot heatmap of the interpolated densities:
-    print("plotting...")
-    """ plt.scatter(x_grid, y_grid, c=range(len(x_grid)), cmap='viridis', s=1)
-    plt.show() """
-    ##############################################################################################################
-    plt.scatter(x_grid, y_grid, c=total_galactic_density, cmap='viridis', s=1)
-    #plt.scatter(0, 0, c = 'magenta', s=2, label='Galactic centre')
-    #plt.scatter(0, r_s, c = 'gold', s=2, label='Sun')
-    plt.gca().set_aspect('equal')
-    plt.xlabel('Distance in kpc from the Galactic center')
-    plt.ylabel('Distance in kpc from the Galactic center')
-    plt.title('Heatmap of the interpolated densities of spiral arms in our model')
-    plt.legend(loc='upper right')
-    cbar = plt.colorbar()
-    cbar.set_label('Density')
-    plt.savefig('output/test_spherical_interpolation_earth30.png', dpi=1200)
-    ####################
-    
-    ##############################################################################################################
-    for i in range(len(arm_angles)):
-        print("Calculating spiral arm number: ", i+1)
-        interpolated_density_arm = interpolated_densities[i] * fractional_contribution[i] * effective_area[i] * common_multiplication_factor
-        # reshape this 1D array into 2D array to facilitate for the summation over the different longitudes
-        interpolated_density_arm = interpolated_density_arm.reshape((len(longitudes), len(radial_distances) * len(latitudes)))
-        # sum up to get the density as a function of longitude
-        density_distribution = interpolated_density_arm.sum(axis=1) # sum up all the values for the different longitudes
-        densities_as_func_of_long[i] += density_distribution
-    return longitudes, densities_as_func_of_long #* np.radians(5)) # devide by delta-b and delta-l in radians, respectively, for the averaging the paper mentions
-    """ print(x_grid.shape, y_grid.shape, z_grid.shape)
-    height_distribution_values = height_distribution(z_grid) #10
-    latitudinal_cosinus = np.cos(coordinates[:, 2]) #11 #19: changed from coordinates[:, 1] to coordinates[:, 2]
-    densities_as_func_of_long = np.zeros((len(pitch_angles), len(longitudes))) #12
-    interpolated_density = interpolate_density(x_grid, y_grid, method, h, sigma_arm)
-    common_multiplication_factor = height_distribution_values * db * dl * latitudinal_cosinus/ (4 * np.pi * np.radians(1) * 10e4) #13
-    total_galactic_density = np.sum(interpolated_density, axis=0)
-    print(total_galactic_density.shape, total_galactic_density.flatten().shape)
-    plt.scatter(x_grid, y_grid, c=total_galactic_density, cmap='viridis', s=1) ################ubdcwhiqefwnqvbliehasdvsnøeFI
-    plt.gca().set_aspect('equal')
-    plt.xlabel('Distance in kpc from the Galactic center')
-    plt.ylabel('Distance in kpc from the Galactic center')
-    plt.title('Heatmap of the interpolated densities of spiral arms in our model')
-    plt.legend(loc='upper right')
-    cbar = plt.colorbar()
-    cbar.set_label('Density')
-    plt.savefig('output/test_spherical_interpolation_earth28.png', dpi=1200)
-    ############################################################################################################## 21
-    for i in range(len(arm_angles)):
-        print("Calculating spiral arm number: ", i+1)
-        interpolated_density_arm = interpolated_density[i] * fractional_contribution[i] * effective_area[i] * common_multiplication_factor
-        # reshape this 1D array into 2D array to facilitate for the summation over the different longitudes
-        interpolated_density_arm = interpolated_density_arm.reshape((len(longitudes), len(radial_distances) * len(latitudes)))
-        # sum up to get the density as a function of longitude
-        density_distribution = interpolated_density_arm.sum(axis=1) # sum up all the values for the different longitudes
-        densities_as_func_of_long[i] += density_distribution
-    return longitudes, densities_as_func_of_long #* np.radians(5)) # devide by delta-b and delta-l in radians, respectively, for the averaging the paper mentions """
-
 
 #plot_interpolated_galactic_densities()
 #plot_spiral_arms()
@@ -1156,6 +671,7 @@ print("test_interpolation_LinearNDInterpolator")
 test_interpolation_LinearNDInterpolator() """
 #test_invdisttree()
 #test_spherical_interpolation(fractional_contribution, 'cubic', 'true')
-calc_modelled_emissivity(fractional_contribution, 'cubic', 'true')
+#calc_modelled_emissivity(fractional_contribution, 'cubic', 'true')
 
 # plot number 18: 220M points. Plot number 17: 25M points. 
+test_fractional_contribution()
