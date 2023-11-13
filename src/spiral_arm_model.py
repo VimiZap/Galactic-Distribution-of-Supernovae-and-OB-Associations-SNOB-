@@ -18,7 +18,7 @@ rho_min = 2.9           # kpc, minimum distance from galactic center to the begi
 rho_max = 35            # kpc, maximum distance from galactic center to the end of the spiral arms.
 sigma = 0.15            # kpc, scale height of the disk
 sigma_arm_default = 0.5         # kpc, dispersion of the spiral arms
-total_galactic_n_luminosity = 1.4e40       #total galactic N 2 luminosity in erg/s
+total_galactic_n_luminosity = 1.4e40  / (np.pi/2)     #total galactic N 2 luminosity in erg/s
 measured_nii = 1.175e-4 # erg/s/cm^2/sr, measured N II 205 micron line intensity. Estimated from the graph in the paper
 kpc = 3.08567758e21    # 1 kpc in cm
 # kpc^2, source-weighted Galactic-disk area. See https://iopscience.iop.org/article/10.1086/303587/pdf, equation 37
@@ -506,7 +506,7 @@ def calc_modelled_emissivity(fractional_contribution=fractional_contribution_def
     latitudinal_cosinus = np.cos(coordinates[:, 2])
     densities_as_func_of_long = np.zeros((len(pitch_angles), len(longitudes)))
     interpolated_densities = interpolate_density(x_grid, y_grid, gum_cygnus, method, h, sigma_arm)
-    common_multiplication_factor = total_galactic_n_luminosity * height_distribution_values * db * dr * latitudinal_cosinus/ (4 * np.pi * np.radians(7) * np.pi/2) #np.radians(1) may have to be removed
+    common_multiplication_factor = total_galactic_n_luminosity * height_distribution_values * db * dr * latitudinal_cosinus/ (4 * np.pi * np.radians(7)) #np.radians(1) may have to be removed
     for i in range(len(arm_angles)):
         print("Calculating spiral arm number: ", i+1)
         interpolated_density_arm = common_multiplication_factor * interpolated_densities[i] * fractional_contribution[i] / (effective_area[i] * kpc**2)
@@ -546,6 +546,7 @@ def plot_modelled_emissivity_per_arm(fractional_contribution, gum_cygnus='False'
     plt.title("Modelled emissivity of the Galactic disk")
     # Add parameter values as text labels
     plt.text(0.02, 0.95, fr'$H_\rho$ = {h} kpc & $\sigma_A$ = {sigma_arm} kpc', transform=plt.gca().transAxes, fontsize=8, color='black')
+    plt.text(0.02, 0.9, fr'NII Luminosity = {total_galactic_n_luminosity:.2e} erg/s', transform=plt.gca().transAxes, fontsize=8, color='black')
     plt.legend()
     plt.savefig(filename, dpi=1200)
     plt.show()

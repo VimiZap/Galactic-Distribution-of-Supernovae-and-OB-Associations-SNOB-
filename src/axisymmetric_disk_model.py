@@ -17,6 +17,23 @@ print("a_d = ", a_d)
 kpc = 3.08567758e21    # 1 kpc in cm
 #a_d = a_d * kpc**2     # convert a_d to cm^2
 
+
+def running_average(data, window_size):
+   array_running_averaged = []
+   delta = int((window_size)//2)
+   print("running average: ", window_size, delta)
+   for i in range(len(data)):
+      if i-delta < 0:
+         val = np.sum(data[-delta + i:]) + np.sum(data[:delta + i + 1])
+         array_running_averaged.append(val)
+      elif i+delta >= len(data):
+         val = np.sum(data[i-delta:]) + np.sum(data[:delta + i - len(data) + 1])
+         array_running_averaged.append(val)
+      else:
+         array_running_averaged.append(np.sum(data[i-delta:i+delta + 1]))
+   return np.array(array_running_averaged)
+
+
 def axisymmetric_disk_model(rho): 
     """
     Args:
@@ -85,7 +102,7 @@ def integral_axisymmetric():
 
     # latitude range, integrate from -3.5 to 3.5 degrees, converted to radians
     #latidue_range = np.radians(3.5)
-    latitudes = np.radians(np.arange(-90, 90 + db, db)) # the +db is to include the last value in the range
+    latitudes = np.radians(np.arange(-0.5, 0.5 + db, db)) # the +db is to include the last value in the range
 
     # np.array with values for galactic longitude l in radians.
     l1 = np.arange(180, 0, -dl)
@@ -110,15 +127,17 @@ def integral_axisymmetric():
         #print(r, l, b, value*db)
         integral.append(value) # multiply by db to get the integral over the latitude
     # when done with integrating over r and b, return the value as we are not integrating over l
-    integral = np.array(integral)  #np.radians(1) #(len(latitudes) * (np.radians(1))) #* np.radians(5)) # devide by delta-b and delta-l in radians, respectively, for the averaging the paper mentions
+    integral = np.array(integral) / np.radians(1)  #np.radians(1) #(len(latitudes) * (np.radians(1))) #* np.radians(5)) # devide by delta-b and delta-l in radians, respectively, for the averaging the paper mentions
     print("len latitudes: ", len(latitudes))
+    """ window_size = 5 / dl # 5 degrees in divided by the increment in degrees for the longitude. This is the window size for the running average, number of points
+    integral = running_average(integral, window_size) / window_size #divide by delta-l in radians for the averaging the paper mentions """
     return longitudes, integral
 
 
 def calc_luminocity():
     dr = 0.01   # increments in dr (kpc):
     dl = 0.1   # increments in dl (degrees):
-    db = 1   # increments in db (degrees):
+    db = 0.1   # increments in db (degrees):
 
     # latitude range, integrate from -3.5 to 3.5 degrees, converted to radians
     latitudes = np.radians(np.arange(-3.5, 3.5, db))
@@ -139,7 +158,7 @@ def calc_luminocity():
                 elif rho(r, l, b) < rho_min:
                     continue # we are inside the Galaxy, but not within the bright H 2 regions, so we can skip this point
                 else:
-                    luminocity += modelled_emissivity_axisymmetric(r, l, b)  * np.cos(b) * r**2 * dr * db * dl
+                    luminocity += modelled_emissivity_axisymmetric(r, l, b)  * np.cos(b) * r**2 * dr * db
     return luminocity
 
 
@@ -165,7 +184,7 @@ def plot_axisymmetric():
     plt.text(0.02, 0.95, fr'$H_\rho$ = {h} kpc & $\sigma_z$ = {sigma} kpc', transform=plt.gca().transAxes, fontsize=8, color='black')
     plt.text(0.02, 0.9, fr'NII Luminosity = {galactic_luminocity:.2e} erg/s', transform=plt.gca().transAxes, fontsize=8, color='black')
     plt.text(0.02, 0.85, fr'{rho_min:.2e}  $\leq \rho \leq$ {rho_max:.2e} kpc', transform=plt.gca().transAxes, fontsize=8, color='black')
-    plt.savefig("output/modelled_emissivity_axisymmetric_new26.png")  # save plot in the output folder
+    plt.savefig("output/modelled_emissivity_axisymmetric_new29.png")  # save plot in the output folder
     #plt.show()
 
 # 15 with db = 0.01, dl = 0.01, dr = 0.01
@@ -179,7 +198,13 @@ def plot_axisymmetric():
 # 23 with db = 0.1, dl = 0.1, dr = 0.01, H_rho = 2.5, latitude integration +- 0.5 degrees, rho_min = 0, rho_max = 3
 # 24 with db = 0.1, dl = 0.1, dr = 0.01, H_rho = 2.5, latitude integration +- 0.5 degrees, rho_min = 3, rho_max = 10, changed from break to continue. Did not make a difference
 # 25 with db = 0.1, dl = 0.1, dr = 0.01, H_rho = 2.5, latitude integration +- 3.5 degrees, rho_min = 3, rho_max = 10
-# 26 with db = 0.1, dl = 0.1, dr = 0.01, H_rho = 2.5, latitude integration +- 90 degrees, rho_min = 3, rho_max = 10
+# 26 with db = 0.5, dl = 0.1, dr = 0.01, H_rho = 2.5, latitude integration +- 3.5 degrees, rho_min = 3, rho_max = 10, do not divide by db, running average
+# 27 with db = 0.5, dl = 0.1, dr = 0.01, H_rho = 2.5, latitude integration +- 3.5 degrees, rho_min = 3, rho_max = 10, do divide by db
+# 28 with db = 0.5, dl = 0.1, dr = 0.01, H_rho = 2.5, latitude integration +- 3.5 degrees, rho_min = 3, rho_max = 10, do divide by db, running average
+# 29 with db = 0.1, dl = 0.1, dr = 0.01, H_rho = 2.5, latitude integration +- 0.5 degrees, rho_min = 3, rho_max = 10, do divide by db, running average
+# 30 with db = 0.1, dl = 0.1, dr = 0.01, H_rho = 2.5, latitude integration +- 0.5 degrees, rho_min = 3, rho_max = 10, do not divide by db, running average
+# 31 with db = 0.1, dl = 0.1, dr = 0.01, H_rho = 2.5, latitude integration +- 0.5 degrees, rho_min = 3, rho_max = 10, do not divide by db, no running average
+# 31 with db = 0.1, dl = 0.1, dr = 0.01, H_rho = 2.5, latitude integration +- 0.5 degrees, rho_min = 3, rho_max = 10, do divide by db, no running average
 
 def plot_galacic_centric_distribution():
     r = np.linspace(rho_min, rho_max, 1000) # kpc, distance from the Galactic center
