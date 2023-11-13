@@ -3,3 +3,5 @@ Using spherical coordinates needs more work if to be used: only upper halv plane
 
 
 Must remember that the effective area must be given in units of cm, not kpc!
+
+calc lum/gram, integrate
