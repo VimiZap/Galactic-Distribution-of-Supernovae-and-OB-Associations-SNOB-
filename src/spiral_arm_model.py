@@ -1,12 +1,7 @@
 import numpy as np
 import matplotlib
-import matplotlib.colors as colors
 import matplotlib.pyplot as plt
 from scipy.interpolate import griddata
-from scipy.interpolate import interpn
-from scipy.interpolate import CloughTocher2DInterpolator
-from scipy.interpolate import LinearNDInterpolator
-from invdisttree import Invdisttree
 import copy
 
 
@@ -18,7 +13,7 @@ rho_min = 2.9           # kpc, minimum distance from galactic center to the begi
 rho_max = 35            # kpc, maximum distance from galactic center to the end of the spiral arms.
 sigma = 0.15            # kpc, scale height of the disk
 sigma_arm_default = 0.5         # kpc, dispersion of the spiral arms
-total_galactic_n_luminosity = 1.4e40  / (np.pi/2)     #total galactic N 2 luminosity in erg/s
+total_galactic_n_luminosity = 1.4e40 # / (np.pi/2)     #total galactic N 2 luminosity in erg/s
 measured_nii = 1.175e-4 # erg/s/cm^2/sr, measured N II 205 micron line intensity. Estimated from the graph in the paper
 kpc = 3.08567758e21    # 1 kpc in cm
 # kpc^2, source-weighted Galactic-disk area. See https://iopscience.iop.org/article/10.1086/303587/pdf, equation 37
@@ -467,7 +462,7 @@ def calc_effective_area_per_spiral_arm(method='linear', h=h_default, sigma_arm=s
     return effective_area
 
 
-def calc_modelled_emissivity(fractional_contribution=fractional_contribution_default, gum_cygnus='False', method='linear', readfile="true", h=h_default, sigma_arm=sigma_arm_default):
+def calc_modelled_emissivity(fractional_contribution=fractional_contribution_default, gum_cygnus='False', skymap = False, method='linear', readfile="true", h=h_default, sigma_arm=sigma_arm_default):
     print("Calculating modelled emissivity")
     if readfile == "true":
         effective_area = np.loadtxt("output/effective_area_per_spiral_arm.txt")
@@ -478,7 +473,6 @@ def calc_modelled_emissivity(fractional_contribution=fractional_contribution_def
     dl = 0.2   # increments in dl (degrees):
     db = 0.5   # increments in db (degrees):
     # latitude range, integrate from -3.5 to 3.5 degrees, converted to radians
-    #latitude_range = np.radians(3.5)
     latitudes = np.radians(np.arange(-3.5, 3.5 + db, db))
     print("latidues shape: ", latitudes.shape)
     # np.array with values for galactic longitude l in radians.
@@ -505,8 +499,10 @@ def calc_modelled_emissivity(fractional_contribution=fractional_contribution_def
     height_distribution_values = height_distribution(z_grid)
     latitudinal_cosinus = np.cos(coordinates[:, 2])
     densities_as_func_of_long = np.zeros((len(pitch_angles), len(longitudes)))
+    if skymap:
+        densities_skymap = np.zeros((len(longitudes) + 1, len(latitudes) + 1))
     interpolated_densities = interpolate_density(x_grid, y_grid, gum_cygnus, method, h, sigma_arm)
-    common_multiplication_factor = total_galactic_n_luminosity * height_distribution_values * db * dr * latitudinal_cosinus/ (4 * np.pi * np.radians(7)) #np.radians(1) may have to be removed
+    common_multiplication_factor = total_galactic_n_luminosity * height_distribution_values * db * dr * latitudinal_cosinus/ (4 * np.pi * np.radians(7)) 
     for i in range(len(arm_angles)):
         print("Calculating spiral arm number: ", i+1)
         interpolated_density_arm = common_multiplication_factor * interpolated_densities[i] * fractional_contribution[i] / (effective_area[i] * kpc**2)
@@ -520,16 +516,23 @@ def calc_modelled_emissivity(fractional_contribution=fractional_contribution_def
         window_size = 5 / dl # 5 degrees in divided by the increment in degrees for the longitude. This is the window size for the running average, number of points
         density_distribution = running_average(density_distribution, window_size) / window_size #divide by delta-l in radians for the averaging the paper mentions
         print("density_distribution.shape", density_distribution.shape)
-
         densities_as_func_of_long[i] += density_distribution
+        if skymap:
+            density_skymap = interpolated_density_arm.sum(axis=0) # sum up all radiis
+            densities_skymap[1:, 1:] += density_skymap
+    if skymap:
+        filepath = "output/long_lat_skymap.txt"
+        densities_skymap[1:, 0] = longitudes
+        densities_skymap[0, 1:] = latitudes
+        np.savetxt(filepath, densities_skymap)
     return longitudes, densities_as_func_of_long #* np.radians(5)) # devide by delta-b and delta-l in radians, respectively, for the averaging the paper mentions
 
 
-def plot_modelled_emissivity_per_arm(fractional_contribution, gum_cygnus='False', method='linear', readfile = "true", filename = "output/modelled_emissivity.png", h=h_default, sigma_arm=sigma_arm_default):
+def plot_modelled_emissivity_per_arm(fractional_contribution, gum_cygnus='False', skymap = False, method='linear', readfile = "true", filename = "output/modelled_emissivity.png", h=h_default, sigma_arm=sigma_arm_default):
     """
     Plots the modelled emissivity of the Galactic disk as a function of Galactic longitude.
     """
-    longitudes, densities_as_func_of_long = calc_modelled_emissivity(fractional_contribution, gum_cygnus, method, readfile, h, sigma_arm)
+    longitudes, densities_as_func_of_long = calc_modelled_emissivity(fractional_contribution, gum_cygnus, skymap, method, readfile, h, sigma_arm)
     print("interpolated densities: ", densities_as_func_of_long.shape)
     plt.plot(np.linspace(0, 100, len(longitudes)), densities_as_func_of_long[0], label=f"NC. f={fractional_contribution[0]}")
     plt.plot(np.linspace(0, 100, len(longitudes)), densities_as_func_of_long[1], label=f"P. $\ $ f={fractional_contribution[1]}")
@@ -544,6 +547,7 @@ def plot_modelled_emissivity_per_arm(fractional_contribution, gum_cygnus='False'
     plt.xlabel("Galactic longitude l (degrees)")
     plt.ylabel("Modelled emissivity")
     plt.title("Modelled emissivity of the Galactic disk")
+    plt.yscale('log')
     # Add parameter values as text labels
     plt.text(0.02, 0.95, fr'$H_\rho$ = {h} kpc & $\sigma_A$ = {sigma_arm} kpc', transform=plt.gca().transAxes, fontsize=8, color='black')
     plt.text(0.02, 0.9, fr'NII Luminosity = {total_galactic_n_luminosity:.2e} erg/s', transform=plt.gca().transAxes, fontsize=8, color='black')
@@ -552,11 +556,11 @@ def plot_modelled_emissivity_per_arm(fractional_contribution, gum_cygnus='False'
     plt.show()
 
 
-def plot_modelled_emissivity_total(fractional_contribution, method='linear', readfile = "true", filename = "output/modelled_emissivity.png", h=h_default, sigma_arm=sigma_arm_default):
+def plot_modelled_emissivity_total(fractional_contribution, gum_cygnus='False', skymap = False, method='linear', readfile = "true", filename = "output/modelled_emissivity.png", h=h_default, sigma_arm=sigma_arm_default):
     """
     Plots the modelled emissivity of the Galactic disk as a function of Galactic longitude.
     """
-    longitudes, densities_as_func_of_long = calc_modelled_emissivity(fractional_contribution, method, readfile)
+    longitudes, densities_as_func_of_long = calc_modelled_emissivity(fractional_contribution, gum_cygnus, skymap, method, readfile, h, sigma_arm)
     print("interpolated densities: ", densities_as_func_of_long.shape)
     plt.plot(np.linspace(0, 100, len(longitudes)), np.sum(densities_as_func_of_long, axis=0), label="Total")
     print(np.sum(densities_as_func_of_long))
@@ -685,6 +689,23 @@ def test_transverse_scale_length(method='linear', readfile='true', fractional_co
     plt.show()
 
 
+def plot_skymap():
+    skydata = np.loadtxt('output/long_lat_skymap.txt')
+    print(skydata.shape)
+    # Create coordinate grids
+    long_grid, lat_grid = np.meshgrid(np.linspace(0, 100, len(skydata[1:, 0])), np.degrees(skydata[0, 1:]), indexing='ij')
+    plt.pcolormesh(long_grid, lat_grid, skydata[1:, 1:], shading='auto')  
+    plt.colorbar()
+    # Redefine the x-axis labels to match the values in longitudes
+    x_ticks = (180, 150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210, 180)
+    plt.xticks(np.linspace(0, 100, 13), x_ticks)
+    plt.xlabel('Galactic Longitude (degrees)')
+    plt.ylabel('Galactic Latitude (degrees)')
+    plt.title('Skymap of the modelled luminocity')
+    plt.savefig('output/skymap.png', dpi=1200)
+    plt.show()
+
+
 #plot_interpolated_galactic_densities()
 #plot_spiral_arms()
 #calc_modelled_emissivity()
@@ -695,8 +716,10 @@ fractional_contribution = [0.17, 0.30, 0.22, 0.31] # fractional contribution of 
 #plot_modelled_emissivity_per_arm(fractional_contribution, 'linear', 'true', "output/modelled_emissivity_17_34_15_34.png")
 #test_fractional_contribution()
 #test_interpolation_method()
-c_coords, g_coords, c_density, g_density = generate_gum_cygnus()
-plot_modelled_emissivity_per_arm([0.18, 0.36, 0.18, 0.28], 'False', 'cubic', 'true', "output/modelled_emissivity_arms_running_average_7degree3.png")
+#c_coords, g_coords, c_density, g_density = generate_gum_cygnus()
+plot_modelled_emissivity_per_arm([0.18, 0.36, 0.18, 0.28], 'False', False,'cubic', 'true', "output/modelled_emissivity_arms_running_average_7degree4.png")
+#calc_modelled_emissivity(fractional_contribution, 'False', True, 'cubic', 'true')
+#plot_skymap()
 #plot_interpolated_galactic_densities() 
 #test_interpolation_method_interpolated_densities()
 #print("long_lat_rad_coords_generation")
