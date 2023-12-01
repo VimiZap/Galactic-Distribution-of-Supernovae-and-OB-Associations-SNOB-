@@ -561,6 +561,11 @@ def calc_modelled_emissivity(fractional_contribution=fractional_contribution_def
         densities_skymap[1:, 0] = longitudes
         densities_skymap[0, 1:] = latitudes
         np.savetxt(filepath, densities_skymap)
+    # save the data. To be used for the MC simulation for SN
+    np.save('output/galaxy_data/interpolated_densities.npy', interpolated_densities)
+    np.save('output/galaxy_data/x_grid.npy', x_grid)
+    np.save('output/galaxy_data/y_grid.npy', y_grid)
+    np.save('output/galaxy_data/z_grid.npy', z_grid)
     return longitudes, densities_as_func_of_long #* np.radians(5)) # devide by delta-b and delta-l in radians, respectively, for the averaging the paper mentions
 
 
@@ -796,17 +801,18 @@ def find_arm_tangents(fractional_contribution=fractional_contribution_default, g
             f.write(f"{nc_angle[i]} {p_angle[i]} {sa_angle[i]} {sc_angle[i]} {np.degrees(longitudes[max_index_nc])} {np.degrees(longitudes[max_index_p])} {np.degrees(longitudes[max_index_sa])} {np.degrees(longitudes[max_index_sc])}\n")
         
         
-def find_pitch_angles(fractional_contribution=fractional_contribution_default, gum_cygnus='False', skymap = False, method='cubic', readfile = "false", filename = "output/test_pitch_angles_3/test_pitch_angles_3.txt", h=h_default, sigma_arm=sigma_arm_default):
+def find_pitch_angles(fractional_contribution=fractional_contribution_default, gum_cygnus='False', skymap = False, method='cubic', readfile = "false", filename = "output/test_pitch_angles_4/test_pitch_angles_4.txt", h=h_default, sigma_arm=sigma_arm_default):
     # starting angles for the spiral arms, respectively Norma-Cygnus, Perseus, Sagittarius-Carina, Scutum-Crux
     # arm_angles = np.radians([70, 160, 250, 340]) #original
     # pitch_angles = np.radians(np.array([13.5, 13.5, 13.5, 15.5])) # original
     # Vallées pitch angles: 12.8
     
     #pitch_angles = np.arange(12, 15.6, 0.1)
-    pitch_angles = np.arange(12.5, 16.6, 0.1)
+    pitch_angles = np.arange(13.5, 15.6, 0.1)
     #Arm_Angles = np.array([65, 160, 245, 335]) #1
     #Arm_Angles = np.array([65, 155, 240, 330]) #2
-    Arm_Angles = np.array([65, 160, 250, 330]) #3
+    #Arm_Angles = np.array([65, 160, 250, 330]) #3
+    Arm_Angles = np.array([65, 160, 240, 330]) #4
     for i in range(len(pitch_angles)):
         Pitch_Angles = np.radians([pitch_angles[i], pitch_angles[i], pitch_angles[i], pitch_angles[i]])
         longitudes, densities_as_func_of_long = calc_modelled_emissivity(fractional_contribution, gum_cygnus, skymap, method, readfile, h, sigma_arm, np.radians(Arm_Angles), Pitch_Angles)        
@@ -834,7 +840,7 @@ def find_pitch_angles(fractional_contribution=fractional_contribution_default, g
         plt.text(0.02, 0.85, fr'Arm angles: nc={Arm_Angles[0]}, p={Arm_Angles[1]}, sa={Arm_Angles[2]}, sc={Arm_Angles[3]}', transform=plt.gca().transAxes, fontsize=8, color='black')
         plt.text(0.02, 0.8, fr'Pitch angles = {pitch_angles[i]}', transform=plt.gca().transAxes, fontsize=8, color='black')
         plt.legend()
-        plt.savefig(f'output/test_pitch_angles_3/set_{i}', dpi=1200)
+        plt.savefig(f'output/test_pitch_angles_4/set_{i}', dpi=1200)
         plt.close()
         # save to file filename
         with open(filename, 'a') as f:
@@ -936,11 +942,23 @@ Arm_Angles = np.radians([65, 160, 245, 335])
 # modelled_emissivity_arms_running_average_7degree37.png: same as 32, testing gum_cycgnus contribution. Removing running average and /np.rad(10). Do not average the gaussian
 
 
-ARM_ANGLES = np.radians([65, 160, 250, 330])
+ARM_ANGLES1 = np.radians([65, 160, 250, 330])
+ARM_ANGLES2 = np.radians([65, 160, 245, 330])
+ARM_ANGLES3 = np.radians([65, 160, 240, 330])
 PITCH_ANGLES_1 = np.radians([15.5, 13.5, 15.5, 16.3])
 PITCH_ANGLES_2 = np.radians([15.5, 15.5, 15.5, 16.3])
+PITCH_ANGLES_3 = np.radians([15.5, 14, 15, 16.3])
+PITCH_ANGLES_4 = np.radians([15.5, 14, 14.5, 16.3])
+PITCH_ANGLES_5 = np.radians([15.5, 14, 14, 16.3])
+PITCH_ANGLES_6 = np.radians([14, 14, 14, 16.3])
+PITCH_ANGLES_7 = np.radians([14, 14, 14, 16])
 # modelled_emissivity_arms_running_average_7degree38.png: same as 32, testing final arm angles and pitch angles1. 
 # modelled_emissivity_arms_running_average_7degree39.png: same as 32, testing final arm angles and pitch angles2. 
 
-plot_modelled_emissivity_per_arm([0.18, 0.36, 0.18, 0.28], 'False', False,'cubic', 'false', "output/modelled_emissivity_arms_running_average_7degree38.png", h_default, sigma_arm_default, ARM_ANGLES, PITCH_ANGLES_1)
-plot_modelled_emissivity_per_arm([0.18, 0.36, 0.18, 0.28], 'False', False,'cubic', 'false', "output/modelled_emissivity_arms_running_average_7degree39.png", h_default, sigma_arm_default, ARM_ANGLES, PITCH_ANGLES_2)
+#plot_modelled_emissivity_per_arm([0.18, 0.36, 0.18, 0.28], 'False', False,'cubic', 'false', "output/modelled_emissivity_arms_running_average_7degree38.png", h_default, sigma_arm_default, ARM_ANGLES1, PITCH_ANGLES_1)
+#plot_modelled_emissivity_per_arm([0.18, 0.36, 0.18, 0.28], 'False', False,'cubic', 'false', "output/modelled_emissivity_arms_running_average_7degree39.png", h_default, sigma_arm_default, ARM_ANGLES1, PITCH_ANGLES_2)
+#plot_modelled_emissivity_per_arm([0.18, 0.36, 0.18, 0.28], 'False', False,'cubic', 'false', "output/modelled_emissivity_arms_running_average_7degree40.png", h_default, sigma_arm_default, ARM_ANGLES2, PITCH_ANGLES_3)
+#plot_modelled_emissivity_per_arm([0.18, 0.36, 0.18, 0.28], 'False', False,'cubic', 'false', "output/modelled_emissivity_arms_running_average_7degree41.png", h_default, sigma_arm_default, ARM_ANGLES2, PITCH_ANGLES_4)
+#plot_modelled_emissivity_per_arm([0.18, 0.36, 0.18, 0.28], 'False', False,'cubic', 'false', "output/modelled_emissivity_arms_running_average_7degree42.png", h_default, sigma_arm_default, ARM_ANGLES3, PITCH_ANGLES_5)
+#plot_modelled_emissivity_per_arm([0.18, 0.36, 0.18, 0.28], 'False', False,'cubic', 'false', "output/modelled_emissivity_arms_running_average_7degree43.png", h_default, sigma_arm_default, ARM_ANGLES3, PITCH_ANGLES_6)
+plot_modelled_emissivity_per_arm([0.18, 0.36, 0.18, 0.28], 'False', False,'cubic', 'false', "output/modelled_emissivity_arms_running_average_7degree44.png", h_default, sigma_arm_default, ARM_ANGLES3, PITCH_ANGLES_7)
