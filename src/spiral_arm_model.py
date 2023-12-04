@@ -26,15 +26,23 @@ a_d = 2*np.pi*h_default**2 * ((1+rho_min/h_default)*np.exp(-rho_min/h_default) -
 #arm_angles = np.radians([70, 160, 250, 340]) #original
 #arm_angles = np.radians([80, 170, 260, 350]) #30
 #arm_angles = np.radians([72, 162, 252, 342]) #31
-arm_angles = np.radians([60, 150, 240, 330]) #32, 33
+#arm_angles = np.radians([60, 150, 240, 330]) #32, 33
+arm_angles = np.radians([65, 160, 240, 330])  # best fit for the new r_s
+
 # pitch angles for the spiral arms, respectively Norma-Cygnus(NC), Perseus(P), Sagittarius-Carina(SA), Scutum-Crux(SC)
-pitch_angles = np.radians(np.array([13.5, 13.5, 13.5, 15.5]))
+#pitch_angles = np.radians(np.array([13.5, 13.5, 13.5, 15.5])) #original
+pitch_angles = np.radians([14, 14, 14, 16]) # best fir to new r_s
+
 # the fractional contribution described in the text.
 fractions = [0.18, 0.36, 0.18, 0.28]
 number_of_end_points = 45 # number of points to use for the circular projection at the end points of the spiral arms
 spiral_arm_names = ['Norma-Cygnus', 'Perseus', 'Sagittarius-Carina', 'Scutum-Crux']
 fractional_contribution_default = [0.18, 0.36, 0.18, 0.28] # [0.17, 0.34, 0.15, 0.34]
 
+
+def count_negative_values(arr):
+    negative_values = arr[arr < 0]
+    return len(negative_values), np.average(negative_values)
 
 def running_average(data, window_size):
    array_running_averaged = []
@@ -148,9 +156,6 @@ def generate_non_uniform_spacing(sigma_arm=sigma_arm_default, d_min=0.01, d_max=
     d_rho.sort()
     transverse_distances = np.cumsum(d_rho)
     transverse_densities = arm_transverse_density(transverse_distances, sigma_arm)
-    print("LENGTH OF TRANSVERSE: ", len(transverse_densities))
-    print("transverse distances: ", transverse_distances)
-    print("transverse densities: ", transverse_densities)
     return transverse_distances, transverse_densities
 
 
@@ -493,8 +498,6 @@ def calc_effective_area_per_spiral_arm(method='linear', h=h_default, sigma_arm=s
 
 def calc_modelled_emissivity(fractional_contribution=fractional_contribution_default, gum_cygnus='False', skymap = False, method='linear', readfile="true", h=h_default, sigma_arm=sigma_arm_default, arm_angles=arm_angles, pitch_angles=pitch_angles):
     print("Calculating modelled emissivity")
-    print("Calculating with angles: ", arm_angles)
-    print("size angles array: ", arm_angles.shape)
     if readfile == "true":
         effective_area = np.loadtxt("output/effective_area_per_spiral_arm.txt")
     else:
@@ -505,53 +508,49 @@ def calc_modelled_emissivity(fractional_contribution=fractional_contribution_def
     db = 0.5   # increments in db (degrees):
     # latitude range, integrate from -3.5 to 3.5 degrees, converted to radians
     latitudes = np.radians(np.arange(-5, 5 + db, db))
-    print("latidues shape: ", latitudes.shape)
     # np.array with values for galactic longitude l in radians.
     l1 = np.arange(180, 0, -dl)
     l2 = np.arange(360, 180, -dl)
     longitudes = np.radians(np.concatenate((l1, l2)))
-    print("longitudes shape: ", longitudes.shape)
     # np.array with values for distance from the Sun to the star/ a point in the Galaxy
     radial_distances = np.arange(dr, r_s + rho_max + 5 + dr, dr) #r_s + rho_max + 5 is the maximum distance from the Sun to the outer edge of the Galaxy. +5 is due to the circular projection at the end points of the spiral arms
-    print("radial_distances shape", radial_distances.shape)
     # Create a meshgrid of all combinations
     radial_grid, lon_grid, lat_grid = np.meshgrid(radial_distances, longitudes, latitudes, indexing='ij')
-    print(radial_grid.shape)
     # Combine the grids into a 2-D array
     coordinates = np.column_stack((radial_grid.ravel(), lon_grid.ravel(), lat_grid.ravel()))     # Now 'coordinates' is a 2-D array with all combinations of (longitude, latitude, radial_distance)
-    print("Column stacked shape: ", coordinates.shape)
     rho_coords_galaxy = rho_func(coordinates[:, 1], coordinates[:, 2], coordinates[:, 0])
     theta_coords_galaxy = theta_func(coordinates[:, 1], coordinates[:, 2], coordinates[:, 0])
     x_grid = rho_coords_galaxy * np.cos(theta_coords_galaxy)
     y_grid = rho_coords_galaxy * np.sin(theta_coords_galaxy)
     z_grid = coordinates[:, 0] * np.sin(coordinates[:, 2])
-    print(x_grid.shape, y_grid.shape, z_grid.shape)
     # coordinates made. Now we need to calculate the density for each point
     height_distribution_values = height_distribution(z_grid)
     latitudinal_cosinus = np.cos(coordinates[:, 2])
     if skymap:
         densities_skymap = np.zeros((len(longitudes) + 1, len(latitudes) + 1))
     interpolated_densities = interpolate_density(x_grid, y_grid, gum_cygnus, method, h, sigma_arm, arm_angles, pitch_angles)
+    interpolated_densities[interpolated_densities < 0] = 0 # set all negative values to 0
+    print(f"interpolated_densities has {interpolated_densities[interpolated_densities > 0].size} positive values out of {interpolated_densities.size}, where the average positive value is {np.mean(interpolated_densities[interpolated_densities > 0])}")
     densities_as_func_of_long = np.zeros((len(interpolated_densities), len(longitudes)))
+    densities_rad_long_lat = np.zeros((len(radial_distances), len(longitudes), len(latitudes)))
     common_multiplication_factor = total_galactic_n_luminosity * height_distribution_values * db * dr * latitudinal_cosinus/ (4 * np.pi * np.radians(10)) 
     for i in range(len(interpolated_densities)):
         print("Calculating spiral arm number: ", i+1)
         if i==4:
-            interpolated_density_arm = interpolated_densities[i] * cygnus_nii_luminosity * db * dr * latitudinal_cosinus / ((4 * np.pi) * kpc**2) # cygnus
+            interpolated_densities[i] = interpolated_densities[i] * cygnus_nii_luminosity * db * dr * latitudinal_cosinus / ((4 * np.pi) * kpc**2) # cygnus
         elif i==5:
-            interpolated_density_arm = interpolated_densities[i] * gum_nii_luminosity * db * dr * latitudinal_cosinus / ((4 * np.pi) * kpc**2) # gum
+            interpolated_densities[i] = interpolated_densities[i] * gum_nii_luminosity * db * dr * latitudinal_cosinus / ((4 * np.pi) * kpc**2) # gum
         else:
-            interpolated_density_arm = common_multiplication_factor * interpolated_densities[i] * fractional_contribution[i] / (effective_area[i] * kpc**2) # spiral arms
-
+            interpolated_densities[i] = common_multiplication_factor * interpolated_densities[i] * fractional_contribution[i] / (effective_area[i] * kpc**2) # spiral arms
+        print(f"interpolated_density_arm has {interpolated_densities[i][interpolated_densities[i] > 0].size} positive values out of {interpolated_densities[i].size}, where the average positive value is {np.mean(interpolated_densities[i][interpolated_densities[i] > 0])}")
         # reshape this 1D array into 2D array to facilitate for the summation over the different longitudes
         #interpolated_density_arm = interpolated_density_arm.reshape((len(longitudes), len(radial_distances) * len(latitudes)))
-        interpolated_density_arm = interpolated_density_arm.reshape((len(radial_distances), len(longitudes), len(latitudes)))
-        print("interpolated_density_arm.shape ", interpolated_density_arm.shape)
+        interpolated_density_arm = interpolated_densities[i].reshape((len(radial_distances), len(longitudes), len(latitudes)))
+        densities_rad_long_lat += interpolated_density_arm
         # sum up to get the density as a function of longitude
         density_distribution = interpolated_density_arm.sum(axis=(0, 2)) # sum up all the values for the different longitudes
         window_size = 5 / dl # 5 degrees in divided by the increment in degrees for the longitude. This is the window size for the running average, number of points
         density_distribution = running_average(density_distribution, window_size) / window_size #divide by delta-l in radians for the averaging the paper mentions
-        print("density_distribution.shape", density_distribution.shape)
         densities_as_func_of_long[i] += density_distribution
         if skymap:
             density_skymap = interpolated_density_arm.sum(axis=0) # sum up all radiis
@@ -562,10 +561,13 @@ def calc_modelled_emissivity(fractional_contribution=fractional_contribution_def
         densities_skymap[0, 1:] = latitudes
         np.savetxt(filepath, densities_skymap)
     # save the data. To be used for the MC simulation for SN
-    np.save('output/galaxy_data/interpolated_densities.npy', interpolated_densities)
+    np.save('output/galaxy_data/interpolated_densities.npy', np.sum(interpolated_densities, axis=0)) #xyz, the whole sheisse
     np.save('output/galaxy_data/x_grid.npy', x_grid)
     np.save('output/galaxy_data/y_grid.npy', y_grid)
     np.save('output/galaxy_data/z_grid.npy', z_grid)
+    np.save('output/galaxy_data/densities_longitudinal.npy', np.sum(densities_as_func_of_long, axis=0)) # saving the same array we are plotting usually. Sum over all spiral arms to get one longitudinal map
+    np.save('output/galaxy_data/densities_lat.npy', np.sum(densities_rad_long_lat, axis=(0))) # summing up all radial and longitudinal values to get one latitudinal map
+    np.save('output/galaxy_data/densities_rad.npy', densities_rad_long_lat) # summing up all longitudinal and latitudinal values to get one radial map
     return longitudes, densities_as_func_of_long #* np.radians(5)) # devide by delta-b and delta-l in radians, respectively, for the averaging the paper mentions
 
 
@@ -574,7 +576,6 @@ def plot_modelled_emissivity_per_arm(fractional_contribution, gum_cygnus='False'
     Plots the modelled emissivity of the Galactic disk as a function of Galactic longitude.
     """
     longitudes, densities_as_func_of_long = calc_modelled_emissivity(fractional_contribution, gum_cygnus, skymap, method, readfile, h, sigma_arm, arm_angles, pitch_angles)
-    print("interpolated densities: ", densities_as_func_of_long.shape)
     plt.plot(np.linspace(0, 100, len(longitudes)), densities_as_func_of_long[0], label=f"NC. f={fractional_contribution[0]}")
     plt.plot(np.linspace(0, 100, len(longitudes)), densities_as_func_of_long[1], label=f"P. $\ $ f={fractional_contribution[1]}")
     plt.plot(np.linspace(0, 100, len(longitudes)), densities_as_func_of_long[2], label=f"SA. f={fractional_contribution[2]}")
@@ -583,7 +584,6 @@ def plot_modelled_emissivity_per_arm(fractional_contribution, gum_cygnus='False'
         plt.plot(np.linspace(0, 100, len(longitudes)), densities_as_func_of_long[4], label="Cy.")
         plt.plot(np.linspace(0, 100, len(longitudes)), densities_as_func_of_long[5], label="Gu.")
     plt.plot(np.linspace(0, 100, len(longitudes)), np.sum(densities_as_func_of_long, axis=0), label="Total")
-    print(np.sum(densities_as_func_of_long))
     # Redefine the x-axis labels to match the values in longitudes
     x_ticks = (180, 150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210, 180)
     plt.xticks(np.linspace(0, 100, 13), x_ticks)
