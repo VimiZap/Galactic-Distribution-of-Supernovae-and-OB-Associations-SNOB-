@@ -15,7 +15,7 @@ def monteCarlo(n, C):
 def plot(Data, star_formation_episodes):
     for data in Data: 
         n = len(data)
-        num_bins = int(np.ceil(max(data))) # minimum number of stars = 0
+        num_bins = int(np.ceil(max(data))) # minimum number of stars = 0 MINIMUM NUMBER SHALL BE 1!!!
         counts, _ = np.histogram(data, bins=range(0, num_bins, 1))
         cumulative = (n - np.cumsum(counts))/n # cumulative distribution, normalized
         plt.plot(range(1, num_bins, 1), cumulative, label="Number of star formation episodes = " + str(star_formation_episodes[Data.index(data)]))
@@ -35,7 +35,7 @@ def clustering_MC():
     temporal_clustering = []
     star_formation_episodes = [1, 3, 5]
     for i in range(len(star_formation_episodes)):
-        temporal_clustering.append(monteCarlo(100000, C[i]))
+        temporal_clustering.append(monteCarlo(100000, C[i])) # 100000 is the number of clusters, and monteCarlo returns an array with the number of SNPs in each cluster
     plot(temporal_clustering, star_formation_episodes)
 
 
