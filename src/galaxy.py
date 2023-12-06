@@ -56,10 +56,11 @@ def plot_cum_snp_cluster_distr(association_array, n, C):
 
 def plot_sn_as_func_of_long(association_array, n):
     longitudes = np.array([])
-    number_sn = np.array([])
+    number_sn = np.sum(vectorized_number_sn(association_array))
+    print("Number_sn: ", number_sn)
+    print("len association_array: ", len(association_array))
     for i in range(len(association_array)):
         longitudes = np.concatenate((longitudes, association_array[i].longitudes.ravel()))
-        number_sn += np.sum(vectorized_number_sn(association_array[i]))
     longitudes_sn = np.sort(longitudes)
     dl = 2   # increments in dl (degrees):
     # np.array with values for galactic longitude l in radians.
@@ -76,7 +77,8 @@ def plot_sn_as_func_of_long(association_array, n):
     print("length counts: ", len(counts))
     print("length counts_l1: ", len(counts_l1))
     print("length counts_l2: ", len(counts_l2))
-    plt.plot(x_values, np.concatenate((counts_l1, counts_l2))/np.sum(counts))
+    y_values = np.concatenate((counts_l1, counts_l2))/np.sum(counts)
+    plt.plot(x_values, y_values)
     plt.xlabel("Galactic longitude l (degrees)")
 
     x_ticks = (180, 150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210, 180)
@@ -86,16 +88,16 @@ def plot_sn_as_func_of_long(association_array, n):
     plt.title("Probability density function of SNPs as function of longitude")   
     plt.text(0.02, 0.95, fr'Number of associations: {n}', transform=plt.gca().transAxes, fontsize=8, color='black')
     plt.text(0.02, 0.90, fr'Total number of supernovae progenitors: {number_sn}', transform=plt.gca().transAxes, fontsize=8, color='black')
+    plt.ylim(0, max(y_values)*1.2) # set the y axis limits
     plt.savefig("output/galaxy_tests/sn_as_func_of_long.png", dpi=1200)     # save plot in the output folder
     #plt.show()
 
 
 def plot_mass_distr(association_array, n):
     masses = np.array([])
-    number_sn = np.array([])
+    number_sn = np.sum(vectorized_number_sn(association_array))
     for i in range(len(association_array)):
         masses = np.concatenate((masses, association_array[i].find_sn_masses))
-        number_sn += np.sum(vectorized_number_sn(association_array[i]))
     mass_max = int(np.ceil(max(masses))) # minimum number of stars = 0
     mass_min = int(np.floor(min(masses)))
     counts, _ = np.histogram(masses, bins=range(mass_min, mass_max + 1, 1))
@@ -103,12 +105,13 @@ def plot_mass_distr(association_array, n):
     plt.xscale("log")
     plt.yscale("log")
     plt.xlim(1, mass_max + 30) # set the x axis limits
-    plt.ylim(0, 1) # set the y axis limits
+    #plt.ylim(0, 1) # set the y axis limits
     plt.xlabel("Mass of SN progenitor (M$_\odot$)")
     plt.ylabel("Probability distribution. P(M$_\odot$)")
     plt.title("Probability distribution for the mass of SN progenitors")
     plt.text(0.02, 0.95, fr'Number of associations: {n}', transform=plt.gca().transAxes, fontsize=8, color='black')
     plt.text(0.02, 0.90, fr'Total number of supernovae progenitors: {number_sn}', transform=plt.gca().transAxes, fontsize=8, color='black')
+    plt.ylim(top=max(counts/np.sum(counts))*3) # set the y axis limits
     plt.savefig("output/galaxy_tests/sn_mass_distribution.png", dpi=1200)     # save plot in the output folder
     #plt.show()
     
@@ -127,7 +130,7 @@ def plot_draw_positions_rad_long_lat(association_array, n):
     plt.suptitle("Associations drawn from the NII density distribution of the Milky Way")
     plt.title(f"Made with {n} associations")
     plt.savefig("output/galaxy_tests/positions_from_density_distribution.png", dpi=1200)     # save plot in the output folder
-    plt.show()
+    #plt.show()
 
 def run_tests(n, C, T):
     association_array_1 = generate_galaxy(n, C[0], T) # an array with n associations
@@ -137,9 +140,14 @@ def run_tests(n, C, T):
     # plot for the cumulative cluster distribution with temporal clustering:
 
     plot_cum_snp_cluster_distr(ass_models, n, C)
+    plt.close()
     plot_sn_as_func_of_long(association_array_1, n)
+    plt.close()
     plot_mass_distr(association_array_1, n)
+    plt.close()
     plot_draw_positions_rad_long_lat(association_array_1, n)
+    plt.close()
+    
 
 
 run_tests(10000, C, T)
