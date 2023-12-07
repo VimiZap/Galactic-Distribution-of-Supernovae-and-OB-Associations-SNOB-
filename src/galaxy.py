@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import supernovae_class as sn
 import association_class as ass
 from matplotlib.ticker import AutoMinorLocator
+from matplotlib.lines import Line2D
 
 
 N = 10e4 # number of associations in the Galaxy
@@ -38,10 +39,11 @@ def plot_cum_snp_cluster_distr(association_array, n, C):
     for i in range(len(C)):
         print('i = ', i)
         association_array_num_sn = vectorized_number_sn(association_array[i])
-        num_bins = int(np.ceil(max(association_array_num_sn))) # minimum number of stars = 0
-        counts, _ = np.histogram(association_array_num_sn, bins=range(0, num_bins, 1))
+        num_bins = int(np.ceil(max(association_array_num_sn))) # minimum number of stars = 1
+        counts, _ = np.histogram(association_array_num_sn, bins=range(1, num_bins, 1))
         cumulative = (n - np.cumsum(counts))/n # cumulative distribution, normalized
         plt.plot(range(1, num_bins, 1), cumulative, label="Number of star formation episodes = " + str(C[i]))
+
     plt.xscale("log")
     plt.xlim(1, num_bins + 3000) # set the x axis limits
     plt.ylim(0, 1) # set the y axis limits
@@ -51,7 +53,7 @@ def plot_cum_snp_cluster_distr(association_array, n, C):
     plt.title(f"Made with {n} associations")
     plt.legend()
     plt.savefig("output/galaxy_tests/temporal_clustering.png", dpi=1200)     # save plot in the output folder
-    #plt.show()
+    plt.close()
 
 
 def plot_sn_as_func_of_long(association_array, n):
@@ -90,7 +92,7 @@ def plot_sn_as_func_of_long(association_array, n):
     plt.text(0.02, 0.90, fr'Total number of supernovae progenitors: {number_sn}', transform=plt.gca().transAxes, fontsize=8, color='black')
     plt.ylim(0, max(y_values)*1.2) # set the y axis limits
     plt.savefig("output/galaxy_tests/sn_as_func_of_long.png", dpi=1200)     # save plot in the output folder
-    #plt.show()
+    plt.close()
 
 
 def plot_mass_distr(association_array, n):
@@ -113,7 +115,8 @@ def plot_mass_distr(association_array, n):
     plt.text(0.02, 0.90, fr'Total number of supernovae progenitors: {number_sn}', transform=plt.gca().transAxes, fontsize=8, color='black')
     plt.ylim(top=max(counts/np.sum(counts))*3) # set the y axis limits
     plt.savefig("output/galaxy_tests/sn_mass_distribution.png", dpi=1200)     # save plot in the output folder
-    #plt.show()
+    plt.close()
+
     
 
 def plot_draw_positions_rad_long_lat(association_array, n):
@@ -130,7 +133,108 @@ def plot_draw_positions_rad_long_lat(association_array, n):
     plt.suptitle("Associations drawn from the NII density distribution of the Milky Way")
     plt.title(f"Made with {n} associations")
     plt.savefig("output/galaxy_tests/positions_from_density_distribution.png", dpi=1200)     # save plot in the output folder
-    #plt.show()
+    plt.close()
+
+
+def plot_association(association, creation_time, simulation_time):
+    fig = plt.figure()
+    ax = fig.add_subplot(projection='3d')
+    association.plot_association(ax)
+    ax.set_xlabel('X (pc from Association Center)')
+    ax.set_ylabel('Y (pc from Association Center)')
+    ax.set_zlabel('Z (pc from Association Center)')
+    plt.suptitle(f"Association created {creation_time} Myr ago. Position of Supernovaes {simulation_time} Myr ago.")
+    plt.title(f"Position of Association centre in xyz-coordinates (kpc): ({association.x[0]:.2f}, {association.y[0]:.2f}, {association.z[0]:.2f})")
+    #ax.xaxis.set_major_formatter(FormatStrFormatter('%.3f'))
+    #ax.yaxis.set_major_formatter(FormatStrFormatter('%.3f'))
+    legend_exploded = Line2D([0], [0], marker='o', color='w', markerfacecolor='red', markersize=4, label='Exploded')
+    legend_unexploded = Line2D([0], [0], marker='o', color='w', markerfacecolor='black', markersize=3, label='Not Exploded')
+    handles, labels = plt.gca().get_legend_handles_labels()
+    handles.extend([legend_exploded, legend_unexploded])
+    plt.legend(handles=handles)
+    plt.show()
+    plt.close()
+
+def plot_diffusion_of_sns():
+    creation_time = 40 # Myrs ago
+    test_ass = ass.Association(1, creation_time, 20)
+    test_ass.print_association()
+    plot_association(test_ass, creation_time, simulation_time=40)
+
+    test_ass.update_sn(20)
+    test_ass.print_association()
+    plot_association(test_ass, creation_time, 20)
+
+    test_ass.update_sn(10)
+    test_ass.print_association()
+    plot_association(test_ass, creation_time, 10)
+
+    test_ass.update_sn(5)
+    test_ass.print_association()
+    plot_association(test_ass, creation_time, 5)
+
+    test_ass.update_sn(1)
+    test_ass.print_association()
+    """ t = sn.simulation_run_time
+    age = sn.age
+    mass = sn.mass
+    exploded = sn.exploded
+    print(t, age, mass, exploded) """
+    plot_association(test_ass, creation_time, 1)
+    
+
+""" def plot_age_mass_distribution():
+    tau_0 = 1.6e8 * 1.65
+    beta = -0.932
+    mass = np.arange(8, 120.1, 0.1)
+    time_of_death = tau_0 * (mass)**(beta)
+    plt.plot(mass, time_of_death)
+    plt.title("Lifetime as function of stellar mass")
+    plt.xlabel("Mass of SN progenitor (M$_\odot$)")
+    plt.ylabel("Age (yrs)")
+    x_vals = np.arange(0, 120 + 1, 20)
+    print(x_vals)
+    for i, x in enumerate(x_vals):
+        y = time_of_death[i]
+        # for your last 2 points only
+        plt.scatter(x, y, s=10, c='blue')
+        if i >= len(x_vals) - 2:
+            plt.text(x-.2, y-1, f"({x} M$_\odot$, lifetime = {y:.2f})", horizontalalignment="right", rotation=0)
+        # for all other points
+        else:
+            plt.text(x+.2, y-1, "({x} M$_\odot$, lifetime = {y:.2f})", horizontalalignment="left", rotation=0)
+    plt.savefig("output/galaxy_tests/age_distribution.png", dpi=1200)     # save plot in the output folder
+    plt.show()
+    plt.close() """
+
+def plot_age_mass_distribution():
+    tau_0 = 1.6e8 * 1.65
+    beta = -0.932 #original
+    mass = np.arange(8, 120.1, 0.1)
+    time_of_death = tau_0 * (mass)**(beta)
+    plt.plot(mass, time_of_death, zorder=0)
+    plt.title("Lifetime as function of stellar mass")
+    plt.xlabel("Mass of SN progenitor (M$_\odot$)")
+    plt.ylabel("Lifetime (yrs)")
+    x_vals = [8, 20, 40, 60, 80, 100, 120]
+    y_val_index = [0, 120, 320, 520, 720, 920, 1120]
+    for i, x in enumerate(x_vals):
+        y = time_of_death[y_val_index[i]]
+        plt.scatter(x, y, s=30, label=f"{x} M$_\odot$, f(M) = {y:.2e} yrs", zorder=1)
+        """ if i == 0 or i == 1:
+            plt.text(x + 2, y, f"({x} M$_\odot$, f(M) = {y:.2e} yrs)", horizontalalignment="left", rotation=0)
+        elif i == 2:
+            plt.text(x - 5, y + 0.15e7, f"({x} M$_\odot$, f(M) = {y:.2e} yrs)", horizontalalignment="left", rotation=0)
+        elif i == 3:
+            plt.text(x - 10, y + 0.15e7, f"({x} M$_\odot$, f(M) = {y:.2e} yrs)", horizontalalignment="left", rotation=0)
+
+        else:
+            plt.text(x - 10, y + 0.1e7, f"({x} M$_\odot$, f(M) = {y:.2e} yrs)", horizontalalignment="left", rotation=0) """
+    plt.legend()
+    plt.savefig("output/galaxy_tests/age_distribution.png", dpi=1200)  # save plot in the output folder
+    plt.show()
+    plt.close()
+
 
 def run_tests(n, C, T):
     association_array_1 = generate_galaxy(n, C[0], T) # an array with n associations
@@ -140,14 +244,10 @@ def run_tests(n, C, T):
     # plot for the cumulative cluster distribution with temporal clustering:
 
     plot_cum_snp_cluster_distr(ass_models, n, C)
-    plt.close()
     plot_sn_as_func_of_long(association_array_1, n)
-    plt.close()
     plot_mass_distr(association_array_1, n)
-    plt.close()
     plot_draw_positions_rad_long_lat(association_array_1, n)
-    plt.close()
-    
 
-
-run_tests(10000, C, T)
+#plot_age_mass_distribution()
+plot_diffusion_of_sns()
+#run_tests(10000, C, T)

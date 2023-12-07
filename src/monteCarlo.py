@@ -14,7 +14,7 @@ def monteCarlo(n, C):
 
 def plot(Data, star_formation_episodes):
     for data in Data: 
-        n = len(data)
+        n = len(data) # n = number of associations
         num_bins = int(np.ceil(max(data))) # minimum number of stars = 0 MINIMUM NUMBER SHALL BE 1!!!
         counts, _ = np.histogram(data, bins=range(0, num_bins, 1))
         cumulative = (n - np.cumsum(counts))/n # cumulative distribution, normalized
