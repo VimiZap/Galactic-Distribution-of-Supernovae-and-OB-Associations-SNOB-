@@ -437,7 +437,9 @@ def interpolate_density(grid_x, grid_y, gum_cygnus='False', method='cubic', h=h_
         interpolated_g = griddata((g_coords_x, g_coords_y), g_density, (grid_x, grid_y), method=method, fill_value=0)
         interpolated_densities.append(interpolated_c)
         interpolated_densities.append(interpolated_g)
-    return np.array(interpolated_densities)
+    interpolated_densities = np.array(interpolated_densities)
+    interpolated_densities[interpolated_densities < 0] = 0 # set all negative values to 0
+    return interpolated_densities
 
 
 def plot_interpolated_galactic_densities(method='cubic', gum_cygnus = 'False', h=h_default, sigma_arm=sigma_arm_default, arm_angles=arm_angles, pitch_angles=pitch_angles):
@@ -448,11 +450,9 @@ def plot_interpolated_galactic_densities(method='cubic', gum_cygnus = 'False', h
     """
     grid_x, grid_y = np.mgrid[-20:20:1000j, -20:20:1000j]
     total_galactic_densities = interpolate_density(grid_x, grid_y, gum_cygnus, method, h, sigma_arm, arm_angles, pitch_angles)
-    total_galactic_density = np.sum(total_galactic_densities, axis=0)
+    total_galactic_density = np.sum(total_galactic_densities, axis=0) # sum up all the arms
     #plot heatmap of the interpolated densities:
-    #my_cmap = copy.copy(matplotlib.cm.get_cmap('viridis')) # copy the default cmap
-    #my_cmap.set_bad((0,0,0)) # set how the colormap handles 'bad' values
-    plt.scatter(grid_x, grid_y, c=total_galactic_density.flatten(), cmap='viridis', s=1)
+    plt.scatter(grid_x, grid_y, c=total_galactic_density.ravel(), cmap='viridis', s=1) # MISTAKE HERE: We are not really summing up all the latitudinal contribuitions, just plotting it on top of each other, overlapping
     plt.scatter(0, 0, c = 'magenta', s=2, label='Galactic centre')
     plt.scatter(0, r_s, c = 'gold', s=2, label='Sun')
     plt.gca().set_aspect('equal')
@@ -462,7 +462,7 @@ def plot_interpolated_galactic_densities(method='cubic', gum_cygnus = 'False', h
     plt.legend(loc='upper right')
     cbar = plt.colorbar()
     cbar.set_label('Density')
-    plt.savefig("output/interpolated_spiral_arms_density_model_4.png", dpi=1200)
+    plt.savefig("output/interpolated_spiral_arms_density_model_5.png", dpi=1200)
 
 
 def calc_effective_area_per_spiral_arm(method='linear', h=h_default, sigma_arm=sigma_arm_default):
@@ -489,6 +489,8 @@ def calc_effective_area_per_spiral_arm(method='linear', h=h_default, sigma_arm=s
         y = rho_coords*np.sin(theta_coords)
         # calculate interpolated density for the spiral arm
         interpolated_density = griddata((x, y), density_spiral_arm, (grid_x, grid_y), method, fill_value=0)
+        interpolated_density[interpolated_density < 0] = 0 # set all negative values to 0
+        
         # add the interpolated density to the total galactic density
         effective_area = np.append(effective_area, np.sum(interpolated_density) * d_x * d_y)
     filepath = "output/effective_area_per_spiral_arm.txt"
@@ -529,29 +531,33 @@ def calc_modelled_emissivity(fractional_contribution=fractional_contribution_def
     if skymap:
         densities_skymap = np.zeros((len(longitudes) + 1, len(latitudes) + 1))
     interpolated_densities = interpolate_density(x_grid, y_grid, gum_cygnus, method, h, sigma_arm, arm_angles, pitch_angles)
-    interpolated_densities[interpolated_densities < 0] = 0 # set all negative values to 0
-    print(f"interpolated_densities has {interpolated_densities[interpolated_densities > 0].size} positive values out of {interpolated_densities.size}, where the average positive value is {np.mean(interpolated_densities[interpolated_densities > 0])}")
-    densities_as_func_of_long = np.zeros((len(interpolated_densities), len(longitudes)))
+    
+    # saving the total, unweigthed galactic density. Arms are summed up. Note that the values in this array are the same in the xy plane for every z-value. 
+    # thus when plotting this, one could either reshape the array in order to pick out only one plane (and then save time making the figure due to fewer points), or one could just plot it as it is. 
+    # For the latter approach, there will be no issue as the points are overlapping anyway and the visual plot will be the same
+    total_galactic_density_unweighted = np.sum(interpolated_densities, axis=0) # sum up all the arms
+    np.save('output/galaxy_data/total_galactic_density_unweighted.npy', total_galactic_density_unweighted) 
+    ###################print(f"interpolated_densities has {interpolated_densities[interpolated_densities > 0].size} positive values out of {interpolated_densities.size}, where the average positive value is {np.mean(interpolated_densities[interpolated_densities > 0])}")
+    densities_as_func_of_long = np.zeros((len(interpolated_densities), len(longitudes))) #len(interpolated_densities) = 4 or 6, len(longitudes) = 1800
     densities_rad_long_lat = np.zeros((len(radial_distances), len(longitudes), len(latitudes)))
     common_multiplication_factor = total_galactic_n_luminosity * height_distribution_values * db * dr * latitudinal_cosinus/ (4 * np.pi * np.radians(10)) 
     for i in range(len(interpolated_densities)):
         print("Calculating spiral arm number: ", i+1)
         if i==4:
-            interpolated_densities[i] = interpolated_densities[i] * cygnus_nii_luminosity * db * dr * latitudinal_cosinus / ((4 * np.pi) * kpc**2) # cygnus
+            interpolated_densities[i] *= cygnus_nii_luminosity * db * dr * latitudinal_cosinus / ((4 * np.pi) * kpc**2) # cygnus
         elif i==5:
-            interpolated_densities[i] = interpolated_densities[i] * gum_nii_luminosity * db * dr * latitudinal_cosinus / ((4 * np.pi) * kpc**2) # gum
+            interpolated_densities[i] *= gum_nii_luminosity * db * dr * latitudinal_cosinus / ((4 * np.pi) * kpc**2) # gum
         else:
-            interpolated_densities[i] = common_multiplication_factor * interpolated_densities[i] * fractional_contribution[i] / (effective_area[i] * kpc**2) # spiral arms
-        print(f"interpolated_density_arm has {interpolated_densities[i][interpolated_densities[i] > 0].size} positive values out of {interpolated_densities[i].size}, where the average positive value is {np.mean(interpolated_densities[i][interpolated_densities[i] > 0])}")
+            interpolated_densities[i] *= common_multiplication_factor * fractional_contribution[i] / (effective_area[i] * kpc**2) # spiral arms
+        ###################print(f"interpolated_density_arm has {interpolated_densities[i][interpolated_densities[i] > 0].size} positive values out of {interpolated_densities[i].size}, where the average positive value is {np.mean(interpolated_densities[i][interpolated_densities[i] > 0])}")
         # reshape this 1D array into 2D array to facilitate for the summation over the different longitudes
-        #interpolated_density_arm = interpolated_density_arm.reshape((len(longitudes), len(radial_distances) * len(latitudes)))
         interpolated_density_arm = interpolated_densities[i].reshape((len(radial_distances), len(longitudes), len(latitudes)))
         densities_rad_long_lat += interpolated_density_arm
         # sum up to get the density as a function of longitude
-        density_distribution = interpolated_density_arm.sum(axis=(0, 2)) # sum up all the values for the different longitudes
+        temp_density_as_func_of_long = interpolated_density_arm.sum(axis=(0, 2)) # sum up all densities for all LOS for each value of longitude
         window_size = 5 / dl # 5 degrees in divided by the increment in degrees for the longitude. This is the window size for the running average, number of points
-        density_distribution = running_average(density_distribution, window_size) / window_size #divide by delta-l in radians for the averaging the paper mentions
-        densities_as_func_of_long[i] += density_distribution
+        temp_density_as_func_of_long = running_average(temp_density_as_func_of_long, window_size) / window_size # running average to smooth out the density distribution
+        densities_as_func_of_long[i] += temp_density_as_func_of_long
         if skymap:
             density_skymap = interpolated_density_arm.sum(axis=0) # sum up all radiis
             densities_skymap[1:, 1:] += density_skymap
@@ -560,15 +566,21 @@ def calc_modelled_emissivity(fractional_contribution=fractional_contribution_def
         densities_skymap[1:, 0] = longitudes
         densities_skymap[0, 1:] = latitudes
         np.savetxt(filepath, densities_skymap)
+    # Saving the total, weighted galactic density. Arms are summed up. Note that the values in this array are NOT the same in the xy plane for every z-value. To plot this array,
+    # either sum up all the xy planes for every z-value, or just scale one of the xy-planes so that the densities are visible. Should not matter really, since the height distribution is just 
+    # a gaussian distribution, 
+    total_galactic_density_weighted = np.sum(interpolated_densities, axis=0) # sum up all the arms
+    np.save('output/galaxy_data/total_galactic_density_weighted.npy', total_galactic_density_weighted) #xyz, the whole sheisse
     # save the data. To be used for the MC simulation for SN
-    np.save('output/galaxy_data/interpolated_densities.npy', np.sum(interpolated_densities, axis=0)) #xyz, the whole sheisse
-    np.save('output/galaxy_data/x_grid.npy', x_grid)
-    np.save('output/galaxy_data/y_grid.npy', y_grid)
-    np.save('output/galaxy_data/z_grid.npy', z_grid)
-    np.save('output/galaxy_data/densities_longitudinal.npy', np.sum(densities_as_func_of_long, axis=0)) # saving the same array we are plotting usually. Sum over all spiral arms to get one longitudinal map
-    np.save('output/galaxy_data/densities_lat.npy', np.sum(densities_rad_long_lat, axis=(0))) # summing up all radial and longitudinal values to get one latitudinal map
-    np.save('output/galaxy_data/densities_rad.npy', densities_rad_long_lat) # summing up all longitudinal and latitudinal values to get one radial map
-    return longitudes, densities_as_func_of_long #* np.radians(5)) # devide by delta-b and delta-l in radians, respectively, for the averaging the paper mentions
+    ###################np.save('output/galaxy_data/interpolated_densities.npy', np.sum(interpolated_densities, axis=0)) #xyz, the whole sheisse
+    np.save('output/galaxy_data/x_grid.npy', x_grid) # saving x_grid
+    np.save('output/galaxy_data/y_grid.npy', y_grid) # saving y_grid
+    np.save('output/galaxy_data/z_grid.npy', z_grid) # saving z_grid
+    np.save('output/galaxy_data/densities_longitudinal_running_avg.npy', np.sum(densities_as_func_of_long, axis=0)) # saving the same array we are plotting usually. Sum over all spiral arms to get one longitudinal map. With running average
+    np.save('output/galaxy_data/densities_longitudinal_no_running_avg.npy', np.sum(densities_rad_long_lat, axis=(0, 2))) # Sum up all densities for all LOS for each value of longitude. Without running average
+    np.save('output/galaxy_data/densities_long_lat.npy', np.sum(densities_rad_long_lat, axis=(0))) # sum over all radii to get a map for long, lat plane
+    np.save('output/galaxy_data/densities_densities_rad_long_lat.npy', densities_rad_long_lat) # storing all values for the radial distribution
+    return longitudes, densities_as_func_of_long 
 
 
 def plot_modelled_emissivity_per_arm(fractional_contribution, gum_cygnus='False', skymap = False, method='cubic', readfile = "true", filename = "output/modelled_emissivity.png", h=h_default, sigma_arm=sigma_arm_default, arm_angles=arm_angles, pitch_angles=pitch_angles):
@@ -961,4 +973,7 @@ PITCH_ANGLES_7 = np.radians([14, 14, 14, 16])
 #plot_modelled_emissivity_per_arm([0.18, 0.36, 0.18, 0.28], 'False', False,'cubic', 'false', "output/modelled_emissivity_arms_running_average_7degree41.png", h_default, sigma_arm_default, ARM_ANGLES2, PITCH_ANGLES_4)
 #plot_modelled_emissivity_per_arm([0.18, 0.36, 0.18, 0.28], 'False', False,'cubic', 'false', "output/modelled_emissivity_arms_running_average_7degree42.png", h_default, sigma_arm_default, ARM_ANGLES3, PITCH_ANGLES_5)
 #plot_modelled_emissivity_per_arm([0.18, 0.36, 0.18, 0.28], 'False', False,'cubic', 'false', "output/modelled_emissivity_arms_running_average_7degree43.png", h_default, sigma_arm_default, ARM_ANGLES3, PITCH_ANGLES_6)
-plot_modelled_emissivity_per_arm([0.18, 0.36, 0.18, 0.28], 'False', False,'cubic', 'false', "output/modelled_emissivity_arms_running_average_7degree44.png", h_default, sigma_arm_default, ARM_ANGLES3, PITCH_ANGLES_7)
+#plot_modelled_emissivity_per_arm([0.18, 0.36, 0.18, 0.28], 'False', False,'cubic', 'false', "output/modelled_emissivity_arms_running_average_7degree44.png", h_default, sigma_arm_default, ARM_ANGLES3, PITCH_ANGLES_7)
+#plot_modelled_emissivity_per_arm([0.18, 0.36, 0.18, 0.28], 'False', False,'cubic', 'false', "output/modelled_emissivity_arms_running_average_7degree45.png", h_default, sigma_arm_default, ARM_ANGLES3, PITCH_ANGLES_7)
+calc_modelled_emissivity()
+#plot_interpolated_galactic_densities()

@@ -5,6 +5,14 @@ rng = np.random.default_rng()
 
 class Association():
     #galactic_densities = np.loadtxt('output\long_lat_skymap.txt')
+    ### Parameters for the IMF:
+    tau_0 = 1.6e8 * 1.65 #fits a little bit better with the data, though the slope is still too shallow
+    beta = -0.932
+    alpha = np.array([0.3, 1.3, 2.3, 2.7])
+    m = np.array([0.01, 0.08, 0.5, 1, 120]) # mass in solar masses. Denotes the limits between the different power laws
+    solar_masses = np.arange(8, 120, 0.01) # mass in solar masses
+    imf = (m[2]/m[1])**(-alpha[1]) * (m[3]/m[2])**(-alpha[2]) * (solar_masses/m[3])**(-alpha[3])
+    
     # positions:
     x_grid = np.load('output/galaxy_data/x_grid.npy')
     y_grid = np.load('output/galaxy_data/y_grid.npy')
@@ -21,15 +29,9 @@ class Association():
         self.__n = self._calculate_num_sn(c, n)
         self.__creation_time = creation_time
         self.__simulation_time = creation_time # when the association is created, the simulation time is the same as the creation time
-        self.__supernovae = [] # list containting all the supernovae progenitors in the association
-        self.__longitudes = []
-        self.__exploded_sn = []
-
         self._calculate_association_position()
-        self._generate_sn()
-        self._find_longitudes()
-        self._find_exploded_sn()
-    
+        self._generate_sn_batch() # list containting all the supernovae progenitors in the association
+
     @property
     def number_sn(self):
         return self.__n
@@ -50,30 +52,6 @@ class Association():
     def supernovae(self):
         return self.__supernovae
     
-    @property
-    def exploded_sn(self):
-        return self.__exploded_sn
-    
-    @property
-    def longitudes(self):
-        return np.array(self.__longitudes)
-
-    @np.vectorize
-    def vectorized_find_mass(sn):
-        return sn.mass
-    
-    @property
-    def find_sn_masses(self):
-        return self.vectorized_find_mass(self.__supernovae)
-    
-    @np.vectorize
-    def vectorized_find_age(sn):
-        return sn.age
-    
-    def find_sn_ages(self):
-        return self.vectorized_find_age(self.__supernovae)
-    
-
     def _calculate_num_sn(self, c, n):
         if n==None:
             return int(np.ceil(np.exp((c - rng.random())/0.11))) # c = number of star formation episodes, n = number of SNPs in the association
@@ -89,26 +67,18 @@ class Association():
         self.__y = self.y_grid[grid_index]
         self.__z = self.z_grid[grid_index]
 
-    def _generate_sn(self):
-        for i in range(self.__n):
-            self.__supernovae.append(sn.SuperNovae(self.x, self.y, self.z, self.__creation_time, self.__simulation_time))
+    def _generate_sn_batch(self):
+        sn_masses = np.random.choice(self.solar_masses, size=self.__n, p=self.imf/np.sum(self.imf))
+        one_dim_velocities = rng.normal(loc=0, scale=2, size=self.__n)
+        lifetimes = self.tau_0 * (sn_masses)**(self.beta) / 1e6 # devide to convert into units of Myr
+        vel_theta_dirs = rng.uniform(0, np.pi, size=self.__n)
+        vel_phi_dirs = rng.uniform(0, 2 * np.pi, size=self.__n)
+        self.__supernovae = [sn.SuperNovae(self.x, self.y, self.z, self.__creation_time, self.__simulation_time, sn_masses[i], one_dim_velocities[i], lifetimes[i], vel_theta_dirs[i], vel_phi_dirs[i]) for i in range(self.__n)]
     
-    def _find_longitudes(self):
-        for sn in self.__supernovae:
-            self.__longitudes.append(sn.long)
-
-    def _find_exploded_sn(self):
-        for sn in self.__supernovae:
-            if sn.exploded:
-                self.__exploded_sn.append(sn)
-
     def update_sn(self, new_simulation_time):
-        if new_simulation_time > self.__creation_time:
-            raise ValueError("Simulation time can't be larger than supernovae creation time.")
+        #print(f"Updating SN's in association. New simulation time: {new_simulation_time} yrs.")
         for sn in self.__supernovae:
             sn.simulation_time = new_simulation_time
-        self._find_longitudes()
-        self._find_exploded_sn()
     
     def plot_association(self, ax, color='black'):
         ax.scatter(0, 0, 0, s=10, color='blue', label='Centre of association')
@@ -116,6 +86,7 @@ class Association():
         ax.scatter(0, 0, 0, s=1, color='black', label='SN progenitor', zorder=-1) """
         
         for sn in self.__supernovae:
+            sn.calculate_position()
             sn.plot_sn(ax, self.x, self.y, self.z, color)
 
     def print_association(self):
