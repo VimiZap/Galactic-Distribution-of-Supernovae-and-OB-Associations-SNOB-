@@ -498,7 +498,7 @@ def calc_effective_area_per_spiral_arm(method='linear', h=h_default, sigma_arm=s
     return effective_area
 
 
-def calc_modelled_emissivity(fractional_contribution=fractional_contribution_default, gum_cygnus='False', skymap = False, method='linear', readfile="true", h=h_default, sigma_arm=sigma_arm_default, arm_angles=arm_angles, pitch_angles=pitch_angles):
+def calc_modelled_emissivity(fractional_contribution=fractional_contribution_default, gum_cygnus='False', method='linear', readfile="true", h=h_default, sigma_arm=sigma_arm_default, arm_angles=arm_angles, pitch_angles=pitch_angles):
     print("Calculating modelled emissivity")
     if readfile == "true":
         effective_area = np.loadtxt("output/effective_area_per_spiral_arm.txt")
@@ -528,8 +528,7 @@ def calc_modelled_emissivity(fractional_contribution=fractional_contribution_def
     # coordinates made. Now we need to calculate the density for each point
     height_distribution_values = height_distribution(z_grid)
     latitudinal_cosinus = np.cos(coordinates[:, 2])
-    if skymap:
-        densities_skymap = np.zeros((len(longitudes) + 1, len(latitudes) + 1))
+    
     interpolated_densities = interpolate_density(x_grid, y_grid, gum_cygnus, method, h, sigma_arm, arm_angles, pitch_angles)
     
     # saving the total, unweigthed galactic density. Arms are summed up. Note that the values in this array are the same in the xy plane for every z-value. 
@@ -558,14 +557,7 @@ def calc_modelled_emissivity(fractional_contribution=fractional_contribution_def
         window_size = 5 / dl # 5 degrees in divided by the increment in degrees for the longitude. This is the window size for the running average, number of points
         temp_density_as_func_of_long = running_average(temp_density_as_func_of_long, window_size) / window_size # running average to smooth out the density distribution
         densities_as_func_of_long[i] += temp_density_as_func_of_long
-        if skymap:
-            density_skymap = interpolated_density_arm.sum(axis=0) # sum up all radiis
-            densities_skymap[1:, 1:] += density_skymap
-    if skymap:
-        filepath = "output/long_lat_skymap.txt"
-        densities_skymap[1:, 0] = longitudes
-        densities_skymap[0, 1:] = latitudes
-        np.savetxt(filepath, densities_skymap)
+        
     # Saving the total, weighted galactic density. Arms are summed up. Note that the values in this array are NOT the same in the xy plane for every z-value. To plot this array,
     # either sum up all the xy planes for every z-value, or just scale one of the xy-planes so that the densities are visible. Should not matter really, since the height distribution is just 
     # a gaussian distribution, 
@@ -583,11 +575,11 @@ def calc_modelled_emissivity(fractional_contribution=fractional_contribution_def
     return longitudes, densities_as_func_of_long 
 
 
-def plot_modelled_emissivity_per_arm(fractional_contribution, gum_cygnus='False', skymap = False, method='cubic', readfile = "true", filename = "output/modelled_emissivity.png", h=h_default, sigma_arm=sigma_arm_default, arm_angles=arm_angles, pitch_angles=pitch_angles):
+def plot_modelled_emissivity_per_arm(fractional_contribution, gum_cygnus='False', method='cubic', readfile = "true", filename = "output/modelled_emissivity.png", h=h_default, sigma_arm=sigma_arm_default, arm_angles=arm_angles, pitch_angles=pitch_angles):
     """
     Plots the modelled emissivity of the Galactic disk as a function of Galactic longitude.
     """
-    longitudes, densities_as_func_of_long = calc_modelled_emissivity(fractional_contribution, gum_cygnus, skymap, method, readfile, h, sigma_arm, arm_angles, pitch_angles)
+    longitudes, densities_as_func_of_long = calc_modelled_emissivity(fractional_contribution, gum_cygnus, method, readfile, h, sigma_arm, arm_angles, pitch_angles)
     plt.plot(np.linspace(0, 100, len(longitudes)), densities_as_func_of_long[0], label=f"NC. f={fractional_contribution[0]}")
     plt.plot(np.linspace(0, 100, len(longitudes)), densities_as_func_of_long[1], label=f"P. $\ $ f={fractional_contribution[1]}")
     plt.plot(np.linspace(0, 100, len(longitudes)), densities_as_func_of_long[2], label=f"SA. f={fractional_contribution[2]}")
@@ -613,11 +605,11 @@ def plot_modelled_emissivity_per_arm(fractional_contribution, gum_cygnus='False'
     #plt.show()
 
 
-def plot_modelled_emissivity_total(fractional_contribution, gum_cygnus='False', skymap = False, method='linear', readfile = "true", filename = "output/modelled_emissivity.png", h=h_default, sigma_arm=sigma_arm_default):
+def plot_modelled_emissivity_total(fractional_contribution, gum_cygnus='False', method='linear', readfile = "true", filename = "output/modelled_emissivity.png", h=h_default, sigma_arm=sigma_arm_default):
     """
     Plots the modelled emissivity of the Galactic disk as a function of Galactic longitude.
     """
-    longitudes, densities_as_func_of_long = calc_modelled_emissivity(fractional_contribution, gum_cygnus, skymap, method, readfile, h, sigma_arm)
+    longitudes, densities_as_func_of_long = calc_modelled_emissivity(fractional_contribution, gum_cygnus, method, readfile, h, sigma_arm)
     print("interpolated densities: ", densities_as_func_of_long.shape)
     plt.plot(np.linspace(0, 100, len(longitudes)), np.sum(densities_as_func_of_long, axis=0), label="Total")
     print(np.sum(densities_as_func_of_long))
@@ -746,23 +738,6 @@ def test_transverse_scale_length(method='linear', readfile='true', fractional_co
     plt.show()
 
 
-def plot_skymap():
-    skydata = np.loadtxt('output/long_lat_skymap.txt')
-    print(skydata.shape)
-    # Create coordinate grids
-    long_grid, lat_grid = np.meshgrid(np.linspace(0, 100, len(skydata[1:, 0])), np.degrees(skydata[0, 1:]), indexing='ij')
-    plt.pcolormesh(long_grid, lat_grid, skydata[1:, 1:], shading='auto')  
-    plt.colorbar()
-    # Redefine the x-axis labels to match the values in longitudes
-    x_ticks = (180, 150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210, 180)
-    plt.xticks(np.linspace(0, 100, 13), x_ticks)
-    plt.xlabel('Galactic Longitude (degrees)')
-    plt.ylabel('Galactic Latitude (degrees)')
-    plt.title('Skymap of the modelled luminocity')
-    plt.savefig('output/skymap.png', dpi=1200)
-    plt.show()
-
-
 def find_max_value_and_index(arr):
     if not arr.any():
         return None, None  # Return None if the array is empty
@@ -773,7 +748,7 @@ def find_max_value_and_index(arr):
     return max_value, max_index
 
 
-def find_arm_tangents(fractional_contribution=fractional_contribution_default, gum_cygnus='False', skymap = False, method='cubic', readfile = "false", filename = "output/test_arm_angles/test_arm_start_angle.txt", h=h_default, sigma_arm=sigma_arm_default):
+def find_arm_tangents(fractional_contribution=fractional_contribution_default, gum_cygnus='False', method='cubic', readfile = "false", filename = "output/test_arm_angles/test_arm_start_angle.txt", h=h_default, sigma_arm=sigma_arm_default):
     # starting angles for the spiral arms, respectively Norma-Cygnus, Perseus, Sagittarius-Carina, Scutum-Crux
     # arm_angles = np.radians([70, 160, 250, 340]) #original
     nc_angle = np.arange(60, 81, 1)
@@ -782,7 +757,7 @@ def find_arm_tangents(fractional_contribution=fractional_contribution_default, g
     sc_angle = np.arange(330, 351, 1)
     for i in range(len(nc_angle)):
         angles = np.radians(np.array([nc_angle[i], p_angle[i], sa_angle[i], sc_angle[i]]))
-        longitudes, densities_as_func_of_long = calc_modelled_emissivity(fractional_contribution, gum_cygnus, skymap, method, readfile, h, sigma_arm, angles)        
+        longitudes, densities_as_func_of_long = calc_modelled_emissivity(fractional_contribution, gum_cygnus, method, readfile, h, sigma_arm, angles)        
         _, max_index_nc = find_max_value_and_index(densities_as_func_of_long[0])
         _, max_index_p = find_max_value_and_index(densities_as_func_of_long[1])
         _, max_index_sa = find_max_value_and_index(densities_as_func_of_long[2])
@@ -813,7 +788,7 @@ def find_arm_tangents(fractional_contribution=fractional_contribution_default, g
             f.write(f"{nc_angle[i]} {p_angle[i]} {sa_angle[i]} {sc_angle[i]} {np.degrees(longitudes[max_index_nc])} {np.degrees(longitudes[max_index_p])} {np.degrees(longitudes[max_index_sa])} {np.degrees(longitudes[max_index_sc])}\n")
         
         
-def find_pitch_angles(fractional_contribution=fractional_contribution_default, gum_cygnus='False', skymap = False, method='cubic', readfile = "false", filename = "output/test_pitch_angles_4/test_pitch_angles_4.txt", h=h_default, sigma_arm=sigma_arm_default):
+def find_pitch_angles(fractional_contribution=fractional_contribution_default, gum_cygnus='False', method='cubic', readfile = "false", filename = "output/test_pitch_angles_4/test_pitch_angles_4.txt", h=h_default, sigma_arm=sigma_arm_default):
     # starting angles for the spiral arms, respectively Norma-Cygnus, Perseus, Sagittarius-Carina, Scutum-Crux
     # arm_angles = np.radians([70, 160, 250, 340]) #original
     # pitch_angles = np.radians(np.array([13.5, 13.5, 13.5, 15.5])) # original
@@ -827,7 +802,7 @@ def find_pitch_angles(fractional_contribution=fractional_contribution_default, g
     Arm_Angles = np.array([65, 160, 240, 330]) #4
     for i in range(len(pitch_angles)):
         Pitch_Angles = np.radians([pitch_angles[i], pitch_angles[i], pitch_angles[i], pitch_angles[i]])
-        longitudes, densities_as_func_of_long = calc_modelled_emissivity(fractional_contribution, gum_cygnus, skymap, method, readfile, h, sigma_arm, np.radians(Arm_Angles), Pitch_Angles)        
+        longitudes, densities_as_func_of_long = calc_modelled_emissivity(fractional_contribution, gum_cygnus, method, readfile, h, sigma_arm, np.radians(Arm_Angles), Pitch_Angles)        
         _, max_index_nc = find_max_value_and_index(densities_as_func_of_long[0])
         _, max_index_p = find_max_value_and_index(densities_as_func_of_long[1])
         _, max_index_sa = find_max_value_and_index(densities_as_func_of_long[2])
@@ -881,7 +856,6 @@ fractional_contribution = [0.17, 0.30, 0.22, 0.31] # fractional contribution of 
 
 Arm_Angles = np.radians([65, 160, 245, 335])
 #calc_modelled_emissivity(fractional_contribution=fractional_contribution_default, gum_cygnus='False', sigma_arm=False, method='cubic', readfile='false')
-#plot_skymap()
 #plot_interpolated_galactic_densities() 
 #test_interpolation_method_interpolated_densities()
 #print("long_lat_rad_coords_generation")
