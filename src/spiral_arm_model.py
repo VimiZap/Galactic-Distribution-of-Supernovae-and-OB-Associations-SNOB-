@@ -525,10 +525,10 @@ def calc_modelled_emissivity(fractional_contribution=fractional_contribution_def
     x_grid = rho_coords_galaxy * np.cos(theta_coords_galaxy)
     y_grid = rho_coords_galaxy * np.sin(theta_coords_galaxy)
     z_grid = coordinates[:, 0] * np.sin(coordinates[:, 2])
+    ##############################################################################
     # coordinates made. Now we need to calculate the density for each point
     height_distribution_values = height_distribution(z_grid)
     latitudinal_cosinus = np.cos(coordinates[:, 2])
-    
     interpolated_densities = interpolate_density(x_grid, y_grid, gum_cygnus, method, h, sigma_arm, arm_angles, pitch_angles)
     
     # saving the total, unweigthed galactic density. Arms are summed up. Note that the values in this array are the same in the xy plane for every z-value. 
@@ -536,7 +536,6 @@ def calc_modelled_emissivity(fractional_contribution=fractional_contribution_def
     # For the latter approach, there will be no issue as the points are overlapping anyway and the visual plot will be the same
     total_galactic_density_unweighted = np.sum(interpolated_densities, axis=0) # sum up all the arms
     np.save('output/galaxy_data/total_galactic_density_unweighted.npy', total_galactic_density_unweighted) 
-    ###################print(f"interpolated_densities has {interpolated_densities[interpolated_densities > 0].size} positive values out of {interpolated_densities.size}, where the average positive value is {np.mean(interpolated_densities[interpolated_densities > 0])}")
     densities_as_func_of_long = np.zeros((len(interpolated_densities), len(longitudes))) #len(interpolated_densities) = 4 or 6, len(longitudes) = 1800
     densities_rad_long_lat = np.zeros((len(radial_distances), len(longitudes), len(latitudes)))
     common_multiplication_factor = total_galactic_n_luminosity * height_distribution_values * db * dr * latitudinal_cosinus/ (4 * np.pi * np.radians(10)) 
@@ -548,8 +547,7 @@ def calc_modelled_emissivity(fractional_contribution=fractional_contribution_def
             interpolated_densities[i] *= gum_nii_luminosity * db * dr * latitudinal_cosinus / ((4 * np.pi) * kpc**2) # gum
         else:
             interpolated_densities[i] *= common_multiplication_factor * fractional_contribution[i] / (effective_area[i] * kpc**2) # spiral arms
-        ###################print(f"interpolated_density_arm has {interpolated_densities[i][interpolated_densities[i] > 0].size} positive values out of {interpolated_densities[i].size}, where the average positive value is {np.mean(interpolated_densities[i][interpolated_densities[i] > 0])}")
-        # reshape this 1D array into 2D array to facilitate for the summation over the different longitudes
+        # reshape this 1D array into 3D array to facilitate for the summation over the different longitudes
         interpolated_density_arm = interpolated_densities[i].reshape((len(radial_distances), len(longitudes), len(latitudes)))
         densities_rad_long_lat += interpolated_density_arm
         # sum up to get the density as a function of longitude
@@ -834,6 +832,24 @@ def find_pitch_angles(fractional_contribution=fractional_contribution_default, g
             f.write(f"{pitch_angles[i]} {np.degrees(longitudes[max_index_nc])} {np.degrees(longitudes[max_index_p])} {np.degrees(longitudes[max_index_sa])} {np.degrees(longitudes[max_index_sc])}\n")
 
 
+def plot_from_file():
+    x_grid = np.load('output/galaxy_data/x_grid.npy')
+    y_grid = np.load('output/galaxy_data/y_grid.npy')
+    z_grid = np.load('output/galaxy_data/z_grid.npy')
+    total_galactic_density_unweighted = np.load('output/galaxy_data/total_galactic_density_unweighted.npy')
+    total_galactic_density_weighted = np.load('output/galaxy_data/total_galactic_density_weighted.npy')
+    print("total_galactic_density_weighted: ", total_galactic_density_weighted.shape)
+    print("total_galactic_density_unweighted: ", total_galactic_density_unweighted.shape)
+    
+plot_from_file() 
+
+# consider this: for every point in the galactic plane, we have a fixed number of points in the z-direction: 21. How are these distributed?
+# For the xy points closest to the earth, the z-points are distributed very close to the galactic plane. For the xy points furthest away from the earth, the z-points are distributed further away from the galactic plane.
+# Thus, when we add the transverse contributions together, we get a very skewed distribution of the z-points.
+
+
+
+
 #find_arm_tangents()
 #find_pitch_angles()
 
@@ -949,5 +965,5 @@ PITCH_ANGLES_7 = np.radians([14, 14, 14, 16])
 #plot_modelled_emissivity_per_arm([0.18, 0.36, 0.18, 0.28], 'False', False,'cubic', 'false', "output/modelled_emissivity_arms_running_average_7degree43.png", h_default, sigma_arm_default, ARM_ANGLES3, PITCH_ANGLES_6)
 #plot_modelled_emissivity_per_arm([0.18, 0.36, 0.18, 0.28], 'False', False,'cubic', 'false', "output/modelled_emissivity_arms_running_average_7degree44.png", h_default, sigma_arm_default, ARM_ANGLES3, PITCH_ANGLES_7)
 #plot_modelled_emissivity_per_arm([0.18, 0.36, 0.18, 0.28], 'False', False,'cubic', 'false', "output/modelled_emissivity_arms_running_average_7degree45.png", h_default, sigma_arm_default, ARM_ANGLES3, PITCH_ANGLES_7)
-calc_modelled_emissivity()
+#calc_modelled_emissivity()
 #plot_interpolated_galactic_densities()
