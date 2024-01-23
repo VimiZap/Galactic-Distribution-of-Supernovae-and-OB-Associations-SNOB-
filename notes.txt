@@ -1,7 +1,0 @@
-method='linear' performes worse than method='cubic' when using scipy.griddata for interpolation
-Using spherical coordinates needs more work if to be used: only upper halv plane atm. However, it does not give a noticable improvement compared with griddata(method'cubic')
-
-
-Must remember that the effective area must be given in units of cm, not kpc!
-
-calc lum/gram, integrate
