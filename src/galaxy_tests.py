@@ -1,11 +1,15 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import supernovae_class as sn
-import association_class as ass
-import galaxy_class as galaxy
+import gc
+#import supernovae_class as sn
+#import association_class as ass
+#import galaxy_class as galaxy
 from matplotlib.ticker import AutoMinorLocator
 from matplotlib.lines import Line2D
+import os
+import time
 
+WORK_DIRECTORY = '/work/paradoxx/viktormi/output'
 
 N = 10e4 # number of associations in the Galaxy
 T = 20 # simulation run time in Myrs
@@ -311,24 +315,26 @@ def test_association_placement():
     plt.savefig("output/galaxy_tests/test_association_placement.png", dpi=1200)  # save plot in the output folder
     plt.close()
  
-    
 def test_plot_density_distribution():
     # let's make a plot for the density distribution of the Milky Way, to see if these maps actually reproduce the expected desnity distribution
-    total_galactic_density_weighted = np.load('output/galaxy_data/total_galactic_density_weighted.npy')
-    total_galactic_density_unweighted = np.load('output/galaxy_data/total_galactic_density_unweighted.npy')
-    total_galactic_density_unweighted = np.reshape(total_galactic_density_unweighted, (4818, 1800, 21))
+    NUM_INTERPOLANT_FILES = 4
+    total_galactic_density_unweighted = np.load(os.path.join(WORK_DIRECTORY, 'galaxy_data/interpolated_arm_0.npy')) 
+    for i in range(NUM_INTERPOLANT_FILES - 1):
+        total_galactic_density_unweighted += np.lib.format.open_memmap(os.path.join(WORK_DIRECTORY, f'galaxy_data/interpolated_arm_{i+1}.npy'))
+    #np.load('output/galaxy_data/total_galactic_density_unweighted.npy')
+    total_galactic_density_unweighted = np.reshape(total_galactic_density_unweighted, (4818, 1800, 51))
     total_galactic_density_unweighted = total_galactic_density_unweighted[:,:,0]
     total_galactic_density_unweighted = total_galactic_density_unweighted.ravel()
     x_grid = np.load('output/galaxy_data/x_grid.npy')
     y_grid = np.load('output/galaxy_data/y_grid.npy')
-    x_grid = np.reshape(x_grid, (4818, 1800, 21))
-    y_grid = np.reshape(y_grid, (4818, 1800, 21))
+    x_grid = np.reshape(x_grid, (4818, 1800, 51))
+    y_grid = np.reshape(y_grid, (4818, 1800, 51))
     x_grid = x_grid[:,:,0]
     y_grid = y_grid[:,:,0]
     x_grid = x_grid.ravel()
     y_grid = y_grid.ravel()
     # Plot the unweigthed density distribution:
-    plt.scatter(x_grid, y_grid, c=total_galactic_density_unweighted, cmap='viridis', s=1) # MISTAKE HERE: We are not really summing up all the latitudinal contribuitions, just plotting it on top of each other, overlapping
+    plt.scatter(x_grid, y_grid, c=total_galactic_density_unweighted, cmap='viridis', s=1) 
     plt.scatter(0, 0, c = 'magenta', s=2, label='Galactic centre')
     plt.scatter(0, r_s, c = 'gold', s=2, label='Sun')
     plt.gca().set_aspect('equal')
@@ -339,13 +345,21 @@ def test_plot_density_distribution():
     plt.legend(loc='upper right')
     cbar = plt.colorbar()
     cbar.set_label('Density')
-    print("Beginning to save the figure")
-    plt.savefig("output/galaxy_tests/test_plot_density_distribution_weighted.png", dpi=1200)  # save plot in the output folder
+    filename_unweighted = 'galaxy_tests/test_plot_density_distribution_unweighted_new.png'
+    filepath = os.path.join(WORK_DIRECTORY, filename_unweighted)
+    plt.savefig(filepath, dpi=1200)  # save plot in the output folder
     plt.close()
     print("Done saving the figure")
-    
+
+    del total_galactic_density_unweighted
+    gc.collect()
+
     # Plot the weigthed density distribution:
-    total_galactic_density_weighted = np.reshape(total_galactic_density_weighted, (4818, 1800, 21))
+    total_galactic_density_weighted = np.load(os.path.join(WORK_DIRECTORY, 'galaxy_data/interpolated_arm_scaled_0.npy')) 
+    for i in range(NUM_INTERPOLANT_FILES - 1):
+        total_galactic_density_weighted += np.lib.format.open_memmap(os.path.join(WORK_DIRECTORY, f'galaxy_data/interpolated_arm_scaled_{i+1}.npy')) 
+    #total_galactic_density_weighted = np.load('output/galaxy_data/total_galactic_density_weighted.npy')
+    total_galactic_density_weighted = np.reshape(total_galactic_density_weighted, (4818, 1800, 51))
     total_galactic_density_weighted = np.sum(total_galactic_density_weighted, axis=2)
     total_galactic_density_weighted = total_galactic_density_weighted.ravel()
     total_galactic_density_weighted /= np.max(total_galactic_density_weighted) # normalize this so that the maximum value is 1
@@ -365,7 +379,9 @@ def test_plot_density_distribution():
     cbar = plt.colorbar()
     cbar.set_label('Density')
     print("Beginning to save the figure")
-    plt.savefig("output/galaxy_tests/test_plot_density_distribution_weigthed.png", dpi=1200)  # save plot in the output folder
+    filename_weighted = 'galaxy_tests/test_plot_density_distribution_weigthed_new.png'
+    filepath = os.path.join(WORK_DIRECTORY, filename_weighted)
+    plt.savefig(filepath, dpi=1200)  # save plot in the output folder
     plt.close()
     print("Done saving the figure")
     
@@ -391,7 +407,7 @@ def run_tests(C, T):
     plot_cum_snp_cluster_distr(ass_models, C) """
     
 
-run_tests(C=C, T=100)
+#run_tests(C=C, T=100)
 
-#plot_diffusion_of_sns_3d()
-#test_plot_density_distribution()
+#plot_diffusion_of_sns_3d()savefig
+test_plot_density_distribution()

@@ -1,1 +1,4 @@
-output/galaxy_data/
+output/
+output
+.venv/
+.gitignore

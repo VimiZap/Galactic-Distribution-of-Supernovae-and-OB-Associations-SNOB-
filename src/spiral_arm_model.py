@@ -2,9 +2,18 @@ import numpy as np
 from matplotlib.ticker import AutoMinorLocator
 import matplotlib.pyplot as plt
 from scipy.interpolate import griddata
+from scipy.sparse import csr_matrix
 import copy
+import gc
+import time
+import os
 
-
+def test_path():
+    work_directory = '/work/paradoxx/viktormi/output'
+    filename = 'example.npy'
+    filepath = os.path.join(work_directory, filename)
+    data = np.arange(0, 10, 1)
+    np.save(filepath, data)
 
 # constants
 h_default = 2.4                 # kpc, scale length of the disk. The value Higdon and Lingenfelter used
@@ -404,7 +413,7 @@ def generate_gum_cygnus():
     summed_g_x, summed_g_y, densities_g = sum_z_values(g_x, g_y, g_density_values)
     return summed_c_x, summed_c_y, densities_c, summed_g_x, summed_g_y, densities_g
 
-def interpolate_density(grid_x, grid_y, gum_cygnus='False', method='cubic', h=h_default, sigma_arm=sigma_arm_default, arm_angles=arm_angles, pitch_angles=pitch_angles):
+def interpolate_density(gum_cygnus='False', method='cubic', h=h_default, sigma_arm=sigma_arm_default, arm_angles=arm_angles, pitch_angles=pitch_angles):
     """ Integrates the densities of the spiral arms over the entire galactic plane. The returned density is in units of kpc^-2. 
     Compared with the paper, it integrates P_\rho x P_\Delta at the top of page 6
 
@@ -417,7 +426,10 @@ def interpolate_density(grid_x, grid_y, gum_cygnus='False', method='cubic', h=h_
         3D np.array: Interpolated densities for each spiral arm along axis 0. Axis 1 and 2 are the densities with respect to the grid
     """
     transverse_distances, transverse_densities_initial = generate_non_uniform_spacing(sigma_arm) #d_min: minimum distance from the spiral arm
-    interpolated_densities = []
+    #interpolated_densities = []
+    x_grid = np.lib.format.open_memmap('output/galaxy_data/x_grid.npy')
+    y_grid = np.lib.format.open_memmap('output/galaxy_data/y_grid.npy')
+    #for i in range(len(arm_output_arm_medians(arm_angles[i], pitch_angles[i])
     for i in range(len(arm_angles)):
         # generate the spiral arm medians
         theta, rho = spiral_arm_medians(arm_angles[i], pitch_angles[i])
@@ -429,17 +441,20 @@ def interpolate_density(grid_x, grid_y, gum_cygnus='False', method='cubic', h=h_
         x = rho_coords*np.cos(theta_coords)
         y = rho_coords*np.sin(theta_coords)
         # calculate interpolated density for the spiral arm
-        interpolated_arm = griddata((x, y), density_spiral_arm, (grid_x, grid_y), method=method, fill_value=0)
-        interpolated_densities.append(interpolated_arm)
+        interpolated_arm = griddata((x, y), density_spiral_arm, (x_grid, y_grid), method=method, fill_value=0)
+        interpolated_arm[interpolated_arm < 0] = 0 # set all negative values to 0
+        np.save(f'output/galaxy_data/interpolated_arm_{i}.npy', interpolated_arm)
+
+        #interpolated_arm_sparse = csr_matrix(interpolated_arm)
+        #interpolated_densities.append(interpolated_arm_sparse)
     if gum_cygnus == 'True':
         c_coords_x, c_coords_y, c_density, g_coords_x, g_coords_y, g_density = generate_gum_cygnus()
-        interpolated_c = griddata((c_coords_x, c_coords_y), c_density, (grid_x, grid_y), method=method, fill_value=0)
-        interpolated_g = griddata((g_coords_x, g_coords_y), g_density, (grid_x, grid_y), method=method, fill_value=0)
-        interpolated_densities.append(interpolated_c)
-        interpolated_densities.append(interpolated_g)
-    interpolated_densities = np.array(interpolated_densities)
-    interpolated_densities[interpolated_densities < 0] = 0 # set all negative values to 0
-    return interpolated_densities
+        interpolated_c = griddata((c_coords_x, c_coords_y), c_density, (x_grid, y_grid), method=method, fill_value=0)
+        interpolated_g = griddata((g_coords_x, g_coords_y), g_density, (x_grid, y_grid), method=method, fill_value=0)
+        #interpolated_densities.append(interpolated_c)
+        #interpolated_densities.append(interpolated_g)
+    #interpolated_densities = np.array(interpolated_densities)
+    return #interpolated_densities
 
 
 def plot_interpolated_galactic_densities(method='cubic', gum_cygnus = 'False', h=h_default, sigma_arm=sigma_arm_default, arm_angles=arm_angles, pitch_angles=pitch_angles):
@@ -493,21 +508,62 @@ def calc_effective_area_per_spiral_arm(method='linear', h=h_default, sigma_arm=s
         
         # add the interpolated density to the total galactic density
         effective_area = np.append(effective_area, np.sum(interpolated_density) * d_x * d_y)
-    filepath = "output/effective_area_per_spiral_arm.txt"
+    filepath = "src/effective_area_per_spiral_arm.txt"
     np.savetxt(filepath, effective_area)
     return effective_area
 
 
+def calculate_galactic_coordinates(longitudes, latitudes, radial_distances):
+    # generate the set of coordinates
+    # Create a meshgrid of all combinations
+    print("Creating meshgrid")
+    radial_grid, long_grid, lat_grid = np.meshgrid(radial_distances, longitudes, latitudes, indexing='ij')
+    np.save('output/galaxy_data/radial_grid.npy', radial_grid.ravel()) # saving radial_grid
+    np.save('output/galaxy_data/long_grid.npy', long_grid.ravel()) # saving long_grid
+    np.save('output/galaxy_data/lat_grid.npy', lat_grid.ravel()) # saving lat_grid
+    del radial_grid, long_grid, lat_grid
+    gc.collect()
+    print("Meshgrid created and coords unravelled. Now calculating the latidudinal cosinus")
+    latitudinal_cosinus = np.cos(np.lib.format.open_memmap('output/galaxy_data/lat_grid.npy'))
+    np.save('output/galaxy_data/latitudinal_cosinus.npy', latitudinal_cosinus) # saving latitudinal_cosinus
+    del latitudinal_cosinus
+    gc.collect()
+    print("Latitudinal cosinus calculated. Now calculating z coordinates and height_distribution_values")
+    z_grid = np.lib.format.open_memmap('output/galaxy_data/radial_grid.npy') * np.sin(np.lib.format.open_memmap('output/galaxy_data/lat_grid.npy'))
+    np.save('output/galaxy_data/z_grid.npy', z_grid) # saving z_grid
+    height_distribution_values = height_distribution(z_grid)
+    np.save('output/galaxy_data/height_distribution_values.npy', height_distribution_values) # saving height_distribution_values
+    del z_grid, height_distribution_values
+    gc.collect()
+    print("z coordinates and height_distribution_values calculated. Now calculating rho, theta, x and y coordinates")
+
+    rho_coords_galaxy = rho_func(np.lib.format.open_memmap('output/galaxy_data/long_grid.npy'), np.lib.format.open_memmap('output/galaxy_data/lat_grid.npy'), np.lib.format.open_memmap('output/galaxy_data/radial_grid.npy'))
+    theta_coords_galaxy = theta_func(np.lib.format.open_memmap('output/galaxy_data/long_grid.npy'), np.lib.format.open_memmap('output/galaxy_data/lat_grid.npy'), np.lib.format.open_memmap('output/galaxy_data/radial_grid.npy'))
+    print("Calculating x-values")
+    x_grid = rho_coords_galaxy * np.cos(theta_coords_galaxy)
+    np.save('output/galaxy_data/x_grid.npy', x_grid) # saving y_grid
+    del x_grid
+    gc.collect()
+    print("Calculating y-values")
+    y_grid = rho_coords_galaxy * np.sin(theta_coords_galaxy)
+    np.save('output/galaxy_data/y_grid.npy', y_grid) # saving x_grid
+    del y_grid, rho_coords_galaxy, theta_coords_galaxy
+    gc.collect()
+    return
+
+
+
 def calc_modelled_emissivity(fractional_contribution=fractional_contribution_default, gum_cygnus='False', method='linear', readfile="true", h=h_default, sigma_arm=sigma_arm_default, arm_angles=arm_angles, pitch_angles=pitch_angles):
     print("Calculating modelled emissivity")
+    
     if readfile == "true":
-        effective_area = np.loadtxt("output/effective_area_per_spiral_arm.txt")
+        effective_area = np.loadtxt("src/effective_area_per_spiral_arm.txt")
     else:
         effective_area = calc_effective_area_per_spiral_arm(method, h, sigma_arm)
-    # generate the set of coordinates
+    # Calculate coordinates
     dr = 0.01   # increments in dr (kpc):
     dl = 0.2   # increments in dl (degrees):
-    db = 0.5   # increments in db (degrees):
+    db = 0.2   # increments in db (degrees):
     # latitude range, integrate from -3.5 to 3.5 degrees, converted to radians
     latitudes = np.radians(np.arange(-5, 5 + db, db))
     # np.array with values for galactic longitude l in radians.
@@ -516,56 +572,56 @@ def calc_modelled_emissivity(fractional_contribution=fractional_contribution_def
     longitudes = np.radians(np.concatenate((l1, l2)))
     # np.array with values for distance from the Sun to the star/ a point in the Galaxy
     radial_distances = np.arange(dr, r_s + rho_max + 5 + dr, dr) #r_s + rho_max + 5 is the maximum distance from the Sun to the outer edge of the Galaxy. +5 is due to the circular projection at the end points of the spiral arms
-    # Create a meshgrid of all combinations
-    radial_grid, lon_grid, lat_grid = np.meshgrid(radial_distances, longitudes, latitudes, indexing='ij')
-    # Combine the grids into a 2-D array
-    coordinates = np.column_stack((radial_grid.ravel(), lon_grid.ravel(), lat_grid.ravel()))     # Now 'coordinates' is a 2-D array with all combinations of (longitude, latitude, radial_distance)
-    rho_coords_galaxy = rho_func(coordinates[:, 1], coordinates[:, 2], coordinates[:, 0])
-    theta_coords_galaxy = theta_func(coordinates[:, 1], coordinates[:, 2], coordinates[:, 0])
-    x_grid = rho_coords_galaxy * np.cos(theta_coords_galaxy)
-    y_grid = rho_coords_galaxy * np.sin(theta_coords_galaxy)
-    z_grid = coordinates[:, 0] * np.sin(coordinates[:, 2])
+    #calculate_galactic_coordinates(dr, dl, db)
+    print("Coordinates calculated")
+    time.sleep(5)
     ##############################################################################
     # coordinates made. Now we need to calculate the density for each point
-    height_distribution_values = height_distribution(z_grid)
-    latitudinal_cosinus = np.cos(coordinates[:, 2])
-    interpolated_densities = interpolate_density(x_grid, y_grid, gum_cygnus, method, h, sigma_arm, arm_angles, pitch_angles)
     
+    print("Height distribution calculated. Now calculating the density")
+    ##### This needs to be fixed! Some work to be done
+    interpolate_density(gum_cygnus, method, h, sigma_arm, arm_angles, pitch_angles)
+    print("Density calculated. Now calculating the total galactic density")
     # saving the total, unweigthed galactic density. Arms are summed up. Note that the values in this array are the same in the xy plane for every z-value. 
     # thus when plotting this, one could either reshape the array in order to pick out only one plane (and then save time making the figure due to fewer points), or one could just plot it as it is. 
     # For the latter approach, there will be no issue as the points are overlapping anyway and the visual plot will be the same
-    total_galactic_density_unweighted = np.sum(interpolated_densities, axis=0) # sum up all the arms
-    np.save('output/galaxy_data/total_galactic_density_unweighted.npy', total_galactic_density_unweighted) 
-    densities_as_func_of_long = np.zeros((len(interpolated_densities), len(longitudes))) #len(interpolated_densities) = 4 or 6, len(longitudes) = 1800
-    densities_rad_long_lat = np.zeros((len(radial_distances), len(longitudes), len(latitudes)))
+    ######################this can rather be done where needed from the raw arm interpolants##########################################total_galactic_density_unweighted = np.sum(interpolated_densities, axis=0) # sum up all the arms
+    #np.save('output/galaxy_data/total_galactic_density_unweighted.npy', total_galactic_density_unweighted) 
+
+    height_distribution_values = np.load('output/galaxy_data/height_distribution_values.npy')
+    # pherhaps the best approach for a non-uniform distribution of latitudinal points it to reshape the height_distribution_values array into shape (rad, long, lat) or whatever,
+    # and then multiplying each "row" corresponding to each value of db, with it's correspoding db! Then ravel, and multiply together down here!!
+    latitudinal_cosinus = np.load('output/galaxy_data/latitudinal_cosinus.npy')
     common_multiplication_factor = total_galactic_n_luminosity * height_distribution_values * db * dr * latitudinal_cosinus/ (4 * np.pi * np.radians(10)) 
-    for i in range(len(interpolated_densities)):
+    del height_distribution_values#, total_galactic_density_unweighted
+    gc.collect()
+    
+    densities_as_func_of_long = np.zeros((4, len(longitudes))) #len(interpolated_densities) = 4 or 6, len(longitudes) = 1800
+    densities_rad_long_lat = np.zeros((len(radial_distances), len(longitudes), len(latitudes)))
+    for i in range(4):
         print("Calculating spiral arm number: ", i+1)
-        if i==4:
+        """ if i==4:
             interpolated_densities[i] *= cygnus_nii_luminosity * db * dr * latitudinal_cosinus / ((4 * np.pi) * kpc**2) # cygnus
         elif i==5:
             interpolated_densities[i] *= gum_nii_luminosity * db * dr * latitudinal_cosinus / ((4 * np.pi) * kpc**2) # gum
-        else:
-            interpolated_densities[i] *= common_multiplication_factor * fractional_contribution[i] / (effective_area[i] * kpc**2) # spiral arms
+        else: """
+        scaled_arm_density = np.load(f'output/galaxy_data/interpolated_arm_{i}.npy') * common_multiplication_factor * fractional_contribution[i] / (effective_area[i] * kpc**2) # spiral arms
+        # save this scaled density 
+        np.save(f'output/galaxy_data/interpolated_arm_scaled_{i}.npy', scaled_arm_density)
         # reshape this 1D array into 3D array to facilitate for the summation over the different longitudes
-        interpolated_density_arm = interpolated_densities[i].reshape((len(radial_distances), len(longitudes), len(latitudes)))
-        densities_rad_long_lat += interpolated_density_arm
+        scaled_arm_density = scaled_arm_density.reshape((len(radial_distances), len(longitudes), len(latitudes)))
+        densities_rad_long_lat += scaled_arm_density
+
         # sum up to get the density as a function of longitude
-        temp_density_as_func_of_long = interpolated_density_arm.sum(axis=(0, 2)) # sum up all densities for all LOS for each value of longitude
+        scaled_arm_density = scaled_arm_density.sum(axis=(0, 2)) # sum up all densities for all LOS for each value of longitude
         window_size = 5 / dl # 5 degrees in divided by the increment in degrees for the longitude. This is the window size for the running average, number of points
-        temp_density_as_func_of_long = running_average(temp_density_as_func_of_long, window_size) / window_size # running average to smooth out the density distribution
-        densities_as_func_of_long[i] += temp_density_as_func_of_long
+        scaled_arm_density = running_average(scaled_arm_density, window_size) / window_size # running average to smooth out the density distribution
+        densities_as_func_of_long[i] += scaled_arm_density
         
     # Saving the total, weighted galactic density. Arms are summed up. Note that the values in this array are NOT the same in the xy plane for every z-value. To plot this array,
     # either sum up all the xy planes for every z-value, or just scale one of the xy-planes so that the densities are visible. Should not matter really, since the height distribution is just 
     # a gaussian distribution, 
-    total_galactic_density_weighted = np.sum(interpolated_densities, axis=0) # sum up all the arms
-    np.save('output/galaxy_data/total_galactic_density_weighted.npy', total_galactic_density_weighted) #xyz, the whole sheisse
-    # save the data. To be used for the MC simulation for SN
-    ###################np.save('output/galaxy_data/interpolated_densities.npy', np.sum(interpolated_densities, axis=0)) #xyz, the whole sheisse
-    np.save('output/galaxy_data/x_grid.npy', x_grid) # saving x_grid
-    np.save('output/galaxy_data/y_grid.npy', y_grid) # saving y_grid
-    np.save('output/galaxy_data/z_grid.npy', z_grid) # saving z_grid
+   
     np.save('output/galaxy_data/densities_longitudinal_running_avg.npy', np.sum(densities_as_func_of_long, axis=0)) # saving the same array we are plotting usually. Sum over all spiral arms to get one longitudinal map. With running average
     np.save('output/galaxy_data/densities_longitudinal_no_running_avg.npy', np.sum(densities_rad_long_lat, axis=(0, 2))) # Sum up all densities for all LOS for each value of longitude. Without running average
     np.save('output/galaxy_data/densities_long_lat.npy', np.sum(densities_rad_long_lat, axis=(0))) # sum over all radii to get a map for long, lat plane
@@ -841,7 +897,7 @@ def plot_from_file():
     print("total_galactic_density_weighted: ", total_galactic_density_weighted.shape)
     print("total_galactic_density_unweighted: ", total_galactic_density_unweighted.shape)
     
-plot_from_file() 
+#plot_from_file() 
 
 # consider this: for every point in the galactic plane, we have a fixed number of points in the z-direction: 21. How are these distributed?
 # For the xy points closest to the earth, the z-points are distributed very close to the galactic plane. For the xy points furthest away from the earth, the z-points are distributed further away from the galactic plane.
@@ -860,7 +916,7 @@ plot_from_file()
 # For NC: the higher the value, the more right-skewed the luminocity distribution becomes. Will set the starting angle at 65 degrees for next test run. Also, a larger angle makes the "dump" in the middle les dumpy, and vice versa.
 #plot_interpolated_galactic_densities()
 #plot_spiral_arms()
-#calc_modelled_emissivity()
+calc_modelled_emissivity()
 #plot_model_spiral_arm_densities()
 #calc_effective_area_per_spiral_arm()
 #['Norma-Cygnus', 'Perseus', 'Sagittarius-Carina', 'Scutum-Crux']
