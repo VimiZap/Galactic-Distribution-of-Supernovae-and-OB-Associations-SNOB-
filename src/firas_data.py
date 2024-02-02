@@ -2,13 +2,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import AutoMinorLocator
 
-# Load data from the text file
-data = np.loadtxt('src/N+.txt')
-print("shape data", data.shape)
-print("number of datapoints with negative intensity:", len(data[data[:, 2] < 0]))
-print("number of datapoints with latitude < |5|:", len(data[np.abs(data[:, 1]) <= 5]))
-data = data[np.abs(data[:, 1]) <= 5]
-
 
 def sum_pairwise(a):
     paired_data = a.reshape(-1, 2)
@@ -18,7 +11,7 @@ def sum_pairwise(a):
 
 
 def rearange_data(data):
-    # rearange data to be plotted in desired format. Also does the summatino
+    # rearange data to be plotted in desired format. Also does the summation
     middle = int(len(data)/2)
     data_centre_left = data[0]
     data_left = sum_pairwise(data[1:middle-1])
@@ -49,11 +42,14 @@ def calc_hist_1d(data):
     hist = rearanged_hist / rearanged_hist_num_long_per_bin
     return hist
 
+
 def plot_hist_data(hist, filename):
     # Create bin_edges
     bin_edges_central = np.arange(2.5, 360, 5)
     bin_edges = np.concatenate(([0], bin_edges_central, [360]))
     # Plot using stairs
+    print("len(hist)", len(hist))
+    print("len(bin_edges)", len(bin_edges))
     plt.stairs(values=hist, edges=bin_edges, fill=False, color='black')
     # Set up the plot
     x_ticks = (180, 150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210, 180)
@@ -76,6 +72,17 @@ def scatter_fixen_data(data):
     plt.show()
 
 
-hist_1 = calc_hist_1d(data)
-plot_hist_data(hist_1, "output/firas_data_final_estimate.png")
-#scatter_fixen_data(data)
+def main():
+    # Load data from the text file
+    data = np.loadtxt('src/N+.txt')
+    print("shape data", data.shape)
+    print("number of datapoints with negative intensity:", len(data[data[:, 2] < 0]))
+    print("number of datapoints with latitude < |5|:", len(data[np.abs(data[:, 1]) <= 5]))
+    data = data[np.abs(data[:, 1]) <= 5]    
+    hist_1 = calc_hist_1d(data)
+    plot_hist_data(hist_1, "output/firas_data_final_estimate.png")
+    #scatter_fixen_data(data)
+
+
+if __name__ == "__main__":
+    main()

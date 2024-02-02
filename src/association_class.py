@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import supernovae_class as sn
+import utilities as ut
 rng = np.random.default_rng()
 
 class Association():
@@ -12,17 +13,20 @@ class Association():
     m = np.array([0.01, 0.08, 0.5, 1, 120]) # mass in solar masses. Denotes the limits between the different power laws
     solar_masses = np.arange(8, 120, 0.01) # mass in solar masses
     imf = (m[2]/m[1])**(-alpha[1]) * (m[3]/m[2])**(-alpha[2]) * (solar_masses/m[3])**(-alpha[3])
-    
+    # 
+    num_lats = len(np.lib.format.open_memmap('output/galaxy_data/latitudes.npy'))
+    num_rads = len(np.lib.format.open_memmap('output/galaxy_data/radial_distances.npy'))
+    num_longs = len(np.lib.format.open_memmap('output/galaxy_data/longitudes.npy'))
     # positions:
-    x_grid = np.load('output/galaxy_data/x_grid.npy')
-    y_grid = np.load('output/galaxy_data/y_grid.npy')
-    z_grid = np.load('output/galaxy_data/z_grid.npy')
+    x_grid = np.lib.format.open_memmap('output/galaxy_data/x_grid.npy')
+    y_grid = np.lib.format.open_memmap('output/galaxy_data/y_grid.npy')
+    z_grid = np.lib.format.open_memmap('output/galaxy_data/z_grid.npy')
     # densities:
-    densities_longitudinal = np.load('output\galaxy_data\densities_longitudinal.npy')
+    densities_longitudinal = np.load('output/galaxy_data/densities_longitudinal_no_running_avg.npy')
     densities_longitudinal = densities_longitudinal/np.sum(densities_longitudinal) # normalize to unity
-    densities_lat = np.load('output\galaxy_data\densities_lat.npy')
+    densities_lat = np.load('output/galaxy_data/densities_long_lat.npy')
     densities_lat = densities_lat/np.sum(densities_lat, axis=1, keepdims=True) # normalize to unity for each latitude
-    rad_densities = np.load('output\galaxy_data\densities_rad.npy')
+    rad_densities = np.load('output/galaxy_data/densities_densities_rad_long_lat.npy')
     rad_densities = rad_densities/np.sum(rad_densities, axis=0, keepdims=True) # normalize to unity for each radius
 
     def __init__(self, c, creation_time, n=None):
@@ -62,7 +66,7 @@ class Association():
         long_index = np.random.choice(a=len(self.densities_longitudinal), size=1, p=self.densities_longitudinal )
         lat_index = np.random.choice(a=len(self.densities_lat[long_index].ravel()), size=1, p=self.densities_lat[long_index].ravel() )
         radial_index = np.random.choice(a=len(self.rad_densities[:,long_index,lat_index].ravel()), size=1, p=self.rad_densities[:, long_index, lat_index].ravel() )
-        grid_index = radial_index * 1800 * 21 + long_index * 21 + lat_index # 1800 = length of longitudes, 21 = length of latitudes
+        grid_index = radial_index * self.num_longs * self.num_lats + long_index * self.num_lats + lat_index # 1800 = length of longitudes, 21 = length of latitudes
         self.__x = self.x_grid[grid_index]
         self.__y = self.y_grid[grid_index]
         self.__z = self.z_grid[grid_index]
