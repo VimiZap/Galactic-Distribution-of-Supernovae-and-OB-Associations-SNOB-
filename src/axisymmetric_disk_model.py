@@ -4,15 +4,15 @@ import time
 
 # constants
 h = 2.5                # kpc, scale length of the disk. The value Higdon and Lingenfelter used
-r_s = 7.6               # kpc, estimate for distance from the Sun to the Galactic center. Same value the atuhors used
+r_s = 8.178            # kpc, estimate for distance from the Sun to the Galactic center. Same value the atuhors used
 rho_min =  3 # 0.39 * r_s    # kpc, minimum distance from galactic center to bright H 2 regions. Evaluates to 3.12 kpc
-rho_max = 10 # 1.30 * r_s    # kpc, maximum distance from galactic center to bright H 2 regions. Evaluates to 10.4 kpc
+rho_max = 11 # 1.30 * r_s    # kpc, maximum distance from galactic center to bright H 2 regions. Evaluates to 10.4 kpc
 sigma = 0.15            # kpc, scale height of the disk
 total_galactic_n_luminosity = 1 #1.85e40       #total galactic N 2 luminosity in erg/s
 measured_nii = 1.175e-4 # erg/s/cm^2/sr, measured N II 205 micron line intensity. Estimated from the graph in the paper
 # kpc^2, source-weighted Galactic-disk area. See https://iopscience.iop.org/article/10.1086/303587/pdf, equation 37
 # note that the authors where this formula came from used different numbers, and got a value of 47 kpc^2.
-# With these numbers, we get a value of 22.489 kpc^2. Compare this to the area of pi*(rho_max**2 - rho_min**2) = 309.21 kpc^2
+# With these numbers, we get a value of 23.418 kpc^2. Compare this to the area of pi*(rho_max**2 - rho_min**2) = 309.21 kpc^2
 a_d = 2*np.pi*h**2 * ((1+rho_min/h)*np.exp(-rho_min/h) - (1+rho_max/h)*np.exp(-rho_max/h)) 
 print("a_d = ", a_d)
 kpc = 3.08567758e21    # 1 kpc in cm

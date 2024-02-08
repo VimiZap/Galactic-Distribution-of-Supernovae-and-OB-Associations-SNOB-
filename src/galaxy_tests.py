@@ -107,7 +107,7 @@ def plot_hist_data(hist, filename):
 
 def plot_sn_as_func_of_long(galaxy):
     logging.info("Plotting the probability density function of SNPs as function of longitude")
-    exploded_sn_long = galaxy.get_exploded_supernovae_longitudes()
+    exploded_sn_long = np.degrees(galaxy.get_exploded_supernovae_longitudes())
     num_sn = len(exploded_sn_long)
     logging.info(f"Number of supernovae: {num_sn}")
     # create bin edges for the binning
@@ -130,49 +130,10 @@ def plot_sn_as_func_of_long(galaxy):
     plt.title("Probability density function of SNPs as function of longitude")   
     plt.text(0.02, 0.95, fr'Number of associations: {galaxy.num_asc}', transform=plt.gca().transAxes, fontsize=8, color='black')
     plt.text(0.02, 0.90, fr'Total number of supernovae progenitors: {num_sn}', transform=plt.gca().transAxes, fontsize=8, color='black')
-    #plt.ylim(0, max(y_values)*1.2) # set the y axis limits
+    plt.ylim(0, max(rearanged_hist)*1.2) # set the y axis limits
+    plt.xlim(0, 360) # so that the plot starts at 0 and ends at 360
     plt.savefig("output/galaxy_tests/sn_as_func_of_long.png", dpi=1200)     # save plot in the output folder
     plt.close()
-
-""" 
-
-
-    longitudes = np.array([])
-    
-    print("len association_array: ", galaxy.num_asc)
-    longitudes = galaxy.get_exploded_supernovae_longitudes()
-    number_sn = len(longitudes)
-    print("Number_sn: ", number_sn)
-    longitudes_sn = np.sort(longitudes)
-    dl = 2.5   # increments in dl (degrees):
-    # np.array with values for galactic longitude l in radians.
-    l1 = np.arange(180, 0, -dl)
-    l2 = np.arange(360, 180, -dl)
-    longitudes = np.radians(np.concatenate((l1, l2)))
-    counts, bins = np.histogram(longitudes_sn, bins=len(longitudes))
-    
-    counts_l1 = counts[len(l1)-1::-1] # first half
-    counts_l2 = counts[-1:len(l1)-1:-1] # second half
-    x_values = np.linspace(0, len(longitudes), len(longitudes))
-    print("len l1: ", len(l1))
-    print("len l2: ", len(l2))
-    print("length counts: ", len(counts))
-    print("length counts_l1: ", len(counts_l1))
-    print("length counts_l2: ", len(counts_l2))
-    y_values = np.concatenate((counts_l1, counts_l2))/np.sum(counts)
-    plt.plot(x_values, y_values)
-    plt.xlabel("Galactic longitude l (degrees)")
-    x_ticks = (180, 150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210, 180)
-    plt.xticks(np.linspace(0, len(longitudes), 13), x_ticks)
-    plt.gca().xaxis.set_minor_locator(AutoMinorLocator(3)) 
-    plt.ylabel("P(SN)")
-    plt.title("Probability density function of SNPs as function of longitude")   
-    plt.text(0.02, 0.95, fr'Number of associations: {galaxy.num_asc}', transform=plt.gca().transAxes, fontsize=8, color='black')
-    plt.text(0.02, 0.90, fr'Total number of supernovae progenitors: {number_sn}', transform=plt.gca().transAxes, fontsize=8, color='black')
-    plt.ylim(0, max(y_values)*1.2) # set the y axis limits
-    plt.savefig("output/galaxy_tests/sn_as_func_of_long.png", dpi=1200)     # save plot in the output folder
-    plt.close() """
-
 
 def plot_mass_distr(galaxy):
     masses = galaxy.get_exploded_supernovae_masses()
@@ -318,19 +279,19 @@ def test_association_placement():
     y_grid = np.lib.format.open_memmap('output/galaxy_data/y_grid.npy')
     z_grid = np.lib.format.open_memmap('output/galaxy_data/z_grid.npy')
     # densities:
-    densities_longitudinal = np.load('output/galaxy_data/densities_longitudinal_no_running_avg.npy')
-    densities_longitudinal = densities_longitudinal/np.sum(densities_longitudinal) # normalize to unity
-    densities_lat = np.load('output/galaxy_data/densities_long_lat.npy')
-    densities_lat = densities_lat/np.sum(densities_lat, axis=1, keepdims=True) # normalize to unity for each latitude
-    rad_densities = np.load('output/galaxy_data/densities_densities_rad_long_lat.npy')
-    rad_densities = rad_densities/np.sum(rad_densities, axis=0, keepdims=True) # normalize to unity for each radius
+    emissivity_longitudinal = np.load('output/galaxy_data/emissivity_longitudinal.npy')
+    emissivity_longitudinal = emissivity_longitudinal/np.sum(emissivity_longitudinal) # normalize to unity
+    emissivity_lat = np.load('output/galaxy_data/emissivity_long_lat.npy')
+    emissivity_lat = emissivity_lat/np.sum(emissivity_lat, axis=1, keepdims=True) # normalize to unity for each latitude
+    emissivitty_rad = np.load('output/galaxy_data/emissivity_rad_long_lat.npy')
+    emissivitty_rad = emissivitty_rad/np.sum(emissivitty_rad, axis=0, keepdims=True) # normalize to unity for each radius
     
     rng = np.random.default_rng()
     NUM_ASC = 10000
     for _ in range(NUM_ASC):
-        long_index = rng.choice(a=len(densities_longitudinal), size=1, p=densities_longitudinal )
-        lat_index = rng.choice(a=len(densities_lat[long_index].ravel()), size=1, p=densities_lat[long_index].ravel() )
-        radial_index = rng.choice(a=len(rad_densities[:,long_index,lat_index].ravel()), size=1, p=rad_densities[:, long_index, lat_index].ravel() )
+        long_index = rng.choice(a=len(emissivity_longitudinal), size=1, p=emissivity_longitudinal )
+        lat_index = rng.choice(a=len(emissivity_lat[long_index].ravel()), size=1, p=emissivity_lat[long_index].ravel() )
+        radial_index = rng.choice(a=len(emissivitty_rad[:,long_index,lat_index].ravel()), size=1, p=emissivitty_rad[:, long_index, lat_index].ravel() )
         grid_index = radial_index * num_longs * num_lats + long_index * num_lats + lat_index # 1800 = length of longitudes, 21 = length of latitudes
         x = x_grid[grid_index]
         y = y_grid[grid_index]
@@ -426,7 +387,7 @@ def test_plot_density_distribution():
     
     
 def run_tests(C, T):
-    test_association_placement()
+    #test_association_placement()
 
     galaxy_1 = galaxy.Galaxy(T, star_formation_episodes=1) # an array with n associations
     
@@ -450,10 +411,11 @@ def run_tests(C, T):
 def main():
     # other levels for future reference: logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL
     logging.basicConfig(level=logging.INFO) 
-    run_tests(C=C, T=100)
+    run_tests(C=C, T=150)
 
     #plot_diffusion_of_sns_3d()savefig
     #test_plot_density_distribution()
 
 if __name__ == "__main__":
-    main()
+    test_plot_density_distribution()
+    #main()

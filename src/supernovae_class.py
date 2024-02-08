@@ -107,7 +107,7 @@ class SuperNovae:
         self.__sn_x = r * np.sin(self.vel_theta_dir) * np.cos(self.vel_phi_dir) + self.__association_x
         self.__sn_y = r * np.sin(self.vel_theta_dir) * np.sin(self.vel_phi_dir) + self.__association_y
         self.__sn_z = r * np.cos(self.vel_theta_dir) + self.__association_z
-        self.__long = (np.arctan2(self.y - self.r_s, self.x) + np.pi/2) % (2 * np.pi)
+        self.__long = (np.arctan2(self.y - self.r_s, self.x) + np.pi/2) % (2 * np.pi) # this is in radians!
 
     def plot_sn(self, ax, ass_x, ass_y, ass_z, color='black'):
         # plots the supernova relative to the association centre

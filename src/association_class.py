@@ -22,12 +22,12 @@ class Association():
     y_grid = np.lib.format.open_memmap('output/galaxy_data/y_grid.npy')
     z_grid = np.lib.format.open_memmap('output/galaxy_data/z_grid.npy')
     # densities:
-    densities_longitudinal = np.load('output/galaxy_data/densities_longitudinal_no_running_avg.npy')
-    densities_longitudinal = densities_longitudinal/np.sum(densities_longitudinal) # normalize to unity
-    densities_lat = np.load('output/galaxy_data/densities_long_lat.npy')
-    densities_lat = densities_lat/np.sum(densities_lat, axis=1, keepdims=True) # normalize to unity for each latitude
-    rad_densities = np.load('output/galaxy_data/densities_densities_rad_long_lat.npy')
-    rad_densities = rad_densities/np.sum(rad_densities, axis=0, keepdims=True) # normalize to unity for each radius
+    emissivity_longitudinal = np.load('output/galaxy_data/emissivity_longitudinal.npy')
+    emissivity_longitudinal = emissivity_longitudinal/np.sum(emissivity_longitudinal) # normalize to unity
+    emissivity_lat = np.load('output/galaxy_data/emissivity_long_lat.npy')
+    emissivity_lat = emissivity_lat/np.sum(emissivity_lat, axis=1, keepdims=True) # normalize to unity for each latitude
+    emissivitty_rad = np.load('output/galaxy_data/emissivity_rad_long_lat.npy')
+    emissivitty_rad = emissivitty_rad/np.sum(emissivitty_rad, axis=0, keepdims=True) # normalize to unity for each radius
 
     def __init__(self, c, creation_time, n=None):
         self.__n = self._calculate_num_sn(c, n)
@@ -63,9 +63,9 @@ class Association():
             return n
     
     def _calculate_association_position(self):
-        long_index = np.random.choice(a=len(self.densities_longitudinal), size=1, p=self.densities_longitudinal )
-        lat_index = np.random.choice(a=len(self.densities_lat[long_index].ravel()), size=1, p=self.densities_lat[long_index].ravel() )
-        radial_index = np.random.choice(a=len(self.rad_densities[:,long_index,lat_index].ravel()), size=1, p=self.rad_densities[:, long_index, lat_index].ravel() )
+        long_index = np.random.choice(a=len(self.emissivity_longitudinal), size=1, p=self.emissivity_longitudinal )
+        lat_index = np.random.choice(a=len(self.emissivity_lat[long_index].ravel()), size=1, p=self.emissivity_lat[long_index].ravel() )
+        radial_index = np.random.choice(a=len(self.emissivitty_rad[:,long_index,lat_index].ravel()), size=1, p=self.emissivitty_rad[:, long_index, lat_index].ravel() )
         grid_index = radial_index * self.num_longs * self.num_lats + long_index * self.num_lats + lat_index # 1800 = length of longitudes, 21 = length of latitudes
         self.__x = self.x_grid[grid_index]
         self.__y = self.y_grid[grid_index]
