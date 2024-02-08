@@ -74,13 +74,13 @@ def scatter_fixen_data(data):
 
 def plot_data_from_fixsen():
     # Load data from the text file
-    data = np.loadtxt('src/N+.txt')
+    data = np.loadtxt('src/observational_data\N+.txt')
     print("shape data", data.shape)
     print("number of datapoints with negative intensity:", len(data[data[:, 2] < 0]))
     print("number of datapoints with latitude < |5|:", len(data[np.abs(data[:, 1]) <= 5]))
     data = data[np.abs(data[:, 1]) <= 5]    
     hist_1 = calc_hist_1d(data)
-    plot_hist_data(hist_1, "output/firas_data_final_estimate.png")
+    plot_hist_data(hist_1, "src/observational_data/firas_data_final_estimate.png")
     #scatter_fixen_data(data)
 
 
@@ -95,7 +95,7 @@ def create_bin_edges_from_central_values(central_values, bin_half_width):
 
 
 def firas_data_for_plotting():
-    fits_file = fits.open('src/lambda_firas_lines_1999_galplane.fits')
+    fits_file = fits.open('src/observational_data/lambda_firas_lines_1999_galplane.fits')
     #fits_file.info()
     # grab the data from the 12th HDU
     data_hdu = fits_file[12] 
@@ -124,7 +124,7 @@ def plot_firas_nii_line():
     plt.ylabel("Line intensity in erg cm$^{-2}$ s$^{-1}$ sr$^{-1}$")
     plt.title("Modelled intensity of the Galactic disk")
     plt.xlim(0, 360)
-    plt.savefig("output/firas_data_NII_line.png", dpi=1200)
+    plt.savefig("src/observational_data/firas_data_NII_line.png", dpi=1200)
     plt.close()
 
 

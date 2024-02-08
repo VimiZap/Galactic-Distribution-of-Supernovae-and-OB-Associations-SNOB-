@@ -2,13 +2,11 @@ import numpy as np
 from matplotlib.ticker import AutoMinorLocator
 import matplotlib.pyplot as plt
 from scipy.interpolate import griddata
-from scipy.sparse import csr_matrix
-import copy
 import gc
 import time
 import os
 import logging
-import firas_data
+import observational_data.firas_data as firas_data
 #from galaxy_tests import test_plot_density_distribution
 
 
