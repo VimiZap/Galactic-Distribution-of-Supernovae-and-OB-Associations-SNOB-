@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import AutoMinorLocator
 from astropy.io import fits
+import logging
 
 def sum_pairwise(a):
     paired_data = a.reshape(-1, 2)
@@ -74,7 +75,7 @@ def scatter_fixen_data(data):
 
 def plot_data_from_fixsen():
     # Load data from the text file
-    data = np.loadtxt('src/observational_data\N+.txt')
+    data = np.loadtxt('src/observational_data/N+.txt')
     print("shape data", data.shape)
     print("number of datapoints with negative intensity:", len(data[data[:, 2] < 0]))
     print("number of datapoints with latitude < |5|:", len(data[np.abs(data[:, 1]) <= 5]))
@@ -110,6 +111,28 @@ def firas_data_for_plotting():
     return bin_edges_line_flux, bin_centre_line_flux, line_flux[::-1], line_flux_error[::-1] # reverse the order of the data to match the longitudes
 
 
+def find_firas_intensity_at_central_long(long):
+    """ Find the intensity of the N+ line at a given longitude in the FIRAS data. The intensity is given in erg/s/cm²/sr.
+
+    Args:
+        long: int, the longitude in degrees. Valid values are in the range -180 to 180, with increments in 5 degrees.
+
+    Returns:
+        float, the intensity of the N+ line at the given longitude.
+    """
+    fits_file = fits.open('src/observational_data/lambda_firas_lines_1999_galplane.fits')
+    data_hdu = fits_file[12] 
+    data = data_hdu.data
+    gal_lon = data['GAL_LON'][0] 
+    line_flux = data['LINE_FLUX'][0] *1e-4 * 1e-9 *1e7  # convert from nW/m^2/str to erg/s/cm²/sr.
+    if long not in gal_lon:
+        print("The longitude is not in the data. Valid values are in the range -180 to 180, with increments in 5 degrees.")
+        return
+    index = np.where(gal_lon == long)
+    logging.info("The intensity at longitude", long, " degrees is", line_flux[index][0], "erg/s/cm²/sr.")
+    return line_flux[index][0]
+
+
 def plot_firas_nii_line():
     bin_edges_line_flux, bin_centre_line_flux, line_flux, line_flux_error = firas_data_for_plotting()
     plt.figure(figsize=(10, 6))
@@ -128,11 +151,23 @@ def plot_firas_nii_line():
     plt.close()
 
 
+def add_firas_data_to_plot(ax):
+    """ Add the FIRAS data to an existing plot. ax's x-range should be 0 to 360.
+
+    Args:
+        ax: matplotlib axis object
+
+    Returns:
+        None
+    """
+    bin_edges_line_flux, bin_centre_line_flux, line_flux, line_flux_error = firas_data_for_plotting()
+    ax.stairs(values=line_flux, edges=bin_edges_line_flux, fill=False, color='black')
+    ax.errorbar(bin_centre_line_flux, line_flux, yerr=line_flux_error,fmt='none', ecolor='black', capsize=0, elinewidth=1)
 
 def main():
-    plot_firas_nii_line()
+    #plot_firas_nii_line()
     #plot_data_from_fixsen()
-
+    find_firas_intensity_at_central_long(30)
 
 
 if __name__ == "__main__":

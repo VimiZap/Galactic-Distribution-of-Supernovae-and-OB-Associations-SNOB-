@@ -7,6 +7,7 @@ import time
 import os
 import logging
 import observational_data.firas_data as firas_data
+import utilities as ut
 #from galaxy_tests import test_plot_density_distribution
 
 
@@ -584,7 +585,7 @@ def generate_latitudinal_points(b_max=5.0, db_above_1_deg = 0.2, b_min=0.01, b_l
         return generate_latitudinal_points(b_max, db_above_1_deg, b_min, b_lim_exp, scaling)
     
 
-def calculate_galactic_coordinates(b_max=1, db_above_1_deg = 0.1, b_min=0.01, b_lim_exp=1, scaling=0.015):
+def calculate_galactic_coordinates(b_max=5, db_above_1_deg = 0.2, b_min=0.01, b_lim_exp=1, scaling=0.015):
     logging.info("Calculating the galactic coordinates")
     # Calculate coordinates
     dr = 0.01   # increments in dr (kpc):
@@ -652,8 +653,8 @@ def calculate_galactic_coordinates(b_max=1, db_above_1_deg = 0.1, b_min=0.01, b_
     gc.collect()
     # delte from disk the rho_coords_galaxy, theta_coords_galaxy:
     logging.info("x and y coordinates calculated. Now removing the rho and theta coordinates from disk")
-    os.remove('output/galaxy_data/rho_coords_galaxy.npy')
     os.remove('output/galaxy_data/theta_coords_galaxy.npy')
+    # need the rho_grids for the axisymmetric model
     return
     
 
@@ -691,7 +692,7 @@ def calc_modelled_emissivity(b_max=1, db_above_1_deg = 0.1, fractional_contribut
     return  
 
 
-def calc_modelled_intensity(b_max=1, db_above_1_deg = 0.1, fractional_contribution=fractional_contribution_default, gum_cygnus='False', method='linear', readfile=True, h=h_default, sigma_arm=sigma_arm_default, arm_angles=arm_angles, pitch_angles=pitch_angles):
+def calc_modelled_intensity(b_max=5, db_above_1_deg = 0.2, fractional_contribution=fractional_contribution_default, gum_cygnus='False', method='linear', readfile=True, h=h_default, sigma_arm=sigma_arm_default, arm_angles=arm_angles, pitch_angles=pitch_angles):
     logging.info("Calculating the modelled NII intensity of the Milky Way")
     calc_modelled_emissivity(b_max, db_above_1_deg, fractional_contribution, gum_cygnus, method, readfile, h, sigma_arm, arm_angles, pitch_angles)
     num_lats = len(np.lib.format.open_memmap('output/galaxy_data/latitudes.npy'))
@@ -703,6 +704,7 @@ def calc_modelled_intensity(b_max=1, db_above_1_deg = 0.1, fractional_contributi
     
     latitudinal_cosinus = np.lib.format.open_memmap('output/galaxy_data/latitudinal_cosinus.npy')
     common_multiplication_factor =  dr * latitudinal_cosinus/ (4 * np.pi * np.radians(b_max * 2) * np.radians(5))
+    # NOTE: should not have to reshape here really, since lat_cos is allready 3D. It is created directly from the lat_grid
     common_multiplication_factor = np.reshape(common_multiplication_factor, (num_rads, num_longs, num_lats)) * db[np.newaxis, np.newaxis, :] # reshaping to facilitate the multiplication with non-uniform latitudinal increments db
     common_multiplication_factor = common_multiplication_factor.ravel() #unraveling so that we can multiply with the interpolated densities
     del latitudinal_cosinus
@@ -721,7 +723,7 @@ def calc_modelled_intensity(b_max=1, db_above_1_deg = 0.1, fractional_contributi
         # sum up to get the intensity as a function of longitude
         arm_intensity = arm_intensity.sum(axis=(0, 2)) # sum up all densities for all LOS for each value of longitude
         window_size = 5 / np.degrees(dl) # 5 degrees in divided by the increment in degrees for the longitude. This is the window size for the running average, number of points
-        arm_intensity = running_average(arm_intensity, window_size) /window_size # running average to smooth out the density distribution
+        arm_intensity = ut.running_average(arm_intensity, window_size) /window_size # running average to smooth out the density distribution
         intensities_per_arm[i] += arm_intensity
     b_filename = str(b_max).replace(".", "_")
     filename_intensity_data = f'output/galaxy_data/intensities_per_arm_b_max_{b_filename}.npy'
@@ -729,7 +731,7 @@ def calc_modelled_intensity(b_max=1, db_above_1_deg = 0.1, fractional_contributi
     return
 
 
-def plot_modelled_intensity_per_arm(filename_output = "output/modelled_intensity.png", filename_intensity_data = 'output/galaxy_data/intensities_per_arm.npy', fractional_contribution=fractional_contribution_default, gum_cygnus='False',h=h_default, sigma_arm=sigma_arm_default):
+def plot_modelled_intensity_per_arm(filename_output = "src/data_products/modelled_intensity.png", filename_intensity_data = 'output/galaxy_data/intensities_per_arm.npy', fractional_contribution=fractional_contribution_default, gum_cygnus='False',h=h_default, sigma_arm=sigma_arm_default):
     """
     Plots the modelled intensity of the Galactic disk as a function of Galactic longitude.
     """
@@ -1006,20 +1008,18 @@ def plot_from_file():
 
 
 def calc_and_plot():
-    #calc_modelled_intensity() # calculates coordinates, emissivity and intensity. Writes data to file
+    calc_modelled_intensity() # calculates coordinates, emissivity and intensity. Writes data to file
     #test_plot_density_distribution()
     a = 12
 
 
 def test_max_b():
-    #b_max = np.array([0.5, 1, 3.5, 5])
-    #db_above_1_deg = np.array([0, 0, 0.1, 0.2])
-    b_max = np.array([5])
-    db_above_1_deg = np.array([0.2])
+    b_max = np.array([0.5, 1, 3.5, 5])
+    db_above_1_deg = np.array([0, 0, 0.1, 0.2])
     for i in range(len(b_max)):
         calc_modelled_intensity(b_max=b_max[i], db_above_1_deg=db_above_1_deg[i])
         b_filename = str(b_max[i]).replace(".", "_")
-        filename_output = f"output/modelled_intensity_b_max_{b_filename}.png"
+        filename_output = f"src/data_products/modelled_intensity_b_max_{b_filename}.png"
         filename_intensity_data = f'output/galaxy_data/intensities_per_arm_b_max_{b_filename}.npy'
         plot_modelled_intensity_per_arm(filename_output, filename_intensity_data)
 
@@ -1027,6 +1027,10 @@ def main() -> None:
     # other levels for future reference: logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL
     logging.basicConfig(level=logging.INFO) 
     #test_max_b()
+    filename_output = "src/data_products/modelled_intensity_b_max_5.png"
+    filename_intensity_data = "output/galaxy_data/intensities_per_arm_b_max_5.npy"
+    calc_modelled_intensity() # calculates coordinates, emissivity and intensity. Writes data to file
+    plot_modelled_intensity_per_arm(filename_output, filename_intensity_data)
     
     #calc_and_plot()
 
