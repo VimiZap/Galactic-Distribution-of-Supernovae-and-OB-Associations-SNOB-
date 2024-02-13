@@ -1,7 +1,8 @@
 import numpy as np
 r_s = 8.178               # kpc, estimate for distance from the Sun to the Galactic center. Same value the atuhors used
 
-def rho(l, b, r):
+
+def rho(r, l, b):
     """
     Args:
         r: distance from the Sun to the star/ a point in the Galaxy
@@ -13,7 +14,7 @@ def rho(l, b, r):
     return np.sqrt((r * np.cos(b))**2 + r_s**2 - 2 * r_s * r * np.cos(b) * np.cos(l)) # kpc, distance from the Sun to the star/ spacepoint
 
 
-def theta(l, b, r):
+def theta(r, l, b):
     """
     Args:
         r: distance from the Sun to the star/ a point in the Galaxy
@@ -34,6 +35,17 @@ def z(r, b):
         z-coordinate of the star/ a point in the Galaxy
     """
     return r * np.sin(b)
+
+
+def axisymmetric_disk_population(rho, h):
+    """
+    Args:
+        rho: distance from the Galactic center
+        h: scale length of the disk
+    Returns:
+        density of the disk at a distance rho from the Galactic center
+    """
+    return np.exp(-rho/h)
 
 
 def height_distribution(z, sigma): # z is the height above the Galactic plane
@@ -60,3 +72,5 @@ def running_average(data, window_size):
       else:
          array_running_averaged.append(np.sum(data[i-delta:i+delta + 1]))
    return np.array(array_running_averaged)
+
+

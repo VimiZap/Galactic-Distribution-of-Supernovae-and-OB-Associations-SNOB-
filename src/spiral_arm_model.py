@@ -25,7 +25,7 @@ r_s = 8.178               # kpc, estimate for distance from the Sun to the Galac
 # This rho_max and rho_min seems to be taken from Valee
 rho_min = 2.9           # kpc, minimum distance from galactic center to the beginning of the spiral arms.
 rho_max = 35            # kpc, maximum distance from galactic center to the end of the spiral arms.
-sigma = 0.15            # kpc, scale height of the disk
+sigma_height_distr = 0.15            # kpc, scale height of the disk
 sigma_arm_default = 0.5         # kpc, dispersion of the spiral arms
 total_galactic_n_luminosity = 1.4e40 # / (np.pi/2)     #total galactic N 2 luminosity in erg/s
 gum_nii_luminosity = 1e36 # erg/s, luminosity of the Gum Nebula in N II 205 micron line. Number from Higdon and Lingenfelter
@@ -54,51 +54,6 @@ spiral_arm_names = ['Norma-Cygnus', 'Perseus', 'Sagittarius-Carina', 'Scutum-Cru
 fractional_contribution_default = [0.18, 0.36, 0.18, 0.28] # [0.17, 0.34, 0.15, 0.34]
 
 
-def count_negative_values(arr):
-    negative_values = arr[arr < 0]
-    return len(negative_values), np.average(negative_values)
-
-
-def running_average(data, window_size):
-   array_running_averaged = []
-   delta = int((window_size)//2)
-   print("running average: ", window_size, delta)
-   for i in range(len(data)):
-      if i-delta < 0:
-         val = np.sum(data[-delta + i:]) + np.sum(data[:delta + i + 1])
-         array_running_averaged.append(val)
-      elif i+delta >= len(data):
-         val = np.sum(data[i-delta:]) + np.sum(data[:delta + i - len(data) + 1])
-         array_running_averaged.append(val)
-      else:
-         array_running_averaged.append(np.sum(data[i-delta:i+delta + 1]))
-   return np.array(array_running_averaged)
-
-
-def rho_func(l, b, r):
-    """
-    Args:
-        r: distance from the Sun to the star/ a point in the Galaxy
-        l: Galactic longitude, radians
-        b: Galactic latitude, radians
-    Returns:
-        distance from the Galactic center to the star/ a point in the Galaxy
-    """
-    return np.sqrt((r * np.cos(b))**2 + r_s**2 - 2 * r_s * r * np.cos(b) * np.cos(l)) # kpc, distance from the Sun to the star/ spacepoint
-
-
-def theta_func(l, b, r):
-    """
-    Args:
-        r: distance from the Sun to the star/ a point in the Galaxy
-        l: Galactic longitude, radians
-        b: Galactic latitude, radians
-    Returns:
-        angle from the Sun to the star/ a point in the Galaxy
-    """
-    return np.arctan2(r_s - r*np.cos(b)*np.cos(l), r * np.cos(b) * np.sin(l))
-
-
 def spiral_arm_medians(arm_angle, pitch_angle):
     """
     Args:
@@ -120,16 +75,6 @@ def spiral_arm_medians(arm_angle, pitch_angle):
     return np.array(theta), np.array(rho)
 
 
-def height_distribution(z): # z is the height above the Galactic plane
-    """
-    Args:
-        z: height above the Galactic plane
-    Returns:
-        height distribution of the disk at a height z above the Galactic plane
-    """
-    return np.exp(-0.5 * z**2 / sigma**2) / (np.sqrt(2*np.pi) * sigma)
-
-
 def arm_transverse_density(delta, sigma_arm):
     """
     Args:
@@ -139,17 +84,6 @@ def arm_transverse_density(delta, sigma_arm):
         the fall off of spiral arm populations transverse an arm median
     """
     return np.exp(-0.5 * delta**2 / sigma_arm**2)  / (np.sqrt(2*np.pi) * sigma_arm) # in the paper, they do not include this normalization factor for some reason
-
-
-def arm_median_density(rho, h=h_default): 
-    """
-    Args:
-        rho: distance from the Galactic center
-        h: scale length of the disk
-    Returns:
-        density of the disk at a distance rho from the Galactic center
-    """
-    return np.exp(-rho/h)
 
 
 def generate_non_uniform_spacing(sigma_arm=sigma_arm_default, d_min=0.01, d_max=5, scaling=0.1):
@@ -299,7 +233,7 @@ def generate_spiral_arm_densities(rho, transverse_densities_initial, h=h_default
     transverse_densities = np.append(1, transverse_densities_initial) # the 1 is to take into account the arm median itself
     transverse_densities = np.append(np.flip(transverse_densities_initial), transverse_densities) # so that we have the transverse densities on both sides of the spiral arm
     # calculate the densities for the arm median
-    arm_median_densities = arm_median_density(rho, h) #1D array
+    arm_median_densities = ut.axisymmetric_disk_population(rho, h) #1D array
     # calculate the transverse densities for the arm. Does not contain the contrbution from the circular projection at the end points, but has the arm median density
     # note the transverse densities is described by a Gausiian distribution, that's why the following works
     arm_transverse_densities = transverse_densities * arm_median_densities[:, np.newaxis] #2D array
@@ -395,8 +329,8 @@ def generate_gum_cygnus():
     cygnus_long = np.radians(80)
     cygnus_lat = np.radians(0)
     cygnus_radius = 0.075 # kpc
-    cygnus_rho = rho_func(cygnus_long, cygnus_lat, cygnus_distance)
-    cygnus_theta = theta_func(cygnus_long, cygnus_lat, cygnus_distance)
+    cygnus_rho = ut.rho(cygnus_distance, cygnus_long, cygnus_lat)
+    cygnus_theta = ut.theta(cygnus_distance, cygnus_long, cygnus_lat)
     cygnus_x = cygnus_rho * np.cos(cygnus_theta) 
     cygnus_y = cygnus_rho * np.sin(cygnus_theta)
     # Gum parameters
@@ -404,8 +338,8 @@ def generate_gum_cygnus():
     gum_long = np.radians(262)
     gum_lat = np.radians(0)
     gum_radius = 0.03 # kpc
-    gum_rho = rho_func(gum_long, gum_lat, gum_distance)
-    gum_theta = theta_func(gum_long, gum_lat, gum_distance)
+    gum_rho = ut.rho(gum_distance, gum_long, gum_lat)
+    gum_theta = ut.theta(gum_distance, gum_long, gum_lat)
     gum_x = gum_rho * np.cos(gum_theta)
     gum_y = gum_rho * np.sin(gum_theta)
     # Generate spheres
@@ -520,9 +454,10 @@ def calc_effective_area_per_spiral_arm(method='cubic', h=h_default, sigma_arm=si
     return effective_area
 
 
-def generate_latitudinal_points(b_max=5.0, db_above_1_deg = 0.2, b_min=0.01, b_lim_exp=1, scaling=0.015):
+def generate_latitudinal_points(folder_output, b_max=5.0, db_above_1_deg = 0.2, b_min=0.01, b_lim_exp=1, scaling=0.015):
     """
     Args:
+        folder_output: folder where the output is saved
         b_min: minimum angular distance from the plane
         b_lim_exp: limit on angular distance from plane for the exponential distribution
         b_max: maximum angular distance from the plane
@@ -531,12 +466,6 @@ def generate_latitudinal_points(b_max=5.0, db_above_1_deg = 0.2, b_min=0.01, b_l
         1D array with the angular distances from the Galactic plane, and an array with all increments (db) between the points
         Arrays made ready to be used in a central Rieman sum 
     """
-    # old
-    """ db = 0.2   # increments in db (degrees):
-    latitudes = np.radians(np.arange(-5, 5 + db, db))
-    db = np.ones(num_lats) * db
-    db = np.radians(db)
-    return latitudes, db """
     
     db = np.array([b_min])
     # in case one wants to have a b_max lower than 1 degree (i.e. b_lim_exp), we need to adjust b_lim_exp
@@ -560,8 +489,8 @@ def generate_latitudinal_points(b_max=5.0, db_above_1_deg = 0.2, b_min=0.01, b_l
         if db_above_1_deg == 0 or b_max == 1:
             latitudes = np.concatenate((-latitudes[::-1], [0], latitudes))
             db = np.concatenate((db[::-1], [b_min], db))
-            np.save('output/galaxy_data/latitudes.npy', np.radians(latitudes)) # saving latitudes
-            np.save('output/galaxy_data/db.npy', np.radians(db)) # saving db
+            np.save(f'{folder_output}/latitudes.npy', np.radians(latitudes)) # saving latitudes
+            np.save(f'{folder_output}/db.npy', np.radians(db)) # saving db
             return
         elif ang_dist_above_b_lim_exp / db_above_1_deg == int(ang_dist_above_b_lim_exp / db_above_1_deg): # to make sure that the number of latitudinal angles between b_lim_exp and b_max is an integer 
             # add the first point above b_lim_exp, since it will have a different width than the rest of the points above b_lim_exp
@@ -575,8 +504,8 @@ def generate_latitudinal_points(b_max=5.0, db_above_1_deg = 0.2, b_min=0.01, b_l
             db = np.concatenate((db[::-1], [b_min], db))
             # latitudes and db are now ready to be used in a central Riemann sum
             # note that, due to this being a central Riemann sum, the last element in latitudes is b_max - db_above_1_deg / 2. The edge of the last bin is at b_max
-            np.save('output/galaxy_data/latitudes.npy', np.radians(latitudes)) # saving latitudes
-            np.save('output/galaxy_data/db.npy', np.radians(db)) # saving db
+            np.save(f'{folder_output}/latitudes.npy', np.radians(latitudes)) # saving latitudes
+            np.save(f'{folder_output}/db.npy', np.radians(db)) # saving db
             return 
         else:
             raise ValueError("The number of latitudinal angles is not an integer. Please change the value of db_above_1_deg")
@@ -585,7 +514,7 @@ def generate_latitudinal_points(b_max=5.0, db_above_1_deg = 0.2, b_min=0.01, b_l
         return generate_latitudinal_points(b_max, db_above_1_deg, b_min, b_lim_exp, scaling)
     
 
-def calculate_galactic_coordinates(b_max=5, db_above_1_deg = 0.2, b_min=0.01, b_lim_exp=1, scaling=0.015):
+def calculate_galactic_coordinates(folder_output, b_max=5, db_above_1_deg = 0.2, b_min=0.01, b_lim_exp=1, scaling=0.015):
     logging.info("Calculating the galactic coordinates")
     # Calculate coordinates
     dr = 0.01   # increments in dr (kpc):
@@ -598,62 +527,62 @@ def calculate_galactic_coordinates(b_max=5, db_above_1_deg = 0.2, b_min=0.01, b_
     # np.array with values for distance from the Sun to the star/ a point in the Galaxy
     radial_distances = np.arange(dr, r_s + rho_max + 5 + dr, dr) # +5 kpc to take into account the width of the spiral arms
     # save coordinates to disk
-    np.save('output/galaxy_data/longitudes.npy', longitudes) # saving longitudes
-    np.save('output/galaxy_data/radial_distances.npy', radial_distances) # saving radial_distances
-    np.save('output/galaxy_data/dr.npy', dr) # saving dr
-    np.save('output/galaxy_data/dl.npy', dl) # saving dl
-    generate_latitudinal_points(b_max, db_above_1_deg, b_min, b_lim_exp, scaling)
-    latitudes = np.load('output/galaxy_data/latitudes.npy')
+    np.save(f'{folder_output}/radial_distances.npy', radial_distances) # saving radial_distances
+    np.save(f'{folder_output}/longitudes.npy', longitudes) # saving longitudes
+    np.save(f'{folder_output}/dr.npy', dr) # saving dr
+    np.save(f'{folder_output}/dl.npy', dl) # saving dl
+    generate_latitudinal_points(folder_output, b_max, db_above_1_deg, b_min, b_lim_exp, scaling)
+    latitudes = np.load(f'{folder_output}/latitudes.npy')
     logging.info("Length of latitudes: " + str(len(latitudes)) + ". Length of radial_distances: " + str(len(radial_distances)) + ". Length of longitudes: " + str(len(longitudes)) + ".")
     logging.info("Max latitude: " + str(np.degrees(latitudes[-1])) + ". Min latitude: " + str(np.degrees(latitudes[0])) + ".")
     logging.info("Creating coordinate grids")
     radial_grid, long_grid, lat_grid = np.meshgrid(radial_distances, longitudes, latitudes, indexing='ij')
-    np.save('output/galaxy_data/radial_grid.npy', radial_grid.ravel()) # saving radial_grid
-    np.save('output/galaxy_data/long_grid.npy', long_grid.ravel()) # saving long_grid
-    np.save('output/galaxy_data/lat_grid.npy', lat_grid.ravel()) # saving lat_grid
+    np.save(f'{folder_output}/radial_grid.npy', radial_grid.ravel()) # saving radial_grid
+    np.save(f'{folder_output}/long_grid.npy', long_grid.ravel()) # saving long_grid
+    np.save(f'{folder_output}/lat_grid.npy', lat_grid.ravel()) # saving lat_grid
     del radial_grid, long_grid, lat_grid, latitudes, longitudes, radial_distances, dr, dl
     gc.collect()
     logging.info("Grids created. Now calculating the latidudinal cosinus")
-    latitudinal_cosinus = np.cos(np.lib.format.open_memmap('output/galaxy_data/lat_grid.npy'))
-    np.save('output/galaxy_data/latitudinal_cosinus.npy', latitudinal_cosinus) # saving latitudinal_cosinus
+    latitudinal_cosinus = np.cos(np.lib.format.open_memmap(f'{folder_output}/lat_grid.npy'))
+    np.save(f'{folder_output}/latitudinal_cosinus.npy', latitudinal_cosinus) # saving latitudinal_cosinus
     del latitudinal_cosinus
     gc.collect()
     logging.info("Latitudinal cosinus calculated. Now calculating z_grid and height_distribution_values")
-    z_grid = np.lib.format.open_memmap('output/galaxy_data/radial_grid.npy') * np.sin(np.lib.format.open_memmap('output/galaxy_data/lat_grid.npy'))
-    np.save('output/galaxy_data/z_grid.npy', z_grid) # saving z_grid
+    z_grid = np.lib.format.open_memmap(f'{folder_output}/radial_grid.npy') * np.sin(np.lib.format.open_memmap(f'{folder_output}/lat_grid.npy'))
+    np.save(f'{folder_output}/z_grid.npy', z_grid) # saving z_grid
     del z_grid
     gc.collect()
-    height_distribution_values = height_distribution(np.lib.format.open_memmap('output/galaxy_data/z_grid.npy'))
-    np.save('output/galaxy_data/height_distribution_values.npy', height_distribution_values) # saving height_distribution_values
+    height_distribution_values = ut.height_distribution(np.lib.format.open_memmap(f'{folder_output}/z_grid.npy'), sigma=sigma_height_distr)
+    np.save(f'{folder_output}/height_distribution_values.npy', height_distribution_values) # saving height_distribution_values
     del height_distribution_values
     gc.collect()
     logging.info("z_grid and height_distribution_values calculated. Now calculating rho, theta, x and y coordinates")
-    rho_coords_galaxy = rho_func(np.lib.format.open_memmap('output/galaxy_data/long_grid.npy'), np.lib.format.open_memmap('output/galaxy_data/lat_grid.npy'), np.lib.format.open_memmap('output/galaxy_data/radial_grid.npy'))
-    np.save('output/galaxy_data/rho_coords_galaxy.npy', rho_coords_galaxy) # saving rho_coords_galaxy
+    rho_coords_galaxy = ut.rho(np.lib.format.open_memmap(f'{folder_output}/radial_grid.npy'), np.lib.format.open_memmap(f'{folder_output}/long_grid.npy'), np.lib.format.open_memmap(f'{folder_output}/lat_grid.npy'))
+    np.save(f'{folder_output}/rho_coords_galaxy.npy', rho_coords_galaxy) # saving rho_coords_galaxy
     del rho_coords_galaxy
     gc.collect()
     logging.info("rho coordinates calculated")
-    theta_coords_galaxy = theta_func(np.lib.format.open_memmap('output/galaxy_data/long_grid.npy'), np.lib.format.open_memmap('output/galaxy_data/lat_grid.npy'), np.lib.format.open_memmap('output/galaxy_data/radial_grid.npy'))
-    np.save('output/galaxy_data/theta_coords_galaxy.npy', theta_coords_galaxy) # saving theta_coords_galaxy
+    theta_coords_galaxy = ut.theta(np.lib.format.open_memmap(f'{folder_output}/radial_grid.npy'), np.lib.format.open_memmap('output/galaxy_data/long_grid.npy'), np.lib.format.open_memmap(f'{folder_output}/lat_grid.npy'))
+    np.save(f'{folder_output}/theta_coords_galaxy.npy', theta_coords_galaxy) # saving theta_coords_galaxy
     del theta_coords_galaxy
     gc.collect()
     logging.info("theta coordinates calculated. Now removing the grid files from disk")
-    os.remove('output/galaxy_data/radial_grid.npy')
-    os.remove('output/galaxy_data/long_grid.npy')
-    os.remove('output/galaxy_data/lat_grid.npy')
+    os.remove(f'{folder_output}/radial_grid.npy')
+    os.remove(f'{folder_output}/long_grid.npy')
+    os.remove(f'{folder_output}/lat_grid.npy')
     logging.info("Calculating x-values")
-    x_grid = np.lib.format.open_memmap('output/galaxy_data/rho_coords_galaxy.npy') * np.cos(np.lib.format.open_memmap('output/galaxy_data/theta_coords_galaxy.npy'))
-    np.save('output/galaxy_data/x_grid.npy', x_grid) # saving x_grid
+    x_grid = np.lib.format.open_memmap(f'{folder_output}/rho_coords_galaxy.npy') * np.cos(np.lib.format.open_memmap(f'{folder_output}/theta_coords_galaxy.npy'))
+    np.save(f'{folder_output}/x_grid.npy', x_grid) # saving x_grid
     del x_grid
     gc.collect()
     logging.info("Calculating y-values")
-    y_grid = np.lib.format.open_memmap('output/galaxy_data/rho_coords_galaxy.npy') * np.sin(np.lib.format.open_memmap('output/galaxy_data/theta_coords_galaxy.npy'))
-    np.save('output/galaxy_data/y_grid.npy', y_grid) # saving y_grid
+    y_grid = np.lib.format.open_memmap(f'{folder_output}/rho_coords_galaxy.npy') * np.sin(np.lib.format.open_memmap(f'{folder_output}/theta_coords_galaxy.npy'))
+    np.save(f'{folder_output}/y_grid.npy', y_grid) # saving y_grid
     del y_grid
     gc.collect()
     # delte from disk the rho_coords_galaxy, theta_coords_galaxy:
     logging.info("x and y coordinates calculated. Now removing the rho and theta coordinates from disk")
-    os.remove('output/galaxy_data/theta_coords_galaxy.npy')
+    os.remove(f'{folder_output}/theta_coords_galaxy.npy')
     # need the rho_grids for the axisymmetric model
     return
     
@@ -666,8 +595,8 @@ def calc_modelled_emissivity(b_max=1, db_above_1_deg = 0.1, fractional_contribut
         effective_area = calc_effective_area_per_spiral_arm(method, h, sigma_arm)
     else:
         raise ValueError("readfile must be either True or False")
-        
-    calculate_galactic_coordinates(b_max, db_above_1_deg)
+    folder_output = 'output/galaxy_data'
+    calculate_galactic_coordinates(folder_output, b_max, db_above_1_deg)
     num_lats = len(np.lib.format.open_memmap('output/galaxy_data/latitudes.npy'))
     num_rads = len(np.lib.format.open_memmap('output/galaxy_data/radial_distances.npy'))
     num_longs = len(np.lib.format.open_memmap('output/galaxy_data/longitudes.npy'))
@@ -704,7 +633,6 @@ def calc_modelled_intensity(b_max=5, db_above_1_deg = 0.2, fractional_contributi
     
     latitudinal_cosinus = np.lib.format.open_memmap('output/galaxy_data/latitudinal_cosinus.npy')
     common_multiplication_factor =  dr * latitudinal_cosinus/ (4 * np.pi * np.radians(b_max * 2) * np.radians(5))
-    # NOTE: should not have to reshape here really, since lat_cos is allready 3D. It is created directly from the lat_grid
     common_multiplication_factor = np.reshape(common_multiplication_factor, (num_rads, num_longs, num_lats)) * db[np.newaxis, np.newaxis, :] # reshaping to facilitate the multiplication with non-uniform latitudinal increments db
     common_multiplication_factor = common_multiplication_factor.ravel() #unraveling so that we can multiply with the interpolated densities
     del latitudinal_cosinus
