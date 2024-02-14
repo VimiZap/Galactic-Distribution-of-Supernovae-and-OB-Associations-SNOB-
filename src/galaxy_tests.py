@@ -6,12 +6,14 @@ import association_class as ass
 import galaxy_class as galaxy
 from matplotlib.ticker import AutoMinorLocator
 from matplotlib.lines import Line2D
-import os
 import time
 import logging
+import utilities as ut
+import logging
 
-WORK_DIRECTORY = '/work/paradoxx/viktormi/output'
-
+GALAXY_DATA = 'output/galaxy_data'
+DATA_PRODUCTS = 'src/data_products'
+GALAXY_TESTS = 'src/data_products/galaxy_tests'
 N = 10e4 # number of associations in the Galaxy
 T = 20 # simulation run time in Myrs
 star_formation_episodes = [1, 3, 5]
@@ -51,8 +53,6 @@ def plot_cum_snp_cluster_distr(galaxies, C):
         cumulative = (n - np.cumsum(counts))/n # cumulative distribution, normalized
         #plt.plot(range(1, num_bins-1, 1), cumulative, label="Number of star formation episodes = " + str(C[i]))
         plt.plot(range(1, num_bins-1, 1), cumulative, label= fr"{star_formation_episodes[i]} episodes. Avg. number of SN's: {np.average(association_array_num_sn):.2f}")
-        
-
     plt.xscale("log")
     plt.xlim(1, num_bins + 3000) # set the x axis limits
     plt.ylim(0, 1) # set the y axis limits
@@ -61,29 +61,10 @@ def plot_cum_snp_cluster_distr(galaxies, C):
     plt.suptitle("Monte Carlo simulation of temporal clustering of SNPs")
     plt.title(f"Made with {n} associations")
     plt.legend()
-    plt.savefig("output/galaxy_tests/temporal_clustering.png", dpi=1200)     # save plot in the output folder
+    plt.savefig(f'{GALAXY_TESTS}/temporal_clustering.png', dpi=1200)     # save plot in the output folder
     plt.close()
 
-def sum_pairwise(a):
-    paired_data = a.reshape(-1, 2)
-    # Sum along the specified axis (axis=1 sums up each row)
-    result = np.sum(paired_data, axis=1)
-    return result
 
-
-def rearange_data(data):
-    # rearange data to be plotted in desired format. Also does the summation
-    middle = int(len(data)/2)
-    data_centre_left = data[0]
-    data_left = sum_pairwise(data[1:middle-1])
-    data_left_edge = data[middle-1]
-    data_right_edge = data[middle]
-    data_edge = (data_right_edge + data_left_edge)
-    data_right = sum_pairwise(data[middle+1:-1])
-    data_centre_right = data[-1]
-    data_centre = (data_centre_left + data_centre_right)
-    rearanged_data = np.concatenate(([data_edge], data_left[::-1], [data_centre], data_right[::-1], [data_edge]))
-    return rearanged_data
 
 
 def plot_hist_data(hist, filename):
@@ -114,7 +95,7 @@ def plot_sn_as_func_of_long(galaxy):
     bin_edges_long = np.arange(0, 362.5, 2.5) # will end at 360. No data is left out. 145 bin edges
     hist, _ = np.histogram(exploded_sn_long, bins=bin_edges_long) # if a longitude is in the bin, add the intensity to the bin
     # Rearange data to be plotted in desired format
-    rearanged_hist = rearange_data(hist) / num_sn
+    rearanged_hist = ut.rearange_data(hist) / num_sn
     # Create bin_edges for the plot 
     bin_edges_central = np.arange(2.5, 360, 5)
     bin_edges = np.concatenate(([0], bin_edges_central, [360]))
@@ -132,7 +113,7 @@ def plot_sn_as_func_of_long(galaxy):
     plt.text(0.02, 0.90, fr'Total number of supernovae progenitors: {num_sn}', transform=plt.gca().transAxes, fontsize=8, color='black')
     plt.ylim(0, max(rearanged_hist)*1.2) # set the y axis limits
     plt.xlim(0, 360) # so that the plot starts at 0 and ends at 360
-    plt.savefig("output/galaxy_tests/sn_as_func_of_long.png", dpi=1200)     # save plot in the output folder
+    plt.savefig(f'{GALAXY_TESTS}/sn_as_func_of_long.png', dpi=1200)     # save plot in the output folder
     plt.close()
 
 def plot_mass_distr(galaxy):
@@ -152,7 +133,7 @@ def plot_mass_distr(galaxy):
     plt.text(0.02, 0.95, fr'Number of associations: {galaxy.num_asc}', transform=plt.gca().transAxes, fontsize=8, color='black')
     plt.text(0.02, 0.90, fr'Total number of supernovae progenitors: {number_sn}', transform=plt.gca().transAxes, fontsize=8, color='black')
     plt.ylim(top=max(counts/np.sum(counts))*3) # set the y axis limits
-    plt.savefig("output/galaxy_tests/sn_mass_distribution.png", dpi=1200)     # save plot in the output folder
+    plt.savefig(f'{GALAXY_TESTS}/sn_mass_distribution.png', dpi=1200)     # save plot in the output folder
     plt.close()
 
 
@@ -173,7 +154,7 @@ def plot_draw_positions_rad_long_lat(galaxy):
     plt.title(f"Made with {galaxy.num_asc} associations")
     plt.gca().set_aspect('equal', adjustable='box')
     plt.legend()
-    plt.savefig("output/galaxy_tests/positions_from_density_distribution.png", dpi=1200)     # save plot in the output folder
+    plt.savefig(f'{GALAXY_TESTS}/positions_from_density_distribution.png', dpi=1200)     # save plot in the output folder
     plt.close()
 
 
@@ -232,7 +213,7 @@ def plot_diffusion_of_sns_3d():
     handles = [legend_centre, legend_exploded, legend_unexploded]
     fig.legend(handles=handles)
     plt.suptitle(f"Position of Association centre in xyz-coordinates (kpc): ({test_ass.x[0]:.2f}, {test_ass.y[0]:.2f}, {test_ass.z[0]:.2f}). \n Association created {creation_time} Myr ago. ")
-    plt.savefig("output/galaxy_tests/plot_diffusion_of_sns.png", dpi=1200)
+    plt.savefig(f'{GALAXY_TESTS}/plot_diffusion_of_sns.png', dpi=1200)
 
 
 def plot_diffusion_of_sns():
@@ -263,76 +244,112 @@ def plot_age_mass_distribution():
         y = time_of_death[y_val_index[i]]
         plt.scatter(x, y, s=30, label=f"{x} M$_\odot$, f(M) = {y:.2e} yrs", zorder=1)
     plt.legend()
-    plt.savefig("output/galaxy_tests/age_distribution.png", dpi=1200)  # save plot in the output folder
+    plt.savefig(f'{GALAXY_TESTS}/age_distribution.png', dpi=1200)  # save plot in the output folder
     plt.show()
     plt.close()
 
 
 def test_association_placement():
-    # temp function: just for testing association placement more quickly to find correct code
-    # observation: using interpolated_densities = np.load('output/galaxy_data/interpolated_densities.npy') is ABSOLUTELLY TRASH
-    num_lats = len(np.lib.format.open_memmap('output/galaxy_data/latitudes.npy'))
-    num_rads = len(np.lib.format.open_memmap('output/galaxy_data/radial_distances.npy'))
-    num_longs = len(np.lib.format.open_memmap('output/galaxy_data/longitudes.npy'))
+    """ Function for testing the placement of the associations from the emissivity. Drawn using MC simulation
+
+    Args:
+        None
+    Returns:
+        Plot of the association placement    
+    """
+    num_rads = len(np.lib.format.open_memmap(f'{GALAXY_DATA}/radial_distances.npy'))
+    num_longs = len(np.lib.format.open_memmap(f'{GALAXY_DATA}/longitudes.npy'))
+    num_lats = len(np.lib.format.open_memmap(f'{GALAXY_DATA}/latitudes.npy'))
     # positions:
-    x_grid = np.lib.format.open_memmap('output/galaxy_data/x_grid.npy')
-    y_grid = np.lib.format.open_memmap('output/galaxy_data/y_grid.npy')
-    z_grid = np.lib.format.open_memmap('output/galaxy_data/z_grid.npy')
+    x_grid = np.lib.format.open_memmap(f'{GALAXY_DATA}/x_grid.npy')
+    y_grid = np.lib.format.open_memmap(f'{GALAXY_DATA}/y_grid.npy')
+    x_grid = np.reshape(x_grid, (num_rads, num_longs, num_lats))
+    x_grid = x_grid[:,:,0]
+    x_grid = x_grid.ravel()
+    y_grid = np.reshape(y_grid, (num_rads, num_longs, num_lats))
+    y_grid = y_grid[:,:,0]
+    y_grid = y_grid.ravel()
+    #z_grid = np.lib.format.open_memmap(f'{GALAXY_DATA}/z_grid.npy')
     # densities:
-    emissivity_longitudinal = np.load('output/galaxy_data/emissivity_longitudinal.npy')
+    """ emissivity_longitudinal = np.load(f'{GALAXY_DATA}/emissivity_longitudinal.npy')
     emissivity_longitudinal = emissivity_longitudinal/np.sum(emissivity_longitudinal) # normalize to unity
-    emissivity_lat = np.load('output/galaxy_data/emissivity_long_lat.npy')
+    emissivity_lat = np.load(f'{GALAXY_DATA}/emissivity_long_lat.npy')
     emissivity_lat = emissivity_lat/np.sum(emissivity_lat, axis=1, keepdims=True) # normalize to unity for each latitude
-    emissivitty_rad = np.load('output/galaxy_data/emissivity_rad_long_lat.npy')
-    emissivitty_rad = emissivitty_rad/np.sum(emissivitty_rad, axis=0, keepdims=True) # normalize to unity for each radius
-    
+    emissivitty_rad = np.load(f'{GALAXY_DATA}/emissivity_rad_long_lat.npy')
+    #emissivitty_rad = emissivitty_rad/np.sum(emissivitty_rad, axis=0, keepdims=True) # normalize to unity for each radius
+    emissivitty_rad = emissivitty_rad.ravel()
+    emissivitty_rad = emissivitty_rad/np.sum(emissivitty_rad) # normalize entire array to unity """
     rng = np.random.default_rng()
     NUM_ASC = 10000
-    for _ in range(NUM_ASC):
-        long_index = rng.choice(a=len(emissivity_longitudinal), size=1, p=emissivity_longitudinal )
-        lat_index = rng.choice(a=len(emissivity_lat[long_index].ravel()), size=1, p=emissivity_lat[long_index].ravel() )
-        radial_index = rng.choice(a=len(emissivitty_rad[:,long_index,lat_index].ravel()), size=1, p=emissivitty_rad[:, long_index, lat_index].ravel() )
-        grid_index = radial_index * num_longs * num_lats + long_index * num_lats + lat_index # 1800 = length of longitudes, 21 = length of latitudes
-        x = x_grid[grid_index]
-        y = y_grid[grid_index]
+    NUM_INTERPOLANT_FILES = 4
+    logging.info("Beginning to load the data for the emissivity")
+    emissivity = np.load(f'{GALAXY_DATA}/interpolated_arm_emissivity_0.npy')
+    for i in range(NUM_INTERPOLANT_FILES - 1):
+        emissivity += np.lib.format.open_memmap(f'{GALAXY_DATA}/interpolated_arm_emissivity_{i+1}.npy')
+    emissivity = np.reshape(emissivity, (num_rads, num_longs, num_lats))
+    emissivity = np.sum(emissivity, axis=2)
+    emissivity = emissivity.ravel()
+    emissivity /= np.sum(emissivity) # normalize this so that the maximum value is 1
+    #for _ in range(10):
+        #long_index = rng.choice(a=len(emissivity_longitudinal), size=1, p=emissivity_longitudinal)
+        #lat_index = rng.choice(a=len(emissivity_lat[long_index].ravel()), size=1, p=emissivity_lat[long_index].ravel() )
+        #radial_index = rng.choice(a=len(emissivitty_rad[:,long_index,lat_index].ravel()), size=1, p=emissivitty_rad[:, long_index, lat_index].ravel() )
+        #grid_index = radial_index * num_longs * num_lats + long_index * num_lats + lat_index # 1800 = length of longitudes, 21 = length of latitudes
+        #x = x_grid[grid_index]
+        #y = y_grid[grid_index]
         #z = z_grid[grid_index] # not needed
-        plt.plot(x, y, 'o', color='black', markersize=1)
-    plt.plot(0, 0, 'o', color='blue', markersize=10, label='Centre of Galaxy')
-    plt.plot(0, r_s, 'o', color='red', markersize=5, label='Centre of Sun')
+    grid_index = rng.choice(a=len(emissivity), size=NUM_ASC, p=emissivity, replace=False) #replace = False means that the same index cannot be drawn twice
+    x = x_grid[grid_index]
+    y = y_grid[grid_index]
+    plt.plot(x, y, 'o', color='black', markersize=0.5, markeredgewidth=0.0)
+    plt.plot(0, 0, 'o', color='blue', markersize=5, label='Centre of Galaxy')
+    plt.plot(0, r_s, 'o', color='red', markersize=2, label='Centre of Sun')
     plt.gca().set_aspect('equal', adjustable='box')
-    plt.xlabel("Distance from the Galactic Centre (kpc)")
-    plt.ylabel("Distance from the Galactic Centre (kpc)")
-    plt.suptitle("Associations drawn from the NII density distribution of the Milky Way")
-    plt.title(f"Made with {NUM_ASC} associations")
+    plt.xlabel('Distance from the Galactic Centre (kpc)')
+    plt.ylabel('Distance from the Galactic Centre (kpc)')
+    plt.xlim(-20, 20)
+    plt.ylim(-20, 20)
+    plt.suptitle('Associations drawn from the NII density distribution of the Milky Way')
+    plt.title(f'Made with {NUM_ASC} associations')
     plt.legend()
-    plt.savefig("output/galaxy_tests/test_association_placement.png", dpi=1200)  # save plot in the output folder
+    plt.savefig(f'{GALAXY_TESTS}/test_association_placement.png', dpi=1200)  # save plot in the output folder
     plt.close()
  
+
 def test_plot_density_distribution():
+    """ Function to test the density distribution of the Milky Way. Plots both the unweighted, analytical density distribution and the weighted, modelled emissivity from which the associations are drawn.
+    
+    Args:
+        None
+    Returns:
+        Saves two plots in the output folder
+    """
     # let's make a plot for the density distribution of the Milky Way, to see if these maps actually reproduce the expected desnity distribution
+    logging.info("Beginning to load the data for the uniform spiral arm density distribution")
+    num_lats = len(np.lib.format.open_memmap(f'{GALAXY_DATA}/latitudes.npy'))
+    num_rads = len(np.lib.format.open_memmap(f'{GALAXY_DATA}/radial_distances.npy'))
+    num_longs = len(np.lib.format.open_memmap(f'{GALAXY_DATA}/longitudes.npy'))
+    # Load the data for the uniform spiral arm density distribution:
     NUM_INTERPOLANT_FILES = 4
-    total_galactic_density_unweighted = np.load(os.path.join(WORK_DIRECTORY, 'galaxy_data/interpolated_arm_0.npy')) 
+    uniform_spiral_arm_density_distribution = np.load(f'{GALAXY_DATA}/interpolated_arm_0.npy')
     for i in range(NUM_INTERPOLANT_FILES - 1):
-        total_galactic_density_unweighted += np.lib.format.open_memmap(os.path.join(WORK_DIRECTORY, f'galaxy_data/interpolated_arm_{i+1}.npy'))
-    #np.load('output/galaxy_data/total_galactic_density_unweighted.npy')
-    num_lats = len(np.lib.format.open_memmap('output/galaxy_data/latitudes.npy'))
-    num_rads = len(np.lib.format.open_memmap('output/galaxy_data/radial_distances.npy'))
-    num_longs = len(np.lib.format.open_memmap('output/galaxy_data/longitudes.npy'))
-    print("Loaded the data")
-    total_galactic_density_unweighted = np.reshape(total_galactic_density_unweighted, (num_rads, num_longs, num_lats))
-    total_galactic_density_unweighted = total_galactic_density_unweighted[:,:,0]
-    total_galactic_density_unweighted = total_galactic_density_unweighted.ravel()
-    x_grid = np.load('output/galaxy_data/x_grid.npy')
-    y_grid = np.load('output/galaxy_data/y_grid.npy')
+        uniform_spiral_arm_density_distribution += np.lib.format.open_memmap(f'{GALAXY_DATA}/interpolated_arm_{i+1}.npy')
+    uniform_spiral_arm_density_distribution = np.reshape(uniform_spiral_arm_density_distribution, (num_rads, num_longs, num_lats))
+    uniform_spiral_arm_density_distribution = uniform_spiral_arm_density_distribution[:,:,0] # pick out one of the planes
+    uniform_spiral_arm_density_distribution = uniform_spiral_arm_density_distribution.ravel()
+    uniform_spiral_arm_density_distribution /= np.max(uniform_spiral_arm_density_distribution) # normalize this so that the maximum value is 1
+    # Load the grid-data:
+    x_grid = np.load(f'{GALAXY_DATA}/x_grid.npy')
     x_grid = np.reshape(x_grid, (num_rads, num_longs, num_lats))
-    y_grid = np.reshape(y_grid, (num_rads, num_longs, num_lats))
     x_grid = x_grid[:,:,0]
-    y_grid = y_grid[:,:,0]
     x_grid = x_grid.ravel()
+    y_grid = np.load(f'{GALAXY_DATA}/y_grid.npy')
+    y_grid = np.reshape(y_grid, (num_rads, num_longs, num_lats))
+    y_grid = y_grid[:,:,0]
     y_grid = y_grid.ravel()
-    # Plot the unweigthed density distribution:
-    print("Beginning to plot the figure")
-    plt.scatter(x_grid, y_grid, c=total_galactic_density_unweighted, cmap='viridis', s=1) 
+    logging.info("Loaded the data. Beginning to plot the figure")
+    # Plot the uniform spiral arm density distribution:
+    plt.scatter(x_grid, y_grid, c=uniform_spiral_arm_density_distribution, cmap='viridis', s=1) 
     plt.scatter(0, 0, c = 'magenta', s=2, label='Galactic centre')
     plt.scatter(0, r_s, c = 'gold', s=2, label='Sun')
     plt.gca().set_aspect('equal')
@@ -343,31 +360,25 @@ def test_plot_density_distribution():
     plt.legend(loc='upper right')
     cbar = plt.colorbar()
     cbar.set_label('Density')
-    filename_unweighted = 'galaxy_tests/test_plot_density_distribution_unweighted_new_high_res.png'
-    filepath = os.path.join(WORK_DIRECTORY, filename_unweighted)
-    print("Beginning to save the figure")
+    filepath = f'{GALAXY_TESTS}/test_plot_uniform_spiral_arm_density_distribution.png'
+    logging.info("Beginning to save the figure")
     plt.savefig(filepath, dpi=1200)  # save plot in the output folder
     plt.close()
-    print("Done saving the figure")
-
-    del total_galactic_density_unweighted
+    logging.info("Done saving the figure")
+    del uniform_spiral_arm_density_distribution
     gc.collect()
 
     # Plot the weigthed density distribution:
-    total_galactic_density_weighted = np.load(os.path.join(WORK_DIRECTORY, 'galaxy_data/interpolated_arm_emissivity_0.npy')) 
+    logging.info("Beginning to load the data for the emissivity")
+    emissivity = np.load(f'{GALAXY_DATA}/interpolated_arm_emissivity_0.npy')
     for i in range(NUM_INTERPOLANT_FILES - 1):
-        total_galactic_density_weighted += np.lib.format.open_memmap(os.path.join(WORK_DIRECTORY, f'galaxy_data/interpolated_arm_emissivity_{i+1}.npy')) 
-    #total_galactic_density_weighted = np.load('output/galaxy_data/total_galactic_density_weighted.npy')
-    print("Loaded the data")
-    total_galactic_density_weighted = np.reshape(total_galactic_density_weighted, (num_rads, num_longs, num_lats))
-    total_galactic_density_weighted = np.sum(total_galactic_density_weighted, axis=2)
-    total_galactic_density_weighted = total_galactic_density_weighted.ravel()
-    total_galactic_density_weighted /= np.max(total_galactic_density_weighted) # normalize this so that the maximum value is 1
-    
-    print("Shape interpolated_densities: ", total_galactic_density_weighted.shape)
-    print("Shape x_grid: ", x_grid.shape)
-    print("Shape y_grid: ", y_grid.shape)
-    plt.scatter(x_grid, y_grid, s=1, c=total_galactic_density_weighted, cmap='viridis')
+        emissivity += np.lib.format.open_memmap(f'{GALAXY_DATA}/interpolated_arm_emissivity_{i+1}.npy')
+    emissivity = np.reshape(emissivity, (num_rads, num_longs, num_lats))
+    emissivity = np.sum(emissivity, axis=2)
+    emissivity = emissivity.ravel()
+    emissivity /= np.max(emissivity) # normalize this so that the maximum value is 1
+    logging.info("Loaded the data. Beginning to plot the figure")
+    plt.scatter(x_grid, y_grid, s=1, c=emissivity, cmap='viridis')
     plt.scatter(0, 0, c = 'magenta', s=2, label='Galactic centre')
     plt.scatter(0, r_s, c = 'gold', s=2, label='Sun')
     plt.gca().set_aspect('equal')
@@ -378,12 +389,12 @@ def test_plot_density_distribution():
     plt.legend(loc='upper right')
     cbar = plt.colorbar()
     cbar.set_label('Density')
-    print("Beginning to save the figure")
-    filename_weighted = 'galaxy_tests/test_plot_density_distribution_weigthed_new_high_res.png'
-    filepath = os.path.join(WORK_DIRECTORY, filename_weighted)
+    logging.info("Beginning to save the figure")
+    filepath = f'{GALAXY_TESTS}/test_plot_emissivity.png'
     plt.savefig(filepath, dpi=1200)  # save plot in the output folder
     plt.close()
-    print("Done saving the figure")
+    logging.info("Done saving the figure")
+    return
     
     
 def run_tests(C, T):
@@ -411,11 +422,11 @@ def run_tests(C, T):
 def main():
     # other levels for future reference: logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL
     logging.basicConfig(level=logging.INFO) 
-    run_tests(C=C, T=150)
+    #run_tests(C=C, T=150)
 
     #plot_diffusion_of_sns_3d()savefig
-    #test_plot_density_distribution()
+    test_plot_density_distribution()
+    #test_association_placement()
 
 if __name__ == "__main__":
-    test_plot_density_distribution()
-    #main()
+    main()

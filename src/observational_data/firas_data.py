@@ -3,27 +3,7 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import AutoMinorLocator
 from astropy.io import fits
 import logging
-
-def sum_pairwise(a):
-    paired_data = a.reshape(-1, 2)
-    # Sum along the specified axis (axis=1 sums up each row)
-    result = np.sum(paired_data, axis=1)
-    return result
-
-
-def rearange_data(data):
-    # rearange data to be plotted in desired format. Also does the summation
-    middle = int(len(data)/2)
-    data_centre_left = data[0]
-    data_left = sum_pairwise(data[1:middle-1])
-    data_left_edge = data[middle-1]
-    data_right_edge = data[middle]
-    data_edge = (data_right_edge + data_left_edge)
-    data_right = sum_pairwise(data[middle+1:-1])
-    data_centre_right = data[-1]
-    data_centre = (data_centre_left + data_centre_right)
-    rearanged_data = np.concatenate(([data_edge], data_left[::-1], [data_centre], data_right[::-1], [data_edge]))
-    return rearanged_data
+import utilities as ut
 
 
 def calc_hist_1d(data):
@@ -37,8 +17,8 @@ def calc_hist_1d(data):
     hist, _ = np.histogram(long, bins=bin_edges_long, weights=intensity) # if a longitude is in the bin, add the intensity to the bin
     hist_num_long_per_bin, _ = np.histogram(long, bins=bin_edges_long)
     # Rearange data to be plotted in desired format
-    rearanged_hist = rearange_data(hist)
-    rearanged_hist_num_long_per_bin = rearange_data(hist_num_long_per_bin)
+    rearanged_hist = ut.rearange_data(hist)
+    rearanged_hist_num_long_per_bin = ut.rearange_data(hist_num_long_per_bin)
     rearanged_hist_num_long_per_bin[rearanged_hist_num_long_per_bin == 0] = 1
     hist = rearanged_hist / rearanged_hist_num_long_per_bin
     return hist
@@ -120,7 +100,8 @@ def find_firas_intensity_at_central_long(long):
     Returns:
         float, the intensity of the N+ line at the given longitude.
     """
-    fits_file = fits.open('src/observational_data/lambda_firas_lines_1999_galplane.fits')
+    folder = 'src/observational_data'
+    fits_file = fits.open(f'{folder}/lambda_firas_lines_1999_galplane.fits')
     data_hdu = fits_file[12] 
     data = data_hdu.data
     gal_lon = data['GAL_LON'][0] 
@@ -134,6 +115,7 @@ def find_firas_intensity_at_central_long(long):
 
 
 def plot_firas_nii_line():
+    folder_output = 'src/observational_data'
     bin_edges_line_flux, bin_centre_line_flux, line_flux, line_flux_error = firas_data_for_plotting()
     plt.figure(figsize=(10, 6))
     plt.stairs(values=line_flux, edges=bin_edges_line_flux, fill=False, color='black')
@@ -147,7 +129,7 @@ def plot_firas_nii_line():
     plt.ylabel("Line intensity in erg cm$^{-2}$ s$^{-1}$ sr$^{-1}$")
     plt.title("Modelled intensity of the Galactic disk")
     plt.xlim(0, 360)
-    plt.savefig("src/observational_data/firas_data_NII_line.png", dpi=1200)
+    plt.savefig(f'{folder_output}/firas_data_NII_line.png', dpi=1200)
     plt.close()
 
 

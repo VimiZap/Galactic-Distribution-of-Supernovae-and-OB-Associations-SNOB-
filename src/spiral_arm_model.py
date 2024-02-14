@@ -587,7 +587,7 @@ def calculate_galactic_coordinates(folder_output, b_max=5, db_above_1_deg = 0.2,
     return
     
 
-def calc_modelled_emissivity(b_max=1, db_above_1_deg = 0.1, fractional_contribution=fractional_contribution_default, gum_cygnus='False', method='linear', readfile=True, h=h_default, sigma_arm=sigma_arm_default, arm_angles=arm_angles, pitch_angles=pitch_angles):
+def calc_modelled_emissivity(folder_output = 'output/galaxy_data', b_max=1, db_above_1_deg = 0.1, fractional_contribution=fractional_contribution_default, gum_cygnus='False', method='linear', readfile=True, h=h_default, sigma_arm=sigma_arm_default, arm_angles=arm_angles, pitch_angles=pitch_angles):
     logging.info("Calculating modelled emissivity of the Milky Way")
     if readfile == True:
         effective_area = np.loadtxt("src/effective_area_per_spiral_arm.txt")
@@ -595,43 +595,42 @@ def calc_modelled_emissivity(b_max=1, db_above_1_deg = 0.1, fractional_contribut
         effective_area = calc_effective_area_per_spiral_arm(method, h, sigma_arm)
     else:
         raise ValueError("readfile must be either True or False")
-    folder_output = 'output/galaxy_data'
     calculate_galactic_coordinates(folder_output, b_max, db_above_1_deg)
-    num_lats = len(np.lib.format.open_memmap('output/galaxy_data/latitudes.npy'))
-    num_rads = len(np.lib.format.open_memmap('output/galaxy_data/radial_distances.npy'))
-    num_longs = len(np.lib.format.open_memmap('output/galaxy_data/longitudes.npy'))
+    num_rads = len(np.lib.format.open_memmap(f'{folder_output}/radial_distances.npy'))
+    num_longs = len(np.lib.format.open_memmap(f'{folder_output}/longitudes.npy'))
+    num_lats = len(np.lib.format.open_memmap(f'{folder_output}/latitudes.npy'))
     logging.info("Coordinates calculated and read from disk. Now interpolating each spiral arm")
     # coordinates made. Now we need to interpolate each spiral arm and sum up the densities
     interpolate_density(gum_cygnus, method, h, sigma_arm, arm_angles, pitch_angles)
     logging.info("Density calculated. Now calculating the emissivity")
-    common_multiplication_factor = total_galactic_n_luminosity * np.lib.format.open_memmap('output/galaxy_data/height_distribution_values.npy')
+    common_multiplication_factor = total_galactic_n_luminosity * np.lib.format.open_memmap(f'{folder_output}/height_distribution_values.npy')
     emissivity_rad_long_lat = np.zeros((num_rads, num_longs, num_lats)) # to store the intensity as a function of radius, longitude and latitude. Used for MC-simulation of the galaxy
     for i in range(4):
         logging.info(f"Calculating spiral arm number: {i+1}")
-        scaled_arm_emissivity = np.load(f'output/galaxy_data/interpolated_arm_{i}.npy') * common_multiplication_factor * fractional_contribution[i] / (effective_area[i] * kpc**2) # spiral arms
+        scaled_arm_emissivity = np.load(f'{folder_output}/interpolated_arm_{i}.npy') * common_multiplication_factor * fractional_contribution[i] / (effective_area[i] * kpc**2) # spiral arms
         # save this scaled density 
-        np.save(f'output/galaxy_data/interpolated_arm_emissivity_{i}.npy', scaled_arm_emissivity)
+        np.save(f'{folder_output}/interpolated_arm_emissivity_{i}.npy', scaled_arm_emissivity)
         # reshape this 1D array into 3D array to facilitate for the summation over the different longitudes and also the MonteCarlo Simulation
         scaled_arm_emissivity = scaled_arm_emissivity.reshape((num_rads, num_longs, num_lats))
         emissivity_rad_long_lat += scaled_arm_emissivity
     # Following files to be used for MC-simulation of the galaxy
-    np.save('output/galaxy_data/emissivity_longitudinal.npy', np.sum(emissivity_rad_long_lat, axis=(0, 2))) # Sum up all emissivities for all LOS for each value of longitude. Without running average.
-    np.save('output/galaxy_data/emissivity_long_lat.npy', np.sum(emissivity_rad_long_lat, axis=(0))) # sum over all radii to get a map for emissivity in the long, lat plane.
-    np.save('output/galaxy_data/emissivity_rad_long_lat.npy', emissivity_rad_long_lat) # store the entire 3D array of emissivity.
+    np.save(f'{folder_output}/emissivity_longitudinal.npy', np.sum(emissivity_rad_long_lat, axis=(0, 2))) # Sum up all emissivities for all LOS for each value of longitude. Without running average.
+    np.save(f'{folder_output}/emissivity_long_lat.npy', np.sum(emissivity_rad_long_lat, axis=(0))) # sum over all radii to get a map for emissivity in the long, lat plane.
+    np.save(f'{folder_output}/emissivity_rad_long_lat.npy', emissivity_rad_long_lat) # store the entire 3D array of emissivity.
     return  
 
 
-def calc_modelled_intensity(b_max=5, db_above_1_deg = 0.2, fractional_contribution=fractional_contribution_default, gum_cygnus='False', method='linear', readfile=True, h=h_default, sigma_arm=sigma_arm_default, arm_angles=arm_angles, pitch_angles=pitch_angles):
+def calc_modelled_intensity(folder_output = 'output/galaxy_data', b_max=5, db_above_1_deg = 0.2, fractional_contribution=fractional_contribution_default, gum_cygnus='False', method='linear', readfile=True, h=h_default, sigma_arm=sigma_arm_default, arm_angles=arm_angles, pitch_angles=pitch_angles):
     logging.info("Calculating the modelled NII intensity of the Milky Way")
-    calc_modelled_emissivity(b_max, db_above_1_deg, fractional_contribution, gum_cygnus, method, readfile, h, sigma_arm, arm_angles, pitch_angles)
-    num_lats = len(np.lib.format.open_memmap('output/galaxy_data/latitudes.npy'))
-    num_rads = len(np.lib.format.open_memmap('output/galaxy_data/radial_distances.npy'))
-    num_longs = len(np.lib.format.open_memmap('output/galaxy_data/longitudes.npy'))
-    db = np.load('output/galaxy_data/db.npy')
-    dr = np.load('output/galaxy_data/dr.npy')
-    dl = np.load('output/galaxy_data/dl.npy')
+    calc_modelled_emissivity(folder_output, b_max, db_above_1_deg, fractional_contribution, gum_cygnus, method, readfile, h, sigma_arm, arm_angles, pitch_angles)
+    num_rads = len(np.lib.format.open_memmap(f'{folder_output}/radial_distances.npy'))
+    num_longs = len(np.lib.format.open_memmap(f'{folder_output}/longitudes.npy'))
+    num_lats = len(np.lib.format.open_memmap(f'{folder_output}/latitudes.npy'))
+    dr = np.load(f'{folder_output}/dr.npy')
+    dl = np.load(f'{folder_output}/dl.npy')
+    db = np.load(f'{folder_output}/db.npy')
     
-    latitudinal_cosinus = np.lib.format.open_memmap('output/galaxy_data/latitudinal_cosinus.npy')
+    latitudinal_cosinus = np.lib.format.open_memmap(f'{folder_output}/latitudinal_cosinus.npy')
     common_multiplication_factor =  dr * latitudinal_cosinus/ (4 * np.pi * np.radians(b_max * 2) * np.radians(5))
     common_multiplication_factor = np.reshape(common_multiplication_factor, (num_rads, num_longs, num_lats)) * db[np.newaxis, np.newaxis, :] # reshaping to facilitate the multiplication with non-uniform latitudinal increments db
     common_multiplication_factor = common_multiplication_factor.ravel() #unraveling so that we can multiply with the interpolated densities
@@ -645,7 +644,7 @@ def calc_modelled_intensity(b_max=5, db_above_1_deg = 0.2, fractional_contributi
         elif i==5:
             interpolated_densities[i] *= gum_nii_luminosity * db * dr * latitudinal_cosinus / ((4 * np.pi) * kpc**2) # gum
         else: """
-        arm_intensity = np.load(f'output/galaxy_data/interpolated_arm_emissivity_{i}.npy') * common_multiplication_factor # spiral arms
+        arm_intensity = np.load(f'{folder_output}/interpolated_arm_emissivity_{i}.npy') * common_multiplication_factor # spiral arms
         # reshape this 1D array into 3D array to facilitate for the summation over the different longitudes
         arm_intensity = arm_intensity.reshape((num_rads, num_longs, num_lats))
         # sum up to get the intensity as a function of longitude
@@ -654,7 +653,7 @@ def calc_modelled_intensity(b_max=5, db_above_1_deg = 0.2, fractional_contributi
         arm_intensity = ut.running_average(arm_intensity, window_size) /window_size # running average to smooth out the density distribution
         intensities_per_arm[i] += arm_intensity
     b_filename = str(b_max).replace(".", "_")
-    filename_intensity_data = f'output/galaxy_data/intensities_per_arm_b_max_{b_filename}.npy'
+    filename_intensity_data = f'{folder_output}/intensities_per_arm_b_max_{b_filename}.npy'
     np.save(filename_intensity_data, intensities_per_arm) # saving the same array we are plotting usually. Sum over all spiral arms to get one longitudinal map. With running average
     return
 
@@ -942,7 +941,7 @@ def calc_and_plot():
 
 
 def test_max_b():
-    b_max = np.array([0.5, 1, 3.5, 5])
+    b_max = np.array([0.5, 1.0, 3.5, 5.0])
     db_above_1_deg = np.array([0, 0, 0.1, 0.2])
     for i in range(len(b_max)):
         calc_modelled_intensity(b_max=b_max[i], db_above_1_deg=db_above_1_deg[i])
@@ -955,8 +954,8 @@ def main() -> None:
     # other levels for future reference: logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL
     logging.basicConfig(level=logging.INFO) 
     #test_max_b()
-    filename_output = "src/data_products/modelled_intensity_b_max_5.png"
-    filename_intensity_data = "output/galaxy_data/intensities_per_arm_b_max_5.npy"
+    filename_output = "src/data_products/modelled_intensity_b_max_5_0.png"
+    filename_intensity_data = "output/galaxy_data/intensities_per_arm_b_max_5_0.npy"
     calc_modelled_intensity() # calculates coordinates, emissivity and intensity. Writes data to file
     plot_modelled_intensity_per_arm(filename_output, filename_intensity_data)
     

@@ -14,21 +14,23 @@ class Association():
     solar_masses = np.arange(8, 120, 0.01) # mass in solar masses
     imf = (m[2]/m[1])**(-alpha[1]) * (m[3]/m[2])**(-alpha[2]) * (solar_masses/m[3])**(-alpha[3])
     # 
-    num_lats = len(np.lib.format.open_memmap('output/galaxy_data/latitudes.npy'))
-    num_rads = len(np.lib.format.open_memmap('output/galaxy_data/radial_distances.npy'))
-    num_longs = len(np.lib.format.open_memmap('output/galaxy_data/longitudes.npy'))
+    GALAXY_DATA = 'output/galaxy_data/'
+    num_rads = len(np.lib.format.open_memmap(f'{GALAXY_DATA}/radial_distances.npy'))
+    num_longs = len(np.lib.format.open_memmap(f'{GALAXY_DATA}/longitudes.npy'))
+    num_lats = len(np.lib.format.open_memmap(f'{GALAXY_DATA}/latitudes.npy'))
     # positions:
-    x_grid = np.lib.format.open_memmap('output/galaxy_data/x_grid.npy')
-    y_grid = np.lib.format.open_memmap('output/galaxy_data/y_grid.npy')
-    z_grid = np.lib.format.open_memmap('output/galaxy_data/z_grid.npy')
+    x_grid = np.lib.format.open_memmap(f'{GALAXY_DATA}/x_grid.npy')
+    y_grid = np.lib.format.open_memmap(f'{GALAXY_DATA}/y_grid.npy')
+    z_grid = np.lib.format.open_memmap(f'{GALAXY_DATA}/z_grid.npy')
     # densities:
-    emissivity_longitudinal = np.load('output/galaxy_data/emissivity_longitudinal.npy')
+    emissivity_longitudinal = np.load(f'{GALAXY_DATA}/emissivity_longitudinal.npy')
     emissivity_longitudinal = emissivity_longitudinal/np.sum(emissivity_longitudinal) # normalize to unity
-    emissivity_lat = np.load('output/galaxy_data/emissivity_long_lat.npy')
+    emissivity_lat = np.load(f'{GALAXY_DATA}/emissivity_long_lat.npy')
     emissivity_lat = emissivity_lat/np.sum(emissivity_lat, axis=1, keepdims=True) # normalize to unity for each latitude
-    emissivitty_rad = np.load('output/galaxy_data/emissivity_rad_long_lat.npy')
+    emissivitty_rad = np.load(f'{GALAXY_DATA}/emissivity_rad_long_lat.npy')
     emissivitty_rad = emissivitty_rad/np.sum(emissivitty_rad, axis=0, keepdims=True) # normalize to unity for each radius
 
+    rng = np.random.default_rng() # random number generator to be used for drawing association position
     def __init__(self, c, creation_time, n=None):
         self.__n = self._calculate_num_sn(c, n)
         self.__creation_time = creation_time
@@ -63,16 +65,16 @@ class Association():
             return n
     
     def _calculate_association_position(self):
-        long_index = np.random.choice(a=len(self.emissivity_longitudinal), size=1, p=self.emissivity_longitudinal )
-        lat_index = np.random.choice(a=len(self.emissivity_lat[long_index].ravel()), size=1, p=self.emissivity_lat[long_index].ravel() )
-        radial_index = np.random.choice(a=len(self.emissivitty_rad[:,long_index,lat_index].ravel()), size=1, p=self.emissivitty_rad[:, long_index, lat_index].ravel() )
+        long_index = rng.choice(a=len(self.emissivity_longitudinal), size=1, p=self.emissivity_longitudinal )
+        lat_index = rng.choice(a=len(self.emissivity_lat[long_index].ravel()), size=1, p=self.emissivity_lat[long_index].ravel() )
+        radial_index = rng.choice(a=len(self.emissivitty_rad[:, long_index, lat_index].ravel()), size=1, p=self.emissivitty_rad[:, long_index, lat_index].ravel() )
         grid_index = radial_index * self.num_longs * self.num_lats + long_index * self.num_lats + lat_index # 1800 = length of longitudes, 21 = length of latitudes
         self.__x = self.x_grid[grid_index]
         self.__y = self.y_grid[grid_index]
         self.__z = self.z_grid[grid_index]
 
     def _generate_sn_batch(self):
-        sn_masses = np.random.choice(self.solar_masses, size=self.__n, p=self.imf/np.sum(self.imf))
+        sn_masses = rng.choice(self.solar_masses, size=self.__n, p=self.imf/np.sum(self.imf))
         one_dim_velocities = rng.normal(loc=0, scale=2, size=self.__n)
         lifetimes = self.tau_0 * (sn_masses)**(self.beta) / 1e6 # devide to convert into units of Myr
         vel_theta_dirs = rng.uniform(0, np.pi, size=self.__n)

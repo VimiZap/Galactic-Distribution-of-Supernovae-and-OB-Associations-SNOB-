@@ -3,7 +3,8 @@ r_s = 8.178               # kpc, estimate for distance from the Sun to the Galac
 
 
 def rho(r, l, b):
-    """
+    """ Function to calculate the distance from the Galactic center to the star/ a point in the Galaxy from Earth-centered coordinates (r, l, b)
+
     Args:
         r: distance from the Sun to the star/ a point in the Galaxy
         l: Galactic longitude, radians
@@ -15,7 +16,8 @@ def rho(r, l, b):
 
 
 def theta(r, l, b):
-    """
+    """ Function to calculate the angle from the Galactic centre to the star/ a point in the Galaxy from Earth-centered coordinates (r, l, b)
+
     Args:
         r: distance from the Sun to the star/ a point in the Galaxy
         l: Galactic longitude, radians
@@ -27,7 +29,8 @@ def theta(r, l, b):
 
 
 def z(r, b):
-    """
+    """ Function to calculate the z-coordinate of the star/ a point in the Galaxy from Earth-centered coordinates (r, l, b)
+
     Args:
         r: distance from the Sun to the star/ a point in the Galaxy
         b: Galactic latitude, radians
@@ -38,7 +41,8 @@ def z(r, b):
 
 
 def axisymmetric_disk_population(rho, h):
-    """
+    """ Function describing the density of the disk at a distance rho from the Galactic center
+
     Args:
         rho: distance from the Galactic center
         h: scale length of the disk
@@ -48,8 +52,9 @@ def axisymmetric_disk_population(rho, h):
     return np.exp(-rho/h)
 
 
-def height_distribution(z, sigma): # z is the height above the Galactic plane
-    """
+def height_distribution(z, sigma):
+    """ Function describing the density of the disk at a height z above the Galactic plane
+
     Args:
         z: height above the Galactic plane
     Returns:
@@ -59,6 +64,14 @@ def height_distribution(z, sigma): # z is the height above the Galactic plane
 
 
 def running_average(data, window_size):
+   """ Calculates the running average of the data
+
+   Args: 
+        data: 1D np.array with data
+        window_size: int, the size of the window used to calculate the running average. Denotes the number of points for each window
+    Returns:
+        1D np.array with the running average of the data
+   """
    array_running_averaged = []
    delta = int((window_size)//2)
    print("running average: ", window_size, delta)
@@ -74,3 +87,41 @@ def running_average(data, window_size):
    return np.array(array_running_averaged)
 
 
+def sum_pairwise(data):
+    """ Sums up the elements of an array pairwise. Array must contain even number of points
+
+    Args:
+        a: even 1D np.array
+    Returns:
+        1D np.array with the summed up values. Half the size of the input array
+    """
+    if not len(data) % 2 == 0:
+        print("The array must contain an even number of points")
+        return None
+    paired_data = data.reshape(-1, 2)
+    result = np.sum(paired_data, axis=1)  # Sum along the specified axis (axis=1 sums up each row)
+    return result
+
+
+def rearange_data(data):
+    """ Rearanges data to be plotted in desired format. E.g. instead of data going from 0 to 360 degrees, the returned data will go from 180 -> 0/ 360 -> 180 degrees, the format used by FIXEN et al. 1999 and Higdon and Lingenfelter 2013
+    
+    Args:
+        data: 1D np.array with data. Must contain even number of points
+    Returns:
+        1D np.array with the rearanged data. Half the size of the input array
+    """
+    if not len(data) % 2 == 0:
+        print("The array must contain an even number of points")
+        return None
+    middle = int(len(data)/2)
+    data_centre_left = data[0]
+    data_left = sum_pairwise(data[1:middle-1])
+    data_left_edge = data[middle-1]
+    data_right_edge = data[middle]
+    data_edge = (data_right_edge + data_left_edge)
+    data_right = sum_pairwise(data[middle+1:-1])
+    data_centre_right = data[-1]
+    data_centre = (data_centre_left + data_centre_right)
+    rearanged_data = np.concatenate(([data_edge], data_left[::-1], [data_centre], data_right[::-1], [data_edge]))
+    return rearanged_data
