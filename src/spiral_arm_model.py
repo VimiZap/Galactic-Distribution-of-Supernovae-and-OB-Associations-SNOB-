@@ -6,8 +6,9 @@ import gc
 import time
 import os
 import logging
-import observational_data.firas_data as firas_data
-import utilities as ut
+import src.observational_data.firas_data as firas_data
+import src.utilities.utilities as ut
+import src.utilities.constants as const
 #from galaxy_tests import test_plot_density_distribution
 
 
@@ -449,7 +450,7 @@ def calc_effective_area_per_spiral_arm(method='cubic', h=h_default, sigma_arm=si
         
         # add the interpolated density to the total galactic density
         effective_area = np.append(effective_area, np.sum(interpolated_density) * d_x * d_y)
-    filepath = "src/effective_area_per_spiral_arm.txt"
+    filepath = f'{const.FOLDER_GALAXY_DATA}/effective_area_per_spiral_arm.txt'
     np.savetxt(filepath, effective_area)
     return effective_area
 
@@ -518,7 +519,7 @@ def calculate_galactic_coordinates(folder_output, b_max=5, db_above_1_deg = 0.2,
     logging.info("Calculating the galactic coordinates")
     # Calculate coordinates
     dr = 0.01   # increments in dr (kpc):
-    dl = 0.2   # increments in dl (degrees):
+    dl = 0.2    # increments in dl (degrees):
     # np.array with values for galactic longitude l in radians.
     l1 = np.arange(180, 0, -dl)
     l2 = np.arange(360, 180, -dl)
@@ -953,11 +954,12 @@ def test_max_b():
 def main() -> None:
     # other levels for future reference: logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL
     logging.basicConfig(level=logging.INFO) 
+    logging.info("Starting main function")
     #test_max_b()
-    filename_output = "src/data_products/modelled_intensity_b_max_5_0.png"
+    """ filename_output = "src/data_products/modelled_intensity_b_max_5_0.png"
     filename_intensity_data = "output/galaxy_data/intensities_per_arm_b_max_5_0.npy"
     calc_modelled_intensity() # calculates coordinates, emissivity and intensity. Writes data to file
-    plot_modelled_intensity_per_arm(filename_output, filename_intensity_data)
+    plot_modelled_intensity_per_arm(filename_output, filename_intensity_data) """
     
     #calc_and_plot()
 

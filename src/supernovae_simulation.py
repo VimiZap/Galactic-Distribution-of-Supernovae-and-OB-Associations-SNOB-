@@ -4,8 +4,8 @@ from matplotlib.ticker import AutoMinorLocator
 
 rng = np.random.default_rng()
 
-galactic_densities = np.loadtxt('output\long_lat_skymap.txt')
-galactic_densities_as_long = np.sum(galactic_densities[1:, 1:], axis=1)
+""" galactic_densities = np.loadtxt('output\long_lat_skymap.txt')
+galactic_densities_as_long = np.sum(galactic_densities[1:, 1:], axis=1) """
 C = [0.828, 0.95, 1.0] # values for the constant C for respectively 1, 3 and 5 star formation episodes
 
 
@@ -89,7 +89,7 @@ def test_imf():
     plt.legend()
     plt.show()
 
-#test_imf()
+test_imf()
 
 # x,y,z coordinates for the OB associations and their stars
 # give them a velcoity, isotropic distribution
@@ -122,4 +122,4 @@ def test_plot_mc_imf():
     plt.show()
     plt.close()
 
-test_plot_mc_imf()
+#test_plot_mc_imf()

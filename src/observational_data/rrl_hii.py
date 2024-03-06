@@ -1,50 +1,34 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from pyvo import registry
+import obs_utilities as obs_ut
 
 
-
-# each resource in the VO has an identifier, called ivoid. For vizier catalogs, # the VO ids can be constructed like this:
 CATALOGUE = 'J/ApJS/165/338'
-catalogue_ivoid = f"ivo://CDS.VizieR/{CATALOGUE}"
-# the actual query to the registry
-voresource = registry.search(ivoid=catalogue_ivoid)[0]
+TABLE = 'table1'
 
-# We can extract the tables from the resource
-tables = voresource.get_tables()
-# We can also extract the tables names for later use
-tables_names = list(tables.keys())
-print(tables_names)
-# extract the table name of interest
-table_1 = tables[tables_names[2]]
-print("table_1: ", table_1)
-# investigate the columns of the table
-column_names = [column.name for column in table_1.columns]
-print(column_names)
+def plot_rrl_hii_data():
+    """ Plot the data of HII regions from the VizieR catalogue J/ApJS/165/338
+    Source paper for data: https://ui.adsabs.harvard.edu/abs/2006ApJS..165..338Q/abstract
+    
+    Returns:
+        2D np.array with the data. The first column contains the Galactic longitude, the second column contains the Galactic latitude
 
-# Define your ADQL query
-adql_query = """
-SELECT column_name
-FROM table_name
-"""
-tap_records = voresource.get_service("tap").run_sync(
-    f'SELECT glat from "{tables_names[2]}"',
-)
-print("number of tap_records: ", len(tap_records))
+    """
+    tap_records = obs_ut.get_catalogue_data(CATALOGUE, TABLE, ['GLON', 'GLAT'])
+    glat_data = tap_records['GLAT'].data
+    glon_data = tap_records['GLON'].data
+    bin_edges = np.arange(-4, 4+0.5, 0.5)
+    binned_data, bin_edges = np.histogram(glat_data, bins=bin_edges)
+    plt.bar(bin_edges[:-1], binned_data, width=0.5, align='edge')
+    plt.xlabel('Galactic latitude (degrees)')
+    plt.ylabel('Frequency')
+    plt.title(f'Histogram of Galactic HII regions. Data from Quireza et al. (2006)\n{np.sum(binned_data)} HII regions in total')
+    plt.show()
+    print("Number of points with glat < abs(1): ", len(glat_data[np.abs(glat_data) < 1]))
+    print("Number of points with glat > abs(4) in the original dataset:", len(glat_data[np.abs(glat_data) > 4]))
+    print("Number of points with exactly glat = +1 or -1: ", len(glat_data[np.abs(glat_data) == 1]))
+    print(glat_data[np.abs(glat_data) > 4])
 
-print(tap_records)
-glat_data = tap_records['GLAT'].data
-glon_data = tap_records['GLON'].data
 
-bin_edges = np.arange(-4, 4+0.5, 0.5)
-binned_data, bin_edges = np.histogram(glat_data, bins=bin_edges)
-plt.bar(bin_edges[:-1], binned_data, width=0.5, align='edge')
-plt.xlabel('glat')
-plt.ylabel('count')
-plt.title('Histogram of glat')
-plt.show()
-print("Number of points in the binned data: ", np.sum(binned_data))
-print("Number of points with glat < abs(1): ", len(glat_data[np.abs(glat_data) < 1]))
-print("Number of points with glat > abs(4) in the original dataset:", len(glat_data[np.abs(glat_data) > 4]))
-print("Number of points with exactly glat = +1 or -1: ", len(glat_data[np.abs(glat_data) == 1]))
-print(glat_data[np.abs(glat_data) > 4])
+if __name__ == "__main__":
+    plot_rrl_hii_data()

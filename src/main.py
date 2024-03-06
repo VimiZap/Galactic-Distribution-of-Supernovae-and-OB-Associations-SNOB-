@@ -1,7 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
 
-import galaxy_tests as gt
+import tests.galaxy_tests as gt
 import spiral_arm_model as sam
 
 

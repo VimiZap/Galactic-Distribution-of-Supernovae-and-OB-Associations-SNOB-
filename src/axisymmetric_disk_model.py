@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import utilities as ut
+import utilities.utilities as ut
 import gc
 import observational_data.firas_data as firas_data
 import logging

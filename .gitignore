@@ -1,4 +1,5 @@
-output/
-output
+galaxy_data/
+galaxy_data
 .venv/
 .gitignore
+old_tests/
