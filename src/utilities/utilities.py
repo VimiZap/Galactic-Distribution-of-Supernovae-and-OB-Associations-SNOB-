@@ -1,6 +1,7 @@
 import numpy as np
 import time
 import logging 
+logging.basicConfig(level=logging.INFO)
 import src.utilities.constants as const
 
 
@@ -14,7 +15,7 @@ def rho(r, l, b):
     Returns:
         distance from the Galactic center to the star/ a point in the Galaxy
     """
-    return np.sqrt((r * np.power(np.cos(b), 2)) + np.power(const.r_s, 2) - 2 * const.r_s * r * np.cos(b) * np.cos(l)) # kpc, distance from the Sun to the star/ spacepoint
+    return np.sqrt(np.power(r * np.cos(b), 2) + np.power(const.r_s, 2) - 2 * const.r_s * r * np.cos(b) * np.cos(l)) # kpc, distance from the Sun to the star/ spacepoint
 
 
 def theta(r, l, b):
