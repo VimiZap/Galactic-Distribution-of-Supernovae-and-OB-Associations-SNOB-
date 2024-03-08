@@ -1,4 +1,3 @@
-
 import numpy as np
 
 # constants
@@ -29,6 +28,18 @@ spiral_arm_names = ['Norma-Cygnus', 'Perseus', 'Sagittarius-Carina', 'Scutum-Cru
 fractional_contribution = [0.18, 0.36, 0.18, 0.28] 
 
 
+# Stuff for SN, Ass and Galaxy classes:
+seconds_in_myr = 3.156e13
+km_in_kpc = 3.2408e-17
+
+# Parameters for the modified Kroupa IMF:
+alpha = np.array([0.3, 1.3, 2.3, 2.7])
+m_lim_imf_powerlaw = np.array([0.01, 0.08, 0.5, 1, 120]) # mass in solar masses. Denotes the limits between the different power laws
+# paramanters for the power law describing lifetime as function of mass. Schulreich et al. (2018)
+tau_0 = 1.6e8 * 1.65 # fits better with the data for he higher masses, though the slope is still too shallow
+beta = -0.932
+
+# Folder locations
 FOLDER_GALAXY_DATA = 'galaxy_data'
 FOLDER_GALAXY_TESTS = 'data/plots/tests_galaxy_class'
 FOLDER_MODELS_GALAXY = 'data/plots/models_galaxy'

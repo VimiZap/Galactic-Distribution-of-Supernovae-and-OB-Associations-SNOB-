@@ -1,5 +1,6 @@
 import numpy as np
 import logging
+logging.basicConfig(level=logging.INFO) 
 import src.spiral_arm_model as sam
 import src.utilities.utilities as ut
 import src.utilities.constants as const
@@ -58,7 +59,8 @@ def interpolate_density(x_grid, y_grid, method='cubic', h=const.h, sigma_arm=con
     return interpolated_densities
 
 
-def generate_coords_densities(plane = 1000, transverse = 20, half_edge = 25, readfile=True):
+@ut.timing_decorator
+def generate_coords_densities(plane = 1000, transverse = 20, half_edge = 25, read_eff_area=True, read_data_from_file=True):
     """ Function to generate the coordinates and densities for the density distribution of the Milky Way
 
     Args:
@@ -74,6 +76,14 @@ def generate_coords_densities(plane = 1000, transverse = 20, half_edge = 25, rea
         uniform_spiral_arm_density_total (np.array): The uniform spiral arm density distribution
         emissivity (np.array): The modelled emissivity
     """
+    if read_data_from_file == True:
+        logging.info("Reading the density distribution of the Milky Way from file")
+        x_grid = np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/sim_x_grid.npy')
+        y_grid = np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/sim_y_grid.npy')
+        z_grid = np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/sim_z_grid.npy')
+        uniform_spiral_arm_density = np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/sim_uniform_spiral_arm_density.npy')
+        emissivity = np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/sim_emissivity.npy')
+        return x_grid, y_grid, z_grid, uniform_spiral_arm_density, emissivity
     logging.info("Generating the coordinates and densities for the density distribution of the Milky Way")
     # Use slice to create slices programmatically
     x_grid, y_grid, z_grid = np.mgrid[slice(-half_edge, half_edge, plane*1j), slice(-half_edge, half_edge, plane*1j), slice(-0.5, 0.5, transverse*1j)]
@@ -82,9 +92,9 @@ def generate_coords_densities(plane = 1000, transverse = 20, half_edge = 25, rea
     uniform_spiral_arm_density_total = np.sum(uniform_spiral_arm_density, axis=0) # sum up all the arms to get an array for the total galactic density
     uniform_spiral_arm_density_total = uniform_spiral_arm_density_total.ravel() # flatten the array
     # Either read or calculate the effective area per spiral arm
-    if readfile == True:
-        effective_area = np.loadtxt(f'{const.FOLDER_GALAXY_DATA}/effective_area_per_spiral_arm.txt')
-    elif readfile == False:
+    if read_eff_area == True:
+        effective_area = np.load(f'{const.FOLDER_GALAXY_DATA}/effective_area_per_spiral_arm.npy')
+    elif read_eff_area == False:
         effective_area = sam.calc_effective_area_per_spiral_arm()
     else:
         raise ValueError("readfile must be either True or False")
@@ -94,15 +104,21 @@ def generate_coords_densities(plane = 1000, transverse = 20, half_edge = 25, rea
         uniform_spiral_arm_density[i] *= common_multiplication_factor * const.fractional_contribution[i] / (effective_area[i] * const.kpc**2) # scale each spiral arm with the common factor, the fractional contribution and the effective area in cm^2
     emissivity = np.sum(uniform_spiral_arm_density, axis=0)
     emissivity = emissivity.ravel()
+    # Save the data to file
+    np.save(f'{const.FOLDER_GALAXY_DATA}/sim_x_grid.npy', x_grid)
+    np.save(f'{const.FOLDER_GALAXY_DATA}/sim_y_grid.npy', y_grid)
+    np.save(f'{const.FOLDER_GALAXY_DATA}/sim_z_grid.npy', z_grid)
+    np.save(f'{const.FOLDER_GALAXY_DATA}/sim_uniform_spiral_arm_density.npy', uniform_spiral_arm_density_total) # drop total from the filename, as it will be understood that it is the total density and not per arm
+    np.save(f'{const.FOLDER_GALAXY_DATA}/sim_emissivity.npy', emissivity)
+    logging.info("Coordinates and densities for the density distribution of the Milky Way generated")
     return x_grid, y_grid, z_grid, uniform_spiral_arm_density_total, emissivity
 
 
 def galaxy_density_distr_test():
-    x_grid, y_grid, z_grid, uniform_spiral_arm_density, emissivity = generate_coords_densities()
+    x_grid, y_grid, z_grid, uniform_spiral_arm_density, emissivity = generate_coords_densities(read_data_from_file=False, read_eff_area=True)
     grid_index = monte_carlo_numpy_choise(uniform_spiral_arm_density, 15000) # draw the associations
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO) 
     galaxy_density_distr_test()
     logging.info("galaxy_density_distr.py is working correctly")

@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import AutoMinorLocator
 from astropy.io import fits
 import logging
+logging.basicConfig(level=logging.INFO) 
 from src.utilities import utilities as ut
 
 
@@ -60,7 +61,6 @@ def plot_data_from_fixsen():
     plt.gca().xaxis.set_minor_locator(AutoMinorLocator(3))
     plt.xlabel('Galactic longitude (degrees)')
     plt.xlim(0, 360)
-    #plt.ylabel('Line intensity in nW m$^{-2}$ sr$^{-1}$')
     plt.ylabel("Line intensity in erg cm$^{-2}$ s$^{-1}$ sr$^{-1}$")
     plt.title("Estimated NII intensity of the Galactic disk based on data shared by Fixsen")
     # Save the plot

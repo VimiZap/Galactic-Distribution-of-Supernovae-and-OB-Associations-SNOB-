@@ -1,7 +1,7 @@
 import numpy as np
 import time
 import logging 
-r_s = 8.178               # kpc, estimate for distance from the Sun to the Galactic center
+import src.utilities.constants as const
 
 
 def rho(r, l, b):
@@ -14,7 +14,7 @@ def rho(r, l, b):
     Returns:
         distance from the Galactic center to the star/ a point in the Galaxy
     """
-    return np.sqrt((r * np.cos(b))**2 + r_s**2 - 2 * r_s * r * np.cos(b) * np.cos(l)) # kpc, distance from the Sun to the star/ spacepoint
+    return np.sqrt((r * np.power(np.cos(b), 2)) + np.power(const.r_s, 2) - 2 * const.r_s * r * np.cos(b) * np.cos(l)) # kpc, distance from the Sun to the star/ spacepoint
 
 
 def theta(r, l, b):
@@ -27,7 +27,7 @@ def theta(r, l, b):
     Returns:
         angle from the Sun to the star/ a point in the Galaxy
     """
-    return np.arctan2(r_s - r*np.cos(b)*np.cos(l), r * np.cos(b) * np.sin(l))
+    return np.arctan2(const.r_s - r*np.cos(b)*np.cos(l), r * np.cos(b) * np.sin(l))
 
 
 def z(r, b):
@@ -139,3 +139,102 @@ def timing_decorator(func):
         return result
     return wrapper
 
+
+def imf_0(mass):
+    """ Function for the modified Kroupa initial mass function in the range 0.01 <= M/M_sun < 0.08
+    From: https://ui.adsabs.harvard.edu/abs/2002Sci...295...82K/abstract
+    Args:
+        mass: numpy array with mass values in units of solar mass for which to calculate the initial mass function
+    
+    Returns:
+        numpy array with the initial mass function for the given mass values
+    """
+    from src.utilities.constants import m_lim_imf_powerlaw as m
+    if not np.all((mass >= m[0]) & (mass < m[1])):
+        print("The mass values must be in the range 0.01 <= M/M_sun < 0.08")
+        return
+    
+    return np.power(mass / m[1], -const.alpha[0]) # the modified Kroupa initial mass function for 0.01 <= M/M_sun < 0.08
+
+
+def imf_1(mass):
+    """ Function for the modified Kroupa initial mass function in the range 0.08 <= M/M_sun < 0.5
+    From: https://ui.adsabs.harvard.edu/abs/2002Sci...295...82K/abstract
+    Args:
+        mass: numpy array with mass values in units of solar mass for which to calculate the initial mass function
+    
+    Returns:
+        numpy array with the initial mass function for the given mass values
+    """
+    from src.utilities.constants import m_lim_imf_powerlaw as m
+    if not np.all((mass >= m[1]) & (mass < m[2])):
+        print("The mass values must be in the range 0.08 <= M/M_sun < 0.5")
+        return
+    
+    return np.power(mass / m[1], -const.alpha[1]) # the modified Kroupa initial mass function for 0.01 <= M/M_sun < 0.08
+
+
+def imf_2(mass):
+    """ Function for the modified Kroupa initial mass function in the range 0.5 <= M/M_sun < 1
+    From: https://ui.adsabs.harvard.edu/abs/2002Sci...295...82K/abstract
+    Args:
+        mass: numpy array with mass values in units of solar mass for which to calculate the initial mass function
+    
+    Returns:
+        numpy array with the initial mass function for the given mass values
+    """
+    from src.utilities.constants import m_lim_imf_powerlaw as m
+    if not np.all((mass >= m[2]) & (mass < m[3])):
+        print("The mass values must be in the range 0.5 <= M/M_sun < 1")
+        return
+    
+    return np.power(m[2]/m[1], -const.alpha[1]) * np.power(mass / m[2], -const.alpha[2]) # the modified Kroupa initial mass function for 0.01 <= M/M_sun < 0.08
+
+
+def imf_3(mass):
+    """ Function for the modified Kroupa initial mass function in the range 1 <= M/M_sun < 120
+    From: https://ui.adsabs.harvard.edu/abs/2002Sci...295...82K/abstract
+    Args:
+        mass: numpy array with mass values in units of solar mass for which to calculate the initial mass function
+    
+    Returns:
+        numpy array with the initial mass function for the given mass values
+    """
+    from src.utilities.constants import m_lim_imf_powerlaw as m
+    if not np.all((mass >= m[3]) & (mass < m[4])):
+        print("The mass values must be in the range 1 <= M/M_sun < 120")
+    
+    return np.power(m[2]/m[1], -const.alpha[1]) * np.power(m[3]/m[2], -const.alpha[2]) * (mass/m[3])**(-const.alpha[3]) # the modified Kroupa initial mass function for M/M_sun > 1
+
+
+def imf():
+    """ Function for the modified Kroupa initial mass function in the range 0.01 <= M/M_sun < 120
+
+    Returns: 
+        m: numpy array with mass values in units of solar mass in the range 0.01 <= M/M_sun < 120
+        imf: numpy array with the initial mass function for the given mass values
+    """
+    m0 = np.linspace(0.01, 0.08, 100, endpoint=False)
+    m1 = np.linspace(0.08, 0.5, 100, endpoint=False)
+    m2 = np.linspace(0.5, 1, 100, endpoint=False)
+    m3 = np.linspace(1, 120, 700, endpoint=False)
+    imf0 = imf_0(m0)
+    imf1 = imf_1(m1)
+    imf2 = imf_2(m2)
+    imf3 = imf_3(m3)
+    m = np.concatenate((m0, m1, m2, m3))
+    imf = np.concatenate((imf0, imf1, imf2, imf3))
+    return m, imf
+
+
+def lifetime_as_func_of_initial_mass(mass):
+    """ Function for lifetime as function of initial stellar mass
+
+    Args: 
+        mass: stellar mass
+
+    Returns:
+        lifetime: stellar age in Myr
+    """
+    lifetime = const.tau_0 * np.power(mass, const.beta) / 1e6 # Lifetime as function of initial mass
+    return lifetime

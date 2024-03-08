@@ -3,9 +3,9 @@ from matplotlib.ticker import AutoMinorLocator
 import matplotlib.pyplot as plt
 from scipy.interpolate import griddata
 import gc
-import time
 import os
 import logging
+logging.basicConfig(level=logging.INFO) 
 import src.observational_data.firas_data as firas_data
 import src.utilities.utilities as ut
 import src.utilities.constants as const
@@ -450,8 +450,8 @@ def calc_effective_area_per_spiral_arm(method='cubic', h=h_default, sigma_arm=si
         
         # add the interpolated density to the total galactic density
         effective_area = np.append(effective_area, np.sum(interpolated_density) * d_x * d_y)
-    filepath = f'{const.FOLDER_GALAXY_DATA}/effective_area_per_spiral_arm.txt'
-    np.savetxt(filepath, effective_area)
+    filepath = f'{const.FOLDER_GALAXY_DATA}/effective_area_per_spiral_arm.npy'
+    np.save(filepath, effective_area)
     return effective_area
 
 
@@ -953,7 +953,6 @@ def test_max_b():
 
 def main() -> None:
     # other levels for future reference: logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL
-    logging.basicConfig(level=logging.INFO) 
     logging.info("Starting main function")
     #test_max_b()
     """ filename_output = "src/data_products/modelled_intensity_b_max_5_0.png"
