@@ -22,13 +22,12 @@ def monte_carlo_numpy_choise(density_distribution, NUM_ASC):
     return grid_index
 
 
-def interpolate_density(x_grid, y_grid, method='cubic', h=const.h, sigma_arm=const.sigma_arm, arm_angles=const.arm_angles, pitch_angles=const.pitch_angles):
+def interpolate_density(x_grid, y_grid, h=const.h_spiral_arm, sigma_arm=const.sigma_arm, arm_angles=const.arm_angles, pitch_angles=const.pitch_angles):
     """ Integrates the densities of the spiral arms over the entire galactic plane. The returned density is in units of kpc^-2. 
     
     Args:
         x_grid (2D np.array): Contains all the x-values for the grid
         y_grid (2D np.array): Contains all the y-values for the grid
-        method (str, optional): Interpolation method used in scipys griddata. Defaults to 'cubic'.
         h (float, optional): Scale length of the disk. Defaults to h_default.
         sigma_arm (float, optional): Dispersion of the spiral arms. Defaults to sigma_arm_default.
         arm_angles (list, optional): Starting angles for the spiral arms. Defaults to arm_angles.
@@ -38,21 +37,20 @@ def interpolate_density(x_grid, y_grid, method='cubic', h=const.h, sigma_arm=con
         interpolated_densities (3D np.array): Interpolated densities for each spiral arm along axis 0. Axis 1 and 2 are the densities with respect to the grid
     """
     logging.info("Interpolating the density distribution of the Milky Way")
-    transverse_distances, transverse_densities_initial = sam.generate_non_uniform_spacing(sigma_arm) #d_min: minimum distance from the spiral arm
+    transverse_distances, transverse_densities_initial = sam.generate_transverse_spacing_densities(sigma_arm) #d_min: minimum distance from the spiral arm
     interpolated_densities = []
     for i in range(len(arm_angles)):
         # generate the spiral arm medians
         theta, rho = sam.spiral_arm_medians(arm_angles[i], pitch_angles[i])
-        # generate the spiral arm points in spherical coordinates
-        rho_coords, theta_coords = sam.generate_spiral_arm_points_spherical_coords(rho, theta, pitch_angles[i], transverse_distances)
+        # generate the spiral arm points 
+        x, y = sam.generate_spiral_arm_coordinates(rho, transverse_distances, theta, pitch_angles[i])
         # generate the spiral arm densities
         density_spiral_arm = sam.generate_spiral_arm_densities(rho, transverse_densities_initial, h)
-        # Convert to Cartesian coordinates
-        x = rho_coords*np.cos(theta_coords)
-        y = rho_coords*np.sin(theta_coords)
         # calculate interpolated density for the spiral arm
-        interpolated_arm = sam.griddata((x, y), density_spiral_arm, (x_grid, y_grid), method=method, fill_value=0)
+        interpolated_arm = sam.griddata((x, y), density_spiral_arm, (x_grid, y_grid), method='cubic', fill_value=0)
         interpolated_arm[interpolated_arm < 0] = 0 # set all negative values to 0
+        # normalize the density to the highest value of the density
+        interpolated_arm /= np.max(interpolated_arm)
         interpolated_densities.append(interpolated_arm)
     interpolated_densities = np.array(interpolated_densities)
     logging.info("Interpolation done")

@@ -77,7 +77,6 @@ def running_average(data, window_size):
    """
    array_running_averaged = []
    delta = int((window_size)//2)
-   print("running average: ", window_size, delta)
    for i in range(len(data)):
       if i-delta < 0:
          val = np.sum(data[-delta + i:]) + np.sum(data[:delta + i + 1])

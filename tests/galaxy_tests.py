@@ -265,16 +265,15 @@ def test_plot_density_distribution(plane=1000, transverse=1, half_edge=15):
     """ Function to test the density distribution of the Milky Way. Plots both the unweighted, analytical density distribution and the weighted, modelled emissivity from which the associations are drawn.
     
     Args:
-        x_grid (np.array): x-values of the grid
-        y_grid (np.array): y-values of the grid
-        uniform_spiral_arm_density (np.array): The uniform spiral arm density distribution
-        emissivity (np.array): The modelled emissivity
+        plane (int, optional): Number of points in the x and y direction. Defaults to 1000.
+        transverse (int, optional): Number of points in the z direction. Defaults to 1.
+        half_edge (int, optional): Half the length of the grid in x and y direction. Defaults to 15 kpc.
 
     Returns:
         Saves two plots in the output folder
     """
     logging.info("Testing the modelled density distribution of the Milky Way")
-    x_grid, y_grid, z_grid, uniform_spiral_arm_density, emissivity = gdd.generate_coords_densities(plane, transverse, half_edge)
+    x_grid, y_grid, z_grid, uniform_spiral_arm_density, emissivity = gdd.generate_coords_densities(plane, transverse, half_edge, read_data_from_file=False)
     logging.info("Plotting the uniform spiral arm density distribution")
     # Plot the uniform spiral arm density distribution:
     plot_density_distribution_with_imshow(x_grid, y_grid, uniform_spiral_arm_density, 'uniform', num_bins=plane)
@@ -358,3 +357,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    #test_plot_density_distribution()
