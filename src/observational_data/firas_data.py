@@ -5,10 +5,7 @@ from astropy.io import fits
 import logging
 logging.basicConfig(level=logging.INFO) 
 from src.utilities import utilities as ut
-
-
-FOLDER_OUTPUT = 'data/plots/observational_plots'
-FOLDER_OBS_DATA = 'data/observational'
+import src.utilities.constants as const
 
 
 def calc_hist_1d(data):
@@ -45,7 +42,7 @@ def plot_data_from_fixsen():
         None. Saves the plot.
     """
     # Load data from the text file
-    data = np.loadtxt(f'{FOLDER_OBS_DATA}/N+.txt')
+    data = np.loadtxt(f'{const.FOLDER_OBSERVATIONAL_DATA}/N+.txt')
     data = data[np.abs(data[:, 1]) <= 5]    
     hist = calc_hist_1d(data)
     # Create bin_edges
@@ -64,7 +61,7 @@ def plot_data_from_fixsen():
     plt.ylabel("Line intensity in erg cm$^{-2}$ s$^{-1}$ sr$^{-1}$")
     plt.title("Estimated NII intensity of the Galactic disk based on data shared by Fixsen")
     # Save the plot
-    plt.savefig(f'{FOLDER_OUTPUT}/firas_estimate_from_fixsen.pdf')
+    plt.savefig(f'{const.FOLDER_OBSERVATIONAL_PLOTS}/firas_estimate_from_fixsen.pdf')
     plt.close()
 
 
@@ -97,7 +94,7 @@ def firas_data_for_plotting():
         line_flux_error: 1D np.array with the error in the line flux
     """
     logging.info("Extracting the FIRAS data for the N+ line")
-    fits_file = fits.open(f'{FOLDER_OBS_DATA}/lambda_firas_lines_1999_galplane.fits') # .fits file retrieved from NASA's website on the FIRAS instrument
+    fits_file = fits.open(f'{const.FOLDER_OBSERVATIONAL_DATA}/lambda_firas_lines_1999_galplane.fits') # .fits file retrieved from NASA's website on the FIRAS instrument
     #fits_file.info()
     # grab the data from the 12th HDU
     data_hdu = fits_file[12] 
@@ -131,7 +128,7 @@ def plot_firas_nii_line():
     plt.ylabel("Line intensity in erg cm$^{-2}$ s$^{-1}$ sr$^{-1}$")
     plt.title("Observed NII intensity of the Galactic disk")
     plt.xlim(0, 360)
-    plt.savefig(f'{FOLDER_OUTPUT}/firas_data_NII_line.pdf')
+    plt.savefig(f'{const.FOLDER_OBSERVATIONAL_PLOTS}/firas_data_NII_line.pdf')
     plt.close()
 
 
@@ -158,7 +155,7 @@ def find_firas_intensity_at_central_long(long):
     Returns:
         float, the intensity of the N+ line at the given longitude.
     """
-    fits_file = fits.open(f'{FOLDER_OBS_DATA}/lambda_firas_lines_1999_galplane.fits')
+    fits_file = fits.open(f'{const.FOLDER_OBSERVATIONAL_DATA}/lambda_firas_lines_1999_galplane.fits')
     data_hdu = fits_file[12] 
     data = data_hdu.data
     gal_lon = data['GAL_LON'][0] 
@@ -167,7 +164,7 @@ def find_firas_intensity_at_central_long(long):
         print("The longitude is not in the data. Valid values are in the range -180 to 180, with increments in 5 degrees.")
         return
     index = np.where(gal_lon == long)
-    logging.info("The intensity at longitude", long, " degrees is", line_flux[index][0], "erg/s/cm²/sr.")
+    logging.info(f'The intensity at longitude {long} degrees is {line_flux[index][0]} erg/s/cm²/sr.')
     return line_flux[index][0]
 
 

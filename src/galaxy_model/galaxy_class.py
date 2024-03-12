@@ -87,8 +87,8 @@ class Galaxy():
 
 
     @property
-    def galaxy(self):
-        return self._galaxy
+    def associations(self): # property to get the associations in the galaxy
+        return np.array(self._galaxy)
     
     @property
     def num_asc(self):
@@ -158,6 +158,9 @@ class Galaxy():
         """ Method to get the longitudes of the exploded supernovae progenitors."""
         exploded_sn_longitudes = [sn.longitude for sn in self._exploded_sn]
         return exploded_sn_longitudes
+    
+
+    
 
 
 

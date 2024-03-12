@@ -40,5 +40,7 @@ beta = -0.932
 
 # Folder locations
 FOLDER_GALAXY_DATA = 'galaxy_data'
+FOLDER_OBSERVATIONAL_DATA = 'data/observational'
 FOLDER_GALAXY_TESTS = 'data/plots/tests_galaxy_class'
 FOLDER_MODELS_GALAXY = 'data/plots/models_galaxy'
+FOLDER_OBSERVATIONAL_PLOTS = 'data/plots/observational_plots'

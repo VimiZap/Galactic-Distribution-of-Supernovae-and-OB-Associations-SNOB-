@@ -104,7 +104,7 @@ def plot_mass_distr(galaxy):
     # Modelled data
     masses = galaxy.get_exploded_supernovae_masses()
     number_sn = 0
-    for asc in galaxy.galaxy:
+    for asc in galaxy.associations:
         number_sn += asc.number_sn
     mass_max = int(np.ceil(max(masses))) 
     mass_min = int(np.floor(min(masses))) # minimum number of stars = 0
@@ -334,9 +334,9 @@ def plot_associations_from_galaxy(galaxy):
     """
     xs = []
     ys = []
-    for asc_number in range(galaxy.num_asc):
-        xs.append(galaxy.galaxy[asc_number].x)
-        ys.append(galaxy.galaxy[asc_number].y)
+    for asc in galaxy.associations:
+        xs.append(asc.x)
+        ys.append(asc.y)
     plot_drawn_associations(xs, ys, galaxy.num_asc, 'associations_from_galaxy.pdf')
 
 
@@ -357,4 +357,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    #test_plot_density_distribution()
