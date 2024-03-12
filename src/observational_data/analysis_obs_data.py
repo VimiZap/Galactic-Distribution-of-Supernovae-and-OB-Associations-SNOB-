@@ -1,10 +1,12 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
 import numpy as np
 import obs_utilities as obs_ut
 from scipy.optimize import curve_fit
 import src.utilities.utilities as ut
 import src.spiral_arm_model as sam
+
 import logging
 
 r_s = 8.178               # kpc, estimate for distance from the Sun to the Galactic center
@@ -15,33 +17,37 @@ FOLDER_OUTPUT = 'data/plots/observational_plots'
 FOLDER_OBS_DATA = 'data/observational'
 
 
-def plot_age_distance(distance_data, age_data, filename):
+def plot_age_hist(age_data, filename):
     """ Plot the age vs. distance of OB associations
     
     Args:
-        distance_data: array. Heliocentric distance of the associations
         age_data: array. Age of the associations
     
     Returns:
         None. Shows the plot
     """
+    binwidth = 2
+    bins = np.arange(0, 50 + binwidth, binwidth)
     plt.figure(figsize=(10, 6))
-    plt.scatter(distance_data, age_data, color='blue', alpha=0.5)
-    plt.title('Distance vs. Age of OB Associations')
-    plt.xlabel('Distance (pc)')
-    plt.ylabel('Age (Myr)')
-    plt.grid(True)
+    plt.hist(age_data, bins=bins, color='green', edgecolor='black', zorder=10)
+    plt.title('Histogram of ages of OB associations')
+    plt.xlabel('Age (Myr)')
+    plt.xlim(0, 50)
+    plt.ylabel('Counts')
+    plt.gca().yaxis.set_major_locator(MaxNLocator(integer=True))    # Set the y-axis to only use integer ticks
+    plt.grid(axis='y')
     plt.savefig(f'{FOLDER_OUTPUT}/{filename}')
     plt.close()
 
 
-def plot_associations(glon, heliocentric_distance, filename):
+def plot_associations(glon, heliocentric_distance, filename, step=500):
     """ Plot the distribution of known associations in the Galactic plane together with the spiral arms medians
     
     Args:
         glon: array. Galactic longitude of associations to be plotted
         heliocentric_distance: array. Heliocentric distance of associations to be plotted
         filename: str. Name of the file to save the plot
+        step: int. Step size for the radial binning of associations in pc
     
     Returns:
         None. Saves the plot
@@ -60,6 +66,11 @@ def plot_associations(glon, heliocentric_distance, filename):
         x = rho*np.cos(theta)
         y = rho*np.sin(theta)
         plt.plot(x, y, color='black', marker='o', linewidth = 0.0001, zorder=0, markeredgewidth=0.0001, markersize=0.0001) # plot the spiral arm medians
+    thetas_heliocentric_circles = np.linspace(0, 2 * np.pi, 100)
+    for i in range(1, 10):
+        x_heliocentric_circles = i * step / 1000 * np.cos(thetas_heliocentric_circles)
+        y_heliocentric_circles = i * step / 1000 * np.sin(thetas_heliocentric_circles) + r_s
+        plt.plot(x_heliocentric_circles, y_heliocentric_circles, color='black', linestyle='--', linewidth=0.5, zorder=0) # plot the heliocentric circles
     plt.title('Distribution of known associations in the Galactic plane')
     plt.xlabel('x (kpc)')
     plt.ylabel('y (kpc)')
@@ -72,70 +83,79 @@ def plot_associations(glon, heliocentric_distance, filename):
     plt.close()
 
 
-def gaussian(x, a, b, c): # Gaussian function for fitting
-    return a * np.exp(-((x - b)**2) / (2 * c**2))
+def area_per_bin(bins):
+    """ Calculate the area of each bin in a histogram
+    
+    Args:
+        bins: array. The bins of the histogram
+    
+    Returns:
+        area_per_circle: array. The area of each bin
+    """
+    area_per_circle = np.power(bins[1:], 2) * np.pi - np.power(bins[:-1], 2) * np.pi
+    return area_per_circle
 
 
-def gaussian_fixed_peak(x, b, c): # Gaussian function for fitting with fixed peak
-    return avg_hist * np.exp(-((x - b)**2) / (2 * c**2))
+def exponential_falloff(x, a, b, c):
+    """
+    Exponential falloff function.
+
+    Parameters:
+    x : array-like
+        Independent variable.
+    a : float
+        Initial amplitude.
+    b : float
+        Decay rate.
+    c : float
+        Constant offset.
+
+    Returns:
+    y : array-like
+        Dependent variable, representing the exponential falloff.
+    """
+    return a * np.exp(-b * x) + c
 
 
-def plot_distance_hist(heliocentric_distance, filename, wright=False):
+def plot_distance_hist(heliocentric_distance, filename, step=500, endpoint=5000):
     """ Plot the histogram of distances of OB associations and fit the data to a Gaussian function
 
     Args:
         heliocentric_distance: array. Heliocentric distances of the associations
         filename: str. Name of the file to save the plot
-        wright: bool. If True, makes a piecewise fitter curve. Constant for r > 2.5 kpc and fits the data for r > 2 kpc to a Gaussian function
+        step: int. Step size for the histogram in pc
+        endpoint: int. Max radial distance in pc
     
     Returns:
-        None. Saves the plot"""
-    endpoint = 5000 # max radial distance in pc for the histogram
-    step = 500  # stepsize for the histogram in pc
-    num = endpoint // step + 1 # number of bins
-    bins = np.linspace(start=0, stop=endpoint, num=num, endpoint=True)
+        None. Saves the plot
+    """
+    bins = np.arange(0, endpoint + step, step)
+    area_per_circle = area_per_bin(bins)
     hist, _ = np.histogram(heliocentric_distance, bins=bins)
+    hist = hist / area_per_circle # find the surface density of OB associations
     hist_central_x_val = bins[:-1] + step / 2 # central x values for each bin
     bins, hist_central_x_val = bins / 1000, hist_central_x_val / 1000 # convert to kpc
-    global avg_hist # make global so that it can be used in the fitting function
     avg_hist = hist[hist_central_x_val <= 2.5] # pick out the associations for r < 2.5 kpc
     avg_hist = np.mean(avg_hist) # average the associatins for r < 2.5 kpc
     # Make the histogram    
     plt.figure(figsize=(10, 6))
-    plt.hist(heliocentric_distance / 1000, bins=bins, color='green', alpha=0.7)
-    # Fit the entire dataset to the Gaussian function
-    params, cov = curve_fit(gaussian, hist_central_x_val, hist, p0 = [max(hist), np.mean(hist_central_x_val), np.std(hist_central_x_val)])
-    x_interpolated = np.linspace(0, endpoint, 500) / 1000
-    y_fit = gaussian(x_interpolated, *params)
-    plt.plot(x_interpolated, y_fit, label='Fitted Gaussian', color='purple')
-    if wright:
-        # Fit the dataset for r > 2 kpc to the Gaussian function
-        filtered_indices = hist_central_x_val > 2
-        params, cov = curve_fit(gaussian_fixed_peak, hist_central_x_val[filtered_indices], hist[filtered_indices], p0=[np.mean(hist_central_x_val[filtered_indices]), np.std(hist_central_x_val[filtered_indices])])
-        # Generate points for the piecewise fitted curve
-        x_gauss_2 = np.linspace(2, endpoint, 500) / 1000  # Gaussian part
-        y_gauss_2 = gaussian_fixed_peak(x_gauss_2, *params) # Gaussian part
-        max_y_index = np.argmax(y_gauss_2) # To find the dividing point between the two parts
-        x_1 = np.linspace(0, x_gauss_2[max_y_index], 500)   # Average part, completelly flat
-        y_1 = np.ones(500) * avg_hist   # Average part, completelly flat
-        x_gauss_2 = np.concatenate((x_1, x_gauss_2[max_y_index:]))  # Combine the two parts
-        y_gauss_2 = np.concatenate((y_1, y_gauss_2[max_y_index:]))  # Combine the two parts
-        plt.plot(x_gauss_2, y_gauss_2, label='Fitted Gaussian 2', color='yellow', zorder=10)
-        # Denote the average value for r < 2.5 kpc
-        x_avg = np.linspace(x_gauss_2[max_y_index], 5, 500)
-        y_avg = np.ones(500) * avg_hist
-        plt.plot(x_avg, y_avg, color='black', linestyle='--', label='Average for r < 2.5 kpc', zorder=9)
-    # Complete the plot
-    plt.title('Histogram of Distances')
-    plt.xlabel('Distance (kpc)')
-    plt.ylabel('Frequency')
+    plt.bar(hist_central_x_val, hist, width=step / 1000, color='green', alpha=0.7, zorder=10)
+    # Fit the dataset to the Gaussian function
+    params, cov = curve_fit(exponential_falloff, hist_central_x_val, hist, p0 = [max(hist), np.mean(hist_central_x_val), np.std(hist_central_x_val)])
+    x_fit = np.linspace(0, endpoint, 500) / 1000 # convert to kpc
+    y_fit = exponential_falloff(x_fit, *params)
+    plt.plot(x_fit, y_fit, label='Fitted exponential falloff', color='purple')
+    plt.title('Radial distribution of OB association surface density')
+    plt.xlabel('Heliocentric distance r (kpc)')
+    plt.ylabel('$\\rho(r)$ (OB associations / pc$^{-2}$)')
+    plt.ylim(0, max(hist) * 1.5) # to limit the exponential curve from going too high
     plt.grid(axis='y')
     plt.legend()
     plt.savefig(f'{FOLDER_OUTPUT}/{filename}')
     plt.close()
 
 
-def data_wright(filter_data=False):
+def data_wright(filter_data=False, step=500):
     """ Get the Wright et al. (2020) data and plot the distance histogram and the associations
     
     Args:
@@ -161,20 +181,21 @@ def data_wright(filter_data=False):
     wright_distance = tap_records['Dist'].data[mask]
     wright_age = tap_records['Age'].data[mask]
     print("Number of datapoints after filtering: ", len(wright_name))
-    plot_distance_hist(wright_distance, filename=f'wright_distance_hist_mask_{filter_data}.pdf', wright=True)
-    plot_associations(wright_glon, wright_distance, filename=f'wright_associations_arms_mask_{filter_data}.pdf')
-    plot_age_distance(wright_distance, wright_age, filename=f'wright_age_distance_mask_{filter_data}.pdf')
+    plot_distance_hist(wright_distance, filename=f'wright_distance_hist_mask_{filter_data}.pdf', step=step)
+    plot_associations(wright_glon, wright_distance, filename=f'wright_associations_arms_mask_{filter_data}.pdf', step=step)
+    plot_age_hist(wright_age, filename=f'wright_age_mask_{filter_data}.pdf')
 
 
 def main():
     file_path = f'{FOLDER_OBS_DATA}/Overview of know OB associations.xlsx' 
     data = pd.read_excel(file_path)
     #print(data.describe()) # Get basic statistics
-    plot_age_distance(data['Distance (pc)'], data['Age(Myr)'], filename='my_data_age_distance.pdf')
-    plot_distance_hist(data['Distance (pc)'], filename='my_data_distance_hist.pdf')
-    plot_associations(data['l (deg)'], data['Distance (pc)'], filename='my_data_associations.pdf')
-    data_wright(True)
-    data_wright(False)
+    step = 500 # pc, stepsize for the radial binning of associations
+    plot_age_hist(data['Age(Myr)'], filename='my_data_age_hist.pdf')
+    plot_distance_hist(data['Distance (pc)'], filename='my_data_distance_hist.pdf', step=step)
+    plot_associations(data['l (deg)'], data['Distance (pc)'], filename='my_data_associations.pdf', step=step)
+    data_wright(True, step=step)
+    data_wright(False, step=step)
 
 
 if __name__ == '__main__':
