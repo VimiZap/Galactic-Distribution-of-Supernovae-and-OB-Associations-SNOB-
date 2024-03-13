@@ -4,7 +4,7 @@ import src.utilities.utilities as ut
 
 
 class Association(): 
-    solar_masses = np.arange(8, 120, 0.01) # mass in solar masses. Used to draw random masses for the SNPs in the association
+    solar_masses = np.arange(8, 120 + 0.01, 0.01) # mass in solar masses. Used to draw random masses for the SNPs in the association
     imf = ut.imf_3(solar_masses) # the imf for the range 1 <= M/M_sun < 120
     rng = np.random.default_rng()
 
@@ -44,6 +44,10 @@ class Association():
     @property
     def z(self):
         return self.__z
+    
+    @property
+    def age(self):
+        return self.__association_creation_time
     
     @property
     def number_sn(self):
@@ -100,6 +104,7 @@ class Association():
         Returns:
             None
         """
+        self.__simulation_time = new_simulation_time # update the simulation time for the association
         for sn in self.__supernovae:
             sn.update_snp(new_simulation_time)
     
