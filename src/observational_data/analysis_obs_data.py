@@ -13,6 +13,11 @@ import logging
 logging.basicConfig(level=logging.INFO)
 rng = np.random.default_rng()
 
+def my_data():
+    file_path = f'{const.FOLDER_OBSERVATIONAL_DATA}/Overview of know OB associations.xlsx' 
+    data = pd.read_excel(file_path)
+    return data
+
 
 def plot_age_hist(age_data, filename):
     """ Plot the age vs. distance of OB associations
@@ -192,7 +197,7 @@ def plot_distance_hist(heliocentric_distance, filename, step=0.5, endpoint=5, fi
     return bins, hist
 
 
-def my_data():
+def my_data_for_plotting():
     file_path = f'{const.FOLDER_OBSERVATIONAL_DATA}/Overview of know OB associations.xlsx' 
     data = pd.read_excel(file_path)
     #print(data.describe()) # Get basic statistics
@@ -217,7 +222,7 @@ def plot_my_data(step=0.5):
     Returns:
         None. Saves the plots
     """
-    x, y, distance, age = my_data()
+    x, y, distance, age = my_data_for_plotting()
     plot_age_hist(age, filename='my_data_age_hist.pdf')
     plot_distance_hist(distance, filename='my_data_distance_hist.pdf', step=step, fit_exp=True)
     plot_associations(x, y, filename='my_data_associations.pdf', label_plotted_asc='Known associations', step=step)
@@ -260,48 +265,53 @@ def data_wright(filter_data=False, step=0.5):
     
 
 def modelled_data(galaxy):
+    """ Get the modelled data and return the x, y, r and ages of the associations"""
     associations = galaxy.associations
     x_modelled = np.array([asc.x for asc in associations])
     y_modelled = np.array([asc.y for asc in associations])
-    r_modelled = np.sqrt(x_modelled ** 2 + (y_modelled - const.r_s) ** 2) # subtract the distance from the Sun to the Galactic center in order to get the heliocentric distance
+    z_modelled = np.array([asc.z for asc in associations])
+    r_modelled = np.sqrt(x_modelled ** 2 + (y_modelled - const.r_s) ** 2 + z_modelled**2) # subtract the distance from the Sun to the Galactic center in order to get the heliocentric distance
     ages_modelled = np.array([asc.age for asc in associations]) # at the moment (13.03.2023) the ages are equal to the creation time of the associations
     return x_modelled, y_modelled, r_modelled, ages_modelled
 
 
 def plot_modelled_galaxy(galaxy, step=0.5, endpoint=5):
-    """  
-    
-    """
+    """  Plot the modelled associations and the distance histogram"""
     x_modelled, y_modelled, r_modelled, ages_modelled = modelled_data(galaxy)
     plot_associations(x_modelled, y_modelled, filename='modelled_galaxy_associations.pdf', label_plotted_asc='Modelled associations', step=step)
     plot_distance_hist(r_modelled, 'modelled_galaxy_distance_hist.pdf', step, endpoint=endpoint, fit_exp=False)
 
 
-def together(galaxy, step=0.5, endpoint=25):
-    associations = galaxy.associations
-    x_modelled, y_modelled, r_modelled, ages_modelled = modelled_data(galaxy)
-    x_obs, y_obs, _, distance_obs, _ = my_data()
+def add_modelled_associations_to_observed(galaxy, step=0.5, endpoint=25):
     bins = np.arange(0, endpoint + step, step)
+    known_associations = known_associations_to_association_class()
+    distance_obs = np.array([asc.r for asc in known_associations])
+    modelled_associations = galaxy.associations
+    _, _, r_modelled, _ = modelled_data(galaxy)
     hist_modelled, _ = np.histogram(r_modelled, bins=bins)
     hist_obs, _ = np.histogram(distance_obs, bins=bins)
-    x_added = np.array([])
-    y_added = np.array([])
-    associations_added = []
-    # data gathered. Now combine them
-    for i, r in enumerate(bins[1:]):
-        diff = hist_modelled[i] - hist_obs[i]
-        mask = (r_modelled >= bins[i]) & (r_modelled < bins[i + 1]) # pick out the modelled associations which are in the bin
+    associations_added = np.array([])
+    for i in range(len(bins[1:])):
+        diff = hist_modelled[i] - hist_obs[i] # difference between the number of modelled and observed associations in the bin
+        mask_modelled = (r_modelled >= bins[i]) & (r_modelled < bins[i + 1]) # pick out the modelled associations which are in the bin
         if diff == hist_modelled[i]: # there are no observed associations in the bin
-            x_added = np.concatenate((x_added, x_modelled[mask])) # add all modelled associations in the bin
-            y_added = np.concatenate((y_added, y_modelled[mask])) # add all modelled associations in the bin
+            associations_added = np.concatenate((associations_added, modelled_associations[mask_modelled])) # add all modelled associations in the bin
         elif diff > 0: # if there are more modelled associations in the bin than observed
-            x_added = np.concatenate((x_added, rng.choice(x_modelled[mask], size=diff))) # add diff associations randomly from the modelled associations in the bin
-            y_added = np.concatenate((y_added, rng.choice(y_modelled[mask], size=diff))) # add diff associations randomly from the modelled associations in the bin
+            associations_added = np.concatenate((associations_added, rng.choice(modelled_associations[mask_modelled], size=diff))) # add diff associations randomly from the modelled associations in the bin
         elif diff < 0: # if there are more observed associations in the bin than modelled
             pass # do nothing
-    # Now plot the combined data
+    return known_associations, associations_added
+
+
+def plot_modelled_and_known_associations(modelled_galaxy, step=0.5, endpoint=25):
+    known_associations, associations_added = add_modelled_associations_to_observed(modelled_galaxy, step, endpoint)
+    x_obs = np.array([asc.x for asc in known_associations])
+    y_obs = np.array([asc.y for asc in known_associations])
+    x_added = np.array([asc.x for asc in associations_added])
+    y_added = np.array([asc.y for asc in associations_added])
+    # Now plot the modelled and known associations together
     fig, ax = plt.subplots(figsize=(10, 6))
-    add_associations_to_ax(ax, x_obs, y_obs, 'Known associations', 'blue')
+    add_associations_to_ax(ax, x_obs, y_obs, 'Known associations', 'blue') # want the known associations to get its own label
     add_associations_to_ax(ax, x_added, y_added, 'Modelled associations', 'green')
     add_heliocentric_circles_to_ax(ax, step=step)
     add_spiral_arms_to_ax(ax)
@@ -319,60 +329,162 @@ def together(galaxy, step=0.5, endpoint=25):
     plt.close()
 
 
-def known_associations_to_snp_masses(n, min_mass, max_mass):
+def calc_snps_known_association(n, min_mass, max_mass, association_age):
     # n = number of snps in the given mass range
     # min_mass = minimum mass for the mass range
     # function shall use the IMF to draw snps until we have n snps with mass >= min_mass, and then we will keep all snps with mass >= 8 solar masses
     # mass_range_snps = np.arange(8, 120 + 0.01, 0.01) # mass in solar masses. Used to draw random masses for the SNPs in the association
-    m3 = np.linspace(1, 120, 700, endpoint=False)
+    m3 = np.arange(1.0, 120, 0.01)
+    m3 = np.concatenate((m3, [120])) # add 120 solar masses to the array
     imf3 = ut.imf_3(m3)
     imf3 = imf3 / np.sum(imf3) # normalize
     n_drawn = 0
     n_matched = 0
+    drawn_masses = []
     while n_matched < n:
         drawn_mass = rng.choice(m3, size=1, p=imf3)
+        drawn_mass_age = ut.lifetime_as_func_of_initial_mass(drawn_mass)
         if drawn_mass >= 8: # if drawn mass is greater than or equal to 8 solar masses, keep it
             n_drawn += 1
-        if drawn_mass >= min_mass and drawn_mass <= max_mass:
+            drawn_masses.append(drawn_mass)
+        if drawn_mass >= min_mass and drawn_mass <= max_mass and drawn_mass_age >= association_age:
+            # if drawn mass is within the given mass range and the age of the drawn mass is greater than or equal to the age of the association, keep it
+            # this essentially means that if the drawn star could have survived up until today and match the mass criteria, increase the counter
             n_matched += 1
-    return n_drawn
+    return n_drawn, np.array(drawn_masses)
 
 
 @ut.timing_decorator
-def average_number_snp(n, min_mass, max_mass, num_iterations=10000):
+def stat_one_asc(n, min_mass, max_mass, association_age, num_iterations=10000): 
+    """ Calculate the statistics for one association
+    
+    Args:
+        n: int. Number of stars in the association in the mass range
+        min_mass: float. Minimum mass for the mass range
+        max_mass: float. Maximum mass for the mass range
+        association_age: float. Age of the association in Myr
+        num_iterations: int. Number of iterations for the simulation
+    
+    Returns:
+        n_drawn_mean: float. Mean number of drawn stars
+        n_drawn_std: float. Standard deviation of the number of drawn stars
+        exploded_sn_mean: float. Mean number of exploded supernovae
+        exploded_sn_std: float. Standard deviation of the number of exploded supernovae
+        exploded_sn_1_myr_mean: float. Mean number of exploded supernovae within 1 Myr
+        exploded_sn_1_myr_std: float. Standard deviation of the number of exploded supernovae within 1 Myr
+        stars_still_existing_mean: float. Mean number of stars still existing
+        stars_still_existing_std: float. Standard deviation of the number of stars still existing
+    """
     array_n_drawn = []
+    array_exploded_sn = []
+    array_exploded_sn_1_myr = []
+    array_stars_still_existing = []
     for i in range(num_iterations):
-        n_drawn = known_associations_to_snp_masses(n, min_mass, max_mass)
+        n_drawn, drawn_masses = calc_snps_known_association(n, min_mass, max_mass, association_age)
+        drawn_ages = ut.lifetime_as_func_of_initial_mass(drawn_masses)
         array_n_drawn.append(n_drawn)
-    return np.round(np.mean(array_n_drawn)) # return the average number of snps drawn
+        mask_exploded = 0 <= association_age - drawn_ages # mask for the drawn stars which have exploded, i.e. the drawn stars which have a lifetime less than the age of the association
+        mask_exploded_1_myr = association_age - drawn_ages <= 1  # mask for the drawn stars which have exploded within 1 Myr
+        mask_exploded_1_myr = mask_exploded[mask_exploded_1_myr]
+        mask_still_existing = association_age - drawn_ages < 0 # mask for the drawn stars which are still existing (lifetime of the star is greater than the age of the association)
+        array_exploded_sn.append(np.sum(mask_exploded))
+        array_exploded_sn_1_myr.append(np.sum(mask_exploded_1_myr))
+        array_stars_still_existing.append(np.sum(mask_still_existing))
+    n_drawn_mean = np.round(np.mean(array_n_drawn))
+    n_drawn_std = np.round(np.std(array_n_drawn))
+    exploded_sn_mean = np.round(np.mean(array_exploded_sn))
+    exploded_sn_std = np.round(np.std(array_exploded_sn))
+    exploded_sn_1_myr_mean = np.round(np.mean(array_exploded_sn_1_myr))
+    exploded_sn_1_myr_std = np.round(np.std(array_exploded_sn_1_myr))
+    stars_still_existing_mean = n_drawn_mean - exploded_sn_mean
+    stars_still_existing_covariance = np.cov(array_n_drawn, array_exploded_sn)[0,1] # calculate the sample covariance. [0,1] is the covariance between the two arrays (np.cov returns a covariance matrix)
+    # apply Bessel's correction for the variances
+    combined_variance = np.var(array_n_drawn, ddof=1) + np.var(array_exploded_sn, ddof=1) - 2 * stars_still_existing_covariance
+    combined_variance = np.max((0, combined_variance)) # if the combined variance is negative, set it to 0
+    stars_still_existing_std = np.round(np.sqrt(combined_variance)) 
+    return n_drawn_mean, n_drawn_std, exploded_sn_mean, exploded_sn_std, exploded_sn_1_myr_mean, exploded_sn_1_myr_std, stars_still_existing_mean, stars_still_existing_std
 
 
-def snp_per_known_association(read_from_file=True):
-    if read_from_file == True:
-        return np.load(f'{const.FOLDER_OBSERVATIONAL_DATA}/snp_per_known_association.npy')
-    else:
-        num_iterations = 10000
-        file_path = f'{const.FOLDER_OBSERVATIONAL_DATA}/Overview of know OB associations.xlsx' 
-        data = pd.read_excel(file_path)
-        n = data['Number of stars']
-        min_mass = data['Min mass']
-        max_mass = data['Max mass']
-        snp_per_association = []
-        for i in range(len(n)):
-            n_drawn = average_number_snp(n[i], min_mass[i], max_mass[i], num_iterations)
-            snp_per_association.append(n_drawn)
-        snp_per_association = np.array(snp_per_association)
-        np.save(f'{const.FOLDER_OBSERVATIONAL_DATA}/snp_per_known_association.npy', snp_per_association)
+def my_data_for_simulation():
+    """ Get the data on the know associations for the simulation
+    
+    Returns:
+        association_name: array. Name of the association
+        n: array. Number of stars in the association
+        min_mass: array. Minimum mass for the mass range
+        max_mass: array. Maximum mass for the mass range
+        age: array. Age of the association in Myr
+    """
+    file_path = f'{const.FOLDER_OBSERVATIONAL_DATA}/Overview of know OB associations.xlsx' 
+    data = pd.read_excel(file_path)
+    association_name = data['Name']
+    n = data['Number of stars']
+    min_mass = data['Min mass']
+    max_mass = data['Max mass']
+    age = data['Age(Myr)']
+    return association_name, n, min_mass, max_mass, age
+
+
+def stat_known_associations(num_iterations = 10):
+    """ Calculate the statistics for the known associations and save the results to a CSV file"""
+    
+    association_name, n, min_mass, max_mass, age = my_data_for_simulation()
+    # Prepare lists to store the statistics
+    mean_snp_per_association = []
+    std_snp_per_association = []
+    mean_exploded_sn = []
+    std_exploded_sn = []
+    mean_exploded_sn_1_myr = []
+    std_exploded_sn_1_myr = []
+    mean_stars_still_existing = []
+    std_stars_still_existing = []
+    # Run the simulation and gather statistics for each association
+    for i in range(len(association_name)):
+        (n_drawn_mean, n_drawn_std, exploded_sn_mean, exploded_sn_std,
+         exploded_sn_1_myr_mean, exploded_sn_1_myr_std,
+         stars_still_existing_mean, stars_still_existing_std) = stat_one_asc(n[i], min_mass[i], max_mass[i], age[i], num_iterations)
+        # Append the results to their respective lists
+        mean_snp_per_association.append(n_drawn_mean)
+        std_snp_per_association.append(n_drawn_std)
+        mean_exploded_sn.append(exploded_sn_mean)
+        std_exploded_sn.append(exploded_sn_std)
+        mean_exploded_sn_1_myr.append(exploded_sn_1_myr_mean)
+        std_exploded_sn_1_myr.append(exploded_sn_1_myr_std)
+        mean_stars_still_existing.append(stars_still_existing_mean)
+        std_stars_still_existing.append(stars_still_existing_std)
+    # Create a DataFrame with the collected statistics
+    df = pd.DataFrame({
+        'Mean SNP born': mean_snp_per_association,
+        'Std SNP born': std_snp_per_association,
+        'Mean Exploded SN': mean_exploded_sn,
+        'Std Exploded SN': std_exploded_sn,
+        'Mean Exploded SN 1 Myr': mean_exploded_sn_1_myr,
+        'Std Exploded SN 1 Myr': std_exploded_sn_1_myr,
+        'Mean Stars Still Existing': mean_stars_still_existing,
+        'Std Stars Still Existing': std_stars_still_existing
+    }, index=association_name)
+    # Save the DataFrame to a CSV file
+    df.to_csv(f'{const.FOLDER_OBSERVATIONAL_DATA}/statistics_known_associations.csv')
+    return
 
 
 def known_associations_to_association_class():
-    x, y, z, distance, age = my_data()
-    num_snp = snp_per_known_association(read_from_file=True)
+    x, y, z, distance, age = my_data_for_plotting()
+    association_name, n, min_mass, max_mass, age = my_data_for_simulation()
     associations = []
     for i in range(len(x)):
-        association = asc.Association(x[i], y[i], z[i], age[i], c=1, n=num_snp[i])
-        associations.append(association)
+        num_snp, _ = calc_snps_known_association(n[i], min_mass[i], max_mass[i], age[i])
+        # the association is created age[i] myrs ago with nump_snp snps, which are found to be the number needed to explain the observed number of stars in the association. 
+        association = asc.Association(x[i], y[i], z[i], age[i], c=1, n=num_snp)
+        # Next: update the snps to the present time
+        association.update_sn(0)
+        associations.append(association) # append association to list
     return associations
+
+
+def combine_model_and_known_associations(galaxy, step=0.5, endpoint=25):
+    known_associations, associations_added = add_modelled_associations_to_observed(galaxy, step, endpoint)
+    pass
 
 
 
@@ -383,9 +495,8 @@ def main():
     data_wright(False, step=step) """
     """ galaxy = gal.Galaxy(10)
     plot_modelled_galaxy(galaxy, step=step, endpoint=25)
-    together(galaxy, step=step, endpoint=25) """
-    snp_per_known_association(read_from_file=False)
-    
+    plot_modelled_and_known_associations(galaxy, step=step, endpoint=25)  """
+    stat_known_associations()
 
 
 

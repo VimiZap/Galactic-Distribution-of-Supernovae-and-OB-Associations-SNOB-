@@ -1,6 +1,7 @@
 import numpy as np
 import src.galaxy_model.supernovae_class as sn
 import src.utilities.utilities as ut
+import src.utilities.constants as const
 
 
 class Association(): 
@@ -27,6 +28,7 @@ class Association():
         self.__x = x
         self.__y = y
         self.__z = z
+        self.__r = self._calculate_heliocentric_distance() # heliocentric distance of the association
         self.__association_creation_time = association_creation_time # The time when the association is created. Units of Myr
         self.__simulation_time = association_creation_time # when the association is created, the simulation time is the same as the creation time. Goes down to 0
         self.__n = self._calculate_num_sn(c, n)
@@ -46,6 +48,10 @@ class Association():
         return self.__z
     
     @property
+    def r(self):
+        return self.__r
+    
+    @property
     def age(self):
         return self.__association_creation_time
     
@@ -56,6 +62,18 @@ class Association():
     @property
     def supernovae(self):
         return self.__supernovae # list to store all generated supernovae progenitors in the association
+    
+
+    def _calculate_heliocentric_distance(self):
+        """ Method to calculate the heliocentric distance of the association. The heliocentric distance is calculated as the distance from the association to the origo.
+        
+        Args:
+            None
+        
+        Returns:
+            float: the heliocentric distance of the association
+        """
+        return np.sqrt(self.x**2 + (self.y - const.r_s)**2 + self.z**2) # subtract the distance from the Sun to the Galactic center in order to get the heliocentric distance
     
 
     def _calculate_num_sn(self, c, n):

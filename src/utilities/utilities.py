@@ -201,8 +201,8 @@ def imf_3(mass):
         numpy array with the initial mass function for the given mass values
     """
     from src.utilities.constants import m_lim_imf_powerlaw as m
-    if not np.all((mass >= m[3]) & (mass < m[4])):
-        print("The mass values must be in the range 1 <= M/M_sun < 120")
+    if not np.all((mass >= m[3]) & (mass <= m[4])):
+        print("The mass values must be in the range 1 <= M/M_sun <= 120")
     
     return np.power(m[2]/m[1], -const.alpha[1]) * np.power(m[3]/m[2], -const.alpha[2]) * (mass/m[3])**(-const.alpha[3]) # the modified Kroupa initial mass function for M/M_sun > 1
 
