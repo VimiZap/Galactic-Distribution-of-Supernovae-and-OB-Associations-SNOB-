@@ -103,14 +103,16 @@ def plot_mass_distr(galaxy):
     imf = imf / np.sum(imf3) / 0.01 # normalize the imf to unity for the mass range 8 <= M/M_sun < 120
     # Modelled data
     masses = galaxy.get_exploded_supernovae_masses()
+    drawn_masses = np.array([]) # array to store the drawn masses (M/M_sun) for the supernovae progenitors
     number_sn = 0
     for asc in galaxy.associations:
         number_sn += asc.number_sn
-    mass_max = int(np.ceil(max(masses))) 
-    mass_min = int(np.floor(min(masses))) # minimum number of stars = 0
+        drawn_masses = np.concatenate((drawn_masses, asc.supernovae_masses))
+    mass_max = int(np.ceil(max(drawn_masses))) 
+    mass_min = int(np.floor(min(drawn_masses))) # minimum number of stars = 0
     binwidth = 1
     bins = np.arange(mass_min, mass_max + binwidth, binwidth)
-    counts, _ = np.histogram(masses, bins=bins)
+    counts, _ = np.histogram(drawn_masses, bins=bins)
     counts = counts / np.sum(counts) / binwidth 
     plt.figure(figsize=(8, 8))
     plt.plot(bins[:-1], counts, label='Stellar masses in modelled Galaxy', color='blue')
@@ -127,6 +129,18 @@ def plot_mass_distr(galaxy):
     plt.text(0.02, 0.95, fr'Total number of supernovae progenitors: {number_sn}', transform=plt.gca().transAxes, fontsize=8, color='black')
     plt.savefig(f'{const.FOLDER_GALAXY_TESTS}/sn_mass_distribution.pdf')     # save plot in the output folder
     plt.close()
+    # plot histogram of the mass distribution of the SNPs; like, the total number of stars with a given mass
+    plt.hist(drawn_masses, bins=bins, histtype='step', color='blue', label='Histogram over the drawn masses in modelled Galaxy')
+    plt.xscale("log")
+    plt.yscale("log")
+    plt.xlim(mass_min, mass_max + 30) 
+    plt.xlabel("Mass of SN progenitor (M$_\odot$)")
+    plt.ylabel("Number of stars with a given mass")
+    plt.title("Histogram over the drawn masses in modelled Galaxy")
+    plt.savefig(f'{const.FOLDER_GALAXY_TESTS}/sn_mass_distribution_hist.pdf')     # save plot in the output folder
+    plt.close()
+
+
 
 
 def plot_association_3d(ax, association, simulation_time):
@@ -341,19 +355,19 @@ def plot_associations_from_galaxy(galaxy):
 
 
 def main():
-    plot_diffusion_of_sns_3d() # plot the diffusion of SNP's in 3D to see how they diffuse away from the association centre with time
+    """ plot_diffusion_of_sns_3d() # plot the diffusion of SNP's in 3D to see how they diffuse away from the association centre with time
     test_association_placement() # test the placement of the associations from the emissivity. Drawn using MC simulation
     plot_age_mass_distribution() # highlight the relation between mass and expected lifetime of stars
-    test_plot_density_distribution() # test the density distribution of the Milky Way. Plots both the unweighted, analytical density distribution and the weighted, modelled emissivity from which the associations are drawn
+    test_plot_density_distribution() # test the density distribution of the Milky Way. Plots both the unweighted, analytical density distribution and the weighted, modelled emissivity from which the associations are drawn """
     length_sim_myr = 150
     galaxy_1 = galaxy.Galaxy(length_sim_myr, star_formation_episodes=1, read_data_from_file=True) # an array with n associations
-    galaxy_2 = galaxy.Galaxy(length_sim_myr, star_formation_episodes=3, read_data_from_file=True) # an array with n associations
+    """ galaxy_2 = galaxy.Galaxy(length_sim_myr, star_formation_episodes=3, read_data_from_file=True) # an array with n associations
     galaxy_3 = galaxy.Galaxy(length_sim_myr, star_formation_episodes=5, read_data_from_file=True) # an array with n associations
-    galaxies = np.array([galaxy_1, galaxy_2, galaxy_3])
+    galaxies = np.array([galaxy_1, galaxy_2, galaxy_3]) """
     plot_mass_distr(galaxy_1) # plot the probability distribution for the mass of SNP's. SNP's from a generated galaxy
-    plot_sn_as_func_of_long(galaxy_1) # plot the probability density function of SNPs as function of longitude. SNP's from a generated galaxy
+    """ plot_sn_as_func_of_long(galaxy_1) # plot the probability density function of SNPs as function of longitude. SNP's from a generated galaxy
     plot_cum_snp_cluster_distr(galaxies) # plot the cumulative distribution of steller clusters as function of number of snp's. SNP's from a generated galaxies with different values of C
-    plot_associations_from_galaxy(galaxy_1) # plot the associations from the galaxy
+    plot_associations_from_galaxy(galaxy_1) # plot the associations from the galaxy """
 
 if __name__ == "__main__":
     main()
