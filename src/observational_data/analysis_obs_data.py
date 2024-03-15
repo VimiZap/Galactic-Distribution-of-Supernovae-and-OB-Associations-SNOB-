@@ -209,6 +209,26 @@ def plot_associations(x, y, filename, label_plotted_asc, step=0.5):
     plt.close()
 
 
+def plot_age_vs_distance(age, distance, filename):
+    """ Plot the age vs. distance of OB associations
+    
+    Args:
+        age: array. Age of the associations
+        distance: array. Distance of the associations
+    
+    Returns:
+        None. Saves the plot
+    """
+    plt.figure(figsize=(10, 6))
+    plt.scatter(distance, age, color='green', s=8, alpha=0.5, zorder=10)
+    plt.title('Age vs. distance of OB associations')
+    plt.ylabel('Age (Myr)')
+    plt.xlabel('Distance (kpc)')
+    plt.grid(True, zorder=0)
+    plt.savefig(f'{const.FOLDER_OBSERVATIONAL_PLOTS}/{filename}')
+    plt.close()
+
+
 def plot_my_data(step=0.5): 
     """ Get my data and plot the distance histogram, age histogram and the associations in the galactic plane
     
@@ -222,6 +242,7 @@ def plot_my_data(step=0.5):
     plot_associations(x, y, filename='my_data_associations.pdf', label_plotted_asc='Known associations', step=step)
     plot_distance_hist(distance, filename='my_data_distance_hist.pdf', step=step)
     plot_age_hist(age, filename='my_data_age_hist.pdf')
+    plot_age_vs_distance(age, distance, filename='my_data_age_vs_distance.pdf')
 
 
 def plot_data_wright(filter_data=False, step=0.5):
@@ -258,6 +279,7 @@ def plot_data_wright(filter_data=False, step=0.5):
     plot_associations(wright_x, wright_y, filename=f'wright_associations_arms_mask_{filter_data}.pdf', label_plotted_asc='Known associations',step=step)
     plot_distance_hist(wright_distance, filename=f'wright_distance_hist_mask_{filter_data}.pdf', step=step)
     plot_age_hist(wright_age, filename=f'wright_age_mask_{filter_data}.pdf')
+    plot_age_vs_distance(wright_age, wright_distance, filename=f'wright_age_vs_distance_mask_{filter_data}.pdf')
     
 
 def plot_modelled_galaxy(galaxy, step=0.5, endpoint=5):
