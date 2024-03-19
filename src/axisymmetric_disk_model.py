@@ -11,7 +11,7 @@ def calc_modelled_intensity(b_max = 5):
     logging.info("Running calc_modelled_intensity() for axisymmetric model")
     logging.info("Calculating coordinates")
     # Calculate coordinates    
-    dr = 0.1   # increments in dr (kpc). For the spiral arm model, 0.01 kpc was used, but seems like 0.1 kpc is enough for the axisymmetric model
+    dr = 0.01   # increments in dr (kpc). For the spiral arm model, 0.01 kpc was used, but seems like 0.1 kpc is enough for the axisymmetric model
     dl = 0.2   # increments in dl (degrees)
     db = 0.1   # increments in db (degrees)
     # np.array with values for distance from the Sun to the star/ a point in the Galaxy
@@ -71,7 +71,7 @@ def plot_axisymmetric():
     ax.text(0.02, 0.95, fr'$H_\rho$ = {const.h_axisymmetric} kpc & $\sigma_z$ = {const.sigma_height_distr} kpc', transform=ax.transAxes, fontsize=8, color='black')
     ax.text(0.02, 0.9, fr'NII Luminosity = {luminosity:.2e} erg/s', transform=ax.transAxes, fontsize=8, color='black')
     ax.text(0.02, 0.85, fr'{const.rho_min_axisymmetric:.2e}  $\leq \rho \leq$ {const.rho_max_axisymmetric:.2e} kpc', transform=ax.transAxes, fontsize=8, color='black')
-    fig.savefig(f'{const.FOLDER_MODELS_GALAXY}/axisymmetric_modelled_emissivity.pdf')  # save plot in the output folder
+    fig.savefig(f'{const.FOLDER_MODELS_GALAXY}/axisymmetric_modelled_emissivity_h_2.5.pdf')  # save plot in the output folder
     plt.close(fig)
 
 
