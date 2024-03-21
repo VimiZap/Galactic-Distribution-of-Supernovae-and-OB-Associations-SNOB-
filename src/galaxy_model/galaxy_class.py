@@ -54,7 +54,7 @@ class Galaxy():
     @classmethod
     def generate_coords_densities(cls, read_data_from_file):
         # generate the grid and the density distribution used for drawing the associations
-        x_grid, y_grid, z_grid, uniform_spiral_arm_density, emissivity = gdd.generate_coords_densities(read_data_from_file)
+        x_grid, y_grid, z_grid, uniform_spiral_arm_density, emissivity = gdd.generate_coords_densities(read_data_from_file=read_data_from_file)
         uniform_spiral_arm_density = uniform_spiral_arm_density / np.sum(uniform_spiral_arm_density) # normalize the density to unity
         emissivity = emissivity / np.sum(emissivity) # normalize the density to unity
         cls.x_grid = x_grid
@@ -159,10 +159,6 @@ class Galaxy():
         exploded_sn_longitudes = [sn.longitude for sn in self._exploded_sn]
         return exploded_sn_longitudes
     
-
-    
-
-
 
 def main():  
     Galaxy(1)

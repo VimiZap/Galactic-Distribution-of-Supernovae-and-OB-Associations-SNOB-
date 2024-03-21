@@ -1,5 +1,6 @@
 import numpy as np
 import logging
+import os
 logging.basicConfig(level=logging.INFO) 
 import src.spiral_arm_model as sam
 import src.utilities.utilities as ut
@@ -75,6 +76,10 @@ def generate_coords_densities(plane = 1000, transverse = 20, half_edge = 25, rea
         emissivity (np.array): The modelled emissivity
     """
     if read_data_from_file == True:
+        if os.path.exists(f'{const.FOLDER_GALAXY_DATA}/sim_x_grid.npy'):
+            logging.info("File sm_x_grid.npy exists in the folder")
+        else:
+            raise FileNotFoundError("File sm_x_grid.npy does not exist in the folder. Set read_data_from_file to False when calling the Galaxy class to generate the data")
         logging.info("Reading the density distribution of the Milky Way from file")
         x_grid = np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/sim_x_grid.npy')
         y_grid = np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/sim_y_grid.npy')

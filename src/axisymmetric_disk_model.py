@@ -71,7 +71,7 @@ def plot_axisymmetric():
     ax.text(0.02, 0.95, fr'$H_\rho$ = {const.h_axisymmetric} kpc & $\sigma_z$ = {const.sigma_height_distr} kpc', transform=ax.transAxes, fontsize=8, color='black')
     ax.text(0.02, 0.9, fr'NII Luminosity = {luminosity:.2e} erg/s', transform=ax.transAxes, fontsize=8, color='black')
     ax.text(0.02, 0.85, fr'{const.rho_min_axisymmetric:.2e}  $\leq \rho \leq$ {const.rho_max_axisymmetric:.2e} kpc', transform=ax.transAxes, fontsize=8, color='black')
-    fig.savefig(f'{const.FOLDER_MODELS_GALAXY}/axisymmetric_modelled_emissivity_h_2.5.pdf')  # save plot in the output folder
+    fig.savefig(f'{const.FOLDER_MODELS_GALAXY}/axisymmetric_modelled_emissivity_h_2.4.pdf')  # save plot in the output folder
     plt.close(fig)
 
 

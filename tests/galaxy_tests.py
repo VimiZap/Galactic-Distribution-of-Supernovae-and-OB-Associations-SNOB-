@@ -141,8 +141,6 @@ def plot_mass_distr(galaxy):
     plt.close()
 
 
-
-
 def plot_association_3d(ax, association, simulation_time):
     """ Function to plot the association in 3D
     

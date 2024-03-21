@@ -64,8 +64,8 @@ class Association():
         return self.__supernovae # list to store all generated supernovae progenitors in the association
     
     @property
-    def supernovae_masses(self):
-        return self.__supernovae_masses # list to store the masses of the supernovae progenitors in the association
+    def star_masses(self):
+        return self.__star_masses # list to store the masses of the supernovae progenitors in the association
     
 
     def _calculate_heliocentric_distance(self):
@@ -108,7 +108,7 @@ class Association():
             None
         """
         sn_masses = self.rng.choice(self.solar_masses, size=self.__n, p=self.imf/np.sum(self.imf)) # draw random masses for the SNPs in the association from the IMF in the range 8 <= M/M_sun < 120
-        self.__supernovae_masses = sn_masses
+        self.__star_masses = sn_masses
         one_dim_velocities = self.rng.normal(loc=0, scale=2, size=self.__n) # Gaussian velocity distribution with a mean of 0 km/s and a standard deviation of 2 km/s
         lifetimes = ut.lifetime_as_func_of_initial_mass(sn_masses)   # Units of Myr. Formula from Schulreich et al. (2018)
         vel_theta_dirs = self.rng.uniform(0, np.pi, size=self.__n)   # Velocity dispersion shall be isotropic

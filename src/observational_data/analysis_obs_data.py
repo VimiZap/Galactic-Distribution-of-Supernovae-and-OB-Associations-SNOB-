@@ -9,6 +9,7 @@ import src.utilities.constants as const
 import src.galaxy_model.galaxy_class as gal
 import src.galaxy_model.association_class as asc
 import logging
+import numpy as np
 logging.basicConfig(level=logging.INFO)
 rng = np.random.default_rng()
 
@@ -137,7 +138,7 @@ def add_heliocentric_circles_to_ax(ax, step=0.5):
         None
     """
     thetas_heliocentric_circles = np.linspace(0, 2 * np.pi, 100)
-    for i in range(1, 10):
+    for i in range(1, 7):
         x_heliocentric_circles = i * step * np.cos(thetas_heliocentric_circles)
         y_heliocentric_circles = i * step * np.sin(thetas_heliocentric_circles) + const.r_s
         ax.plot(x_heliocentric_circles, y_heliocentric_circles, color='black', linestyle='--', linewidth=0.5, zorder=5) # plot the heliocentric circles
@@ -179,6 +180,26 @@ def add_associations_to_ax(ax, x, y, label, color):
     return
 
 
+def add_spiral_arm_names_to_ax(ax):
+    """ Add the names of the spiral arms to the plot
+    
+    Args:
+        ax: axis. The axis to add the spiral arm names to
+    
+    Returns:
+        None
+    """
+    text_x_pos = [-3.5, -5, -6.2, -6.8]
+    text_y_pos = [2.8, 4.9, 6.7, 10.1]
+    text_rotation = [24, 23, 20, 16]
+    text_arm_names = ['Norma-Cygnus', 'Scutum-Crux', 'Sagittarius-Carina', 'Perseus']
+    
+    for i in range(len(const.arm_angles)):
+
+        ax.text(text_x_pos[i], text_y_pos[i], text_arm_names[i], fontsize=8, zorder=20, rotation=text_rotation[i])
+    return
+
+
 def plot_associations(x, y, filename, label_plotted_asc, step=0.5):
     """ Plot the distribution of known associations in the Galactic plane together with the spiral arms medians
     
@@ -196,6 +217,7 @@ def plot_associations(x, y, filename, label_plotted_asc, step=0.5):
     add_associations_to_ax(ax, x, y, label=label_plotted_asc, color='blue')
     add_heliocentric_circles_to_ax(ax, step=step)
     add_spiral_arms_to_ax(ax)
+    add_spiral_arm_names_to_ax(ax)
     ax.scatter(0, const.r_s, color='red', marker='o', label='Sun', s=10, zorder=11)
     plt.title('Distribution of associations in the Galactic plane')
     plt.xlabel('x (kpc)')
@@ -504,8 +526,10 @@ def plot_modelled_and_known_associations(modelled_galaxy, step=0.5, endpoint=25)
     add_associations_to_ax(ax, x_added, y_added, 'Modelled associations', 'green')
     add_heliocentric_circles_to_ax(ax, step=step)
     add_spiral_arms_to_ax(ax)
+    add_spiral_arm_names_to_ax(ax)
     ax.scatter(0, const.r_s, color='red', marker='o', label='Sun', s=10, zorder=11)
-    ax.scatter(0, 0, color='black', marker='o', label='Galactic centre', s=15, zorder=11)
+    ax.scatter(0, 0, color='black', marker='o', s=15, zorder=11)
+    ax.text(-1, 0.5, 'Galactic centre', fontsize=8, zorder=7)
     plt.title('Distribution of known and modelled associations in the Galactic plane')
     plt.xlabel('x (kpc)')
     plt.ylabel('y (kpc)')
@@ -518,15 +542,121 @@ def plot_modelled_and_known_associations(modelled_galaxy, step=0.5, endpoint=25)
     plt.close()
 
 
+def calc_avg_mass_hist(num_iterations: int = 10):
+    mass_step = 8
+    bins = np.arange(8, 120 + mass_step, mass_step)
+    print(bins)
+    hist_known = np.zeros((num_iterations, len(bins) - 1))
+    hist_added = np.zeros((num_iterations, len(bins) - 1))
+    for it in range(num_iterations):
+        modelled_galaxy = gal.Galaxy(10, read_data_from_file=True)
+        known_associations, associations_added = combine_modelled_and_known_associations(modelled_galaxy)
+        known_masses = np.array([])
+        added_masses = np.array([])
+        for asc in known_associations:
+            known_masses = np.concatenate((known_masses, asc.star_masses))
+        for asc in associations_added:
+            added_masses = np.concatenate((added_masses, asc.star_masses))
+        hist_known_it, _ = np.histogram(known_masses, bins=bins)
+        hist_added_it, _ = np.histogram(added_masses, bins=bins)
+        hist_known[it] = hist_known_it
+        hist_added[it] = hist_added_it
+    hist_known_mean = np.mean(hist_known, axis=0)
+    hist_added_mean = np.mean(hist_added, axis=0)
+    return bins, hist_known_mean, hist_added_mean     
+
+
+def plot_mass_hist():
+    """ Plot the histogram of star masses for known and modelled associations
+    
+    Args:
+        modelled_galaxy: Galaxy. The modelled galaxy
+    
+    Returns:
+        None. Saves the plot
+    """
+
+    """ 
+    known_associations, associations_added = combine_modelled_and_known_associations(modelled_galaxy)
+    known_masses, added_masses = np.array([]), np.array([])
+    for asc in known_associations:
+        known_masses = np.concatenate((known_masses, asc.star_masses))
+    for asc in associations_added:
+        added_masses = np.concatenate((added_masses, asc.star_masses))    
+    bins = np.arange(8, 120 + 8, 8) """
+
+    bins, hist_known_mean, hist_added_mean = calc_avg_mass_hist()
+    bin_centers = (bins[:-1] + bins[1:]) / 2
+    bin_widths = np.diff(bins)
+    #ax1.bar(bin_centers, hist, width=bin_widths, align='center')
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+    ax1.bar(bin_centers, hist_known_mean, width=bin_widths, label='Known Associations')
+    ax2.bar(bin_centers, hist_added_mean, width=bin_widths, label='Modelled Associations')
+    ax1.set_xlabel('Mass (M$_\odot$)')
+    ax1.set_ylabel('Number of Stars')
+    ax2.set_xlabel('Mass (M$_\odot$)')
+    ax2.set_ylabel('Number of Stars')
+    ax1.set_title('Histogram of Star Masses (Known Associations)')
+    ax2.set_title('Histogram of Star Masses (Modelled Associations)')
+    plt.savefig(f'{const.FOLDER_OBSERVATIONAL_PLOTS}/star_mass_hist.pdf')
+    plt.close()
+
+
+def calc_avg_num_stars_hist(num_iterations: int = 10):
+    num_stars_step = 100
+    bins = np.arange(0, 3000 + num_stars_step, num_stars_step)
+    hist_known = np.zeros((num_iterations, len(bins) - 1))
+    hist_added = np.zeros((num_iterations, len(bins) - 1))
+    for it in range(num_iterations):
+        modelled_galaxy = gal.Galaxy(10, read_data_from_file=True)
+        known_associations, associations_added = combine_modelled_and_known_associations(modelled_galaxy)
+        num_stars_known = np.array([asc.number_sn for asc in known_associations])
+        num_stars_added = np.array([asc.number_sn for asc in associations_added])
+        hist_known_it, _ = np.histogram(num_stars_known, bins=bins)
+        hist_added_it, _ = np.histogram(num_stars_added, bins=bins)
+        hist_known[it] = hist_known_it
+        hist_added[it] = hist_added_it
+    hist_known_mean = np.mean(hist_known, axis=0)
+    hist_added_mean = np.mean(hist_added, axis=0)
+    return bins, hist_known_mean, hist_added_mean
+
+
+def plot_num_stars_hist():
+    """ Plot the histogram of the number of stars per association for known and modelled associations
+    
+    Args:
+        modelled_galaxy: Galaxy. The modelled galaxy
+    
+    Returns:
+        None. Saves the plot
+    """
+    bins, hist_known_mean, hist_added_mean = calc_avg_num_stars_hist()
+    bin_centers = (bins[:-1] + bins[1:]) / 2
+    bin_widths = np.diff(bins)
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+    ax1.bar(bin_centers, hist_known_mean, width=bin_widths, label='Known Associations')
+    ax2.bar(bin_centers, hist_added_mean, width=bin_widths, label='Modelled Associations')
+    ax1.set_xlabel('Number of Stars')
+    ax1.set_ylabel('Frequency')
+    ax2.set_xlabel('Number of Stars')
+    ax2.set_ylabel('Frequency')
+    ax1.set_title('Histogram of Number of Stars per Association (Known Associations)')
+    ax2.set_title('Histogram of Number of Stars per Association (Modelled Associations)')
+    plt.savefig(f'{const.FOLDER_OBSERVATIONAL_PLOTS}/num_stars_hist.pdf')
+    plt.close()
+
 
 def main():
     step = 0.5
-    plot_my_data(step=step)
-    plot_data_wright(True, step=step)
-    plot_data_wright(False, step=step)
-    galaxy = gal.Galaxy(10)
-    plot_modelled_galaxy(galaxy, step=step, endpoint=25)
-    plot_modelled_and_known_associations(galaxy, step=step, endpoint=25) 
+    #plot_my_data(step=step)
+    #plot_data_wright(True, step=step)
+    #plot_data_wright(False, step=step)
+    #galaxy = gal.Galaxy(10, read_data_from_file=True)
+    #plot_modelled_galaxy(galaxy, step=step, endpoint=25)
+    #plot_modelled_and_known_associations(galaxy, step=step, endpoint=25) 
+    #plot_mass_hist()
+    #plot_num_stars_hist()
     #stat_known_associations(num_iterations=10000)
 
 

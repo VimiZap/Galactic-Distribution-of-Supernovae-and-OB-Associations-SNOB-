@@ -150,5 +150,6 @@ class Supernovae:
         else:
             ax.scatter((self.x - self.__association_x) * 1e3, (self.y - self.__association_y) * 1e3, (self.z - self.__association_z) * 1e3, c='black', s=1)
     
+    
     def print_sn(self):
         print(f"SNP is located at xyz position ({self.x}, {self.y}, {self.z}). Mass: {self.mass}, lifetime: {self.age} yrs, bool_exploded: {self.exploded}.")

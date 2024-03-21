@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import obs_utilities as obs_ut
+import src.utilities.constants as const
 
 
 CATALOGUE = 'J/ApJS/165/338'
@@ -20,10 +21,10 @@ def plot_rrl_hii_data():
     bin_edges = np.arange(-4, 4+0.5, 0.5)
     binned_data, bin_edges = np.histogram(glat_data, bins=bin_edges)
     plt.bar(bin_edges[:-1], binned_data, width=0.5, align='edge')
-    plt.xlabel('Galactic latitude (degrees)')
+    plt.xlabel('Galactic latitude b (degrees)')
     plt.ylabel('Frequency')
     plt.title(f'Histogram of Galactic HII regions. Data from Quireza et al. (2006)\n{np.sum(binned_data)} HII regions in total')
-    plt.show()
+    plt.savefig(f'{const.FOLDER_OBSERVATIONAL_PLOTS}/HII_regions_histogram.pdf')
     print("Number of points with glat < abs(1): ", len(glat_data[np.abs(glat_data) < 1]))
     print("Number of points with glat > abs(4) in the original dataset:", len(glat_data[np.abs(glat_data) > 4]))
     print("Number of points with exactly glat = +1 or -1: ", len(glat_data[np.abs(glat_data) == 1]))
