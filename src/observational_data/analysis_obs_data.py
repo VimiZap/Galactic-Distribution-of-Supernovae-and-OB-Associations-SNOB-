@@ -647,6 +647,97 @@ def plot_num_stars_hist():
     plt.close()
 
 
+def calc_avg_asc_mass_hist(num_iterations: int = 10):
+    asc_mass_step = 500
+    bins = np.arange(0, 18000 + asc_mass_step, asc_mass_step)
+    hist_known = np.zeros((num_iterations, len(bins) - 1))
+    hist_added = np.zeros((num_iterations, len(bins) - 1))
+    for it in range(num_iterations):
+        modelled_galaxy = gal.Galaxy(10, read_data_from_file=True)
+        known_associations, associations_added = combine_modelled_and_known_associations(modelled_galaxy)
+        mass_asc_known = np.array([np.sum(asc.star_masses) for asc in known_associations])
+        mass_asc_added = np.array([np.sum(asc.star_masses) for asc in associations_added])
+        hist_known_it, _ = np.histogram(mass_asc_known, bins=bins)
+        hist_added_it, _ = np.histogram(mass_asc_added, bins=bins)
+        hist_known[it] = hist_known_it
+        hist_added[it] = hist_added_it
+    hist_known_mean = np.mean(hist_known, axis=0)
+    hist_added_mean = np.mean(hist_added, axis=0)
+    return bins, hist_known_mean, hist_added_mean
+
+
+def plot_avg_asc_mass_hist():
+    """ Plot the histogram of the number of stars per association for known and modelled associations
+    
+    Args:
+        modelled_galaxy: Galaxy. The modelled galaxy
+    
+    Returns:
+        None. Saves the plot
+    """
+    bins, hist_known_mean, hist_added_mean = calc_avg_asc_mass_hist()
+    bin_centers = (bins[:-1] + bins[1:]) / 2
+    bin_widths = np.diff(bins)
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+    ax1.bar(bin_centers, hist_known_mean, width=bin_widths, label='Known Associations')
+    ax2.bar(bin_centers, hist_added_mean, width=bin_widths, label='Modelled Associations')
+    ax1.set_xlabel('Association mass (M$_\odot$)')
+    ax1.set_ylabel('Frequency')
+    ax1.yaxis.set_major_locator(MaxNLocator(integer=True))    # Set the y-axis to only use integer ticks
+    ax2.set_xlabel('Association mass (M$_\odot$)')
+    ax2.set_ylabel('Frequency')
+    ax1.set_title('Histogram of association masses (Known Associations)')
+    ax2.set_title('Histogram of association masses (Modelled Associations)')
+    plt.savefig(f'{const.FOLDER_OBSERVATIONAL_PLOTS}/asc_mass_hist.pdf')
+    plt.close()
+
+
+def calc_avg_asc_age_hist(num_iterations: int = 10):
+    asc_age_step = 1
+    bins = np.arange(0, 50 + asc_age_step, asc_age_step)
+    hist_known = np.zeros((num_iterations, len(bins) - 1))
+    hist_added = np.zeros((num_iterations, len(bins) - 1))
+    for it in range(num_iterations):
+        modelled_galaxy = gal.Galaxy(10, read_data_from_file=True)
+        known_associations, associations_added = combine_modelled_and_known_associations(modelled_galaxy)
+        age_asc_known = np.array([asc.age for asc in known_associations])
+        age_asc_added = np.array([asc.age for asc in associations_added])
+        hist_known_it, _ = np.histogram(age_asc_known, bins=bins)
+        hist_added_it, _ = np.histogram(age_asc_added, bins=bins)
+        hist_known[it] = hist_known_it
+        hist_added[it] = hist_added_it
+    hist_known_mean = np.mean(hist_known, axis=0)
+    hist_added_mean = np.mean(hist_added, axis=0)
+    return bins, hist_known_mean, hist_added_mean
+
+
+def plot_avg_asc_age_hist():
+    """ Plot the histogram of the number of stars per association for known and modelled associations
+    
+    Args:
+        modelled_galaxy: Galaxy. The modelled galaxy
+    
+    Returns:
+        None. Saves the plot
+    """
+    bins, hist_known_mean, hist_added_mean = calc_avg_asc_age_hist()
+    bin_centers = (bins[:-1] + bins[1:]) / 2
+    bin_widths = np.diff(bins)
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
+    ax1.bar(bin_centers, hist_known_mean, width=bin_widths, label='Known Associations')
+    ax2.bar(bin_centers, hist_added_mean, width=bin_widths, label='Modelled Associations')
+    ax1.set_xlabel('Association age (Myr)')
+    ax1.set_ylabel('Frequency')
+    ax1.yaxis.set_major_locator(MaxNLocator(integer=True))    # Set the y-axis to only use integer ticks
+    ax2.set_xlabel('Association age (Myr)')
+    ax2.set_ylabel('Frequency')
+    ax2.yaxis.set_major_locator(MaxNLocator(integer=True))    # Set the y-axis to only use integer ticks
+    ax1.set_title('Histogram of association ages (Known Associations)')
+    ax2.set_title('Histogram of association ages (Modelled Associations)')
+    plt.savefig(f'{const.FOLDER_OBSERVATIONAL_PLOTS}/asc_age_hist.pdf')
+    plt.close()
+
+
 def main():
     step = 0.5
     #plot_my_data(step=step)
@@ -658,6 +749,8 @@ def main():
     #plot_mass_hist()
     #plot_num_stars_hist()
     #stat_known_associations(num_iterations=10000)
+    #plot_avg_asc_mass_hist()
+    plot_avg_asc_age_hist()
 
 
 if __name__ == '__main__':
