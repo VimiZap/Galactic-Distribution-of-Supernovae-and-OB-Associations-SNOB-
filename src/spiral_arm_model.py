@@ -178,7 +178,7 @@ def interpolate_density(h=const.h_spiral_arm, sigma_arm=const.sigma_arm, arm_ang
         raise ValueError("num_grid_subdivisions must be larger than 0")
     for i in range(len(arm_angles)):
         # generate the spiral arm medians
-        theta, rho = spiral_arm_medians(arm_angles[i], pitch_angles[i])
+        theta, rho = spiral_arm_medians(arm_angles[i], pitch_angles[i], const.rho_min_spiral_arm[i], const.rho_max_spiral_arm[i])
         # generate the spiral arm points
         x, y = generate_spiral_arm_coordinates(rho, transverse_distances, theta, pitch_angles[i])
         # generate the spiral arm densities
@@ -211,6 +211,7 @@ def calc_effective_area_per_spiral_arm(h=const.h_spiral_arm, sigma_arm=const.sig
         1D np.array: Effective area for each spiral arm. The effective areas appears in the same order as the spiral arms in arm_angles.
         Also saves the effective areas to a file
     """
+    logging.info("Calculating the effective area for each spiral arm")
     transverse_distances, transverse_densities_initial = generate_transverse_spacing_densities(sigma_arm) 
     d_x = 70 / 3000 # distance between each interpolated point in the x direction. 70 kpc is the diameter of the Milky Way, 1000 is the number of points
     d_y = 70 / 3000 # distance between each interpolated point in the y direction. 70 kpc is the diameter of the Milky Way, 1000 is the number of points
@@ -218,9 +219,9 @@ def calc_effective_area_per_spiral_arm(h=const.h_spiral_arm, sigma_arm=const.sig
     effective_area = []
     for i in range(len(arm_angles)):
         # generate the spiral arm medians
-        theta, rho = spiral_arm_medians(arm_angles[i], pitch_angles[i])
+        theta, rho = spiral_arm_medians(arm_angles[i], pitch_angles[i], const.rho_min_spiral_arm[i], const.rho_max_spiral_arm[i])
         # generate the spiral arm points
-        x, y = generate_spiral_arm_coordinates(rho, theta, pitch_angles[i], transverse_distances)
+        x, y = generate_spiral_arm_coordinates(rho, transverse_distances, theta, pitch_angles[i])
         # generate the spiral arm densities
         density_spiral_arm = generate_spiral_arm_densities(rho, transverse_densities_initial, h)
         # calculate interpolated density for the spiral arm
@@ -303,7 +304,7 @@ def calculate_galactic_coordinates(b_max=5, db_above_1_deg = 0.2, b_min=0.01, b_
     longitudes = np.radians(np.concatenate((l1, l2)))
     dl = np.radians(dl)
     # np.array with values for distance from the Sun to the star/ a point in the Galaxy
-    radial_distances = np.arange(dr, const.r_s + const.rho_max_spiral_arm + 5 + dr, dr) # +5 kpc to take into account the width of the spiral arms
+    radial_distances = np.arange(dr, const.r_s + const.rho_max_spiral_arm[0] + 5 + dr, dr) # +5 kpc to take into account the width of the spiral arms
     # save coordinates to disk
     np.save(f'{const.FOLDER_GALAXY_DATA}/radial_distances.npy', radial_distances) # saving radial_distances
     np.save(f'{const.FOLDER_GALAXY_DATA}/longitudes.npy', longitudes) # saving longitudes
@@ -366,21 +367,22 @@ def calculate_galactic_coordinates(b_max=5, db_above_1_deg = 0.2, b_min=0.01, b_
     return
     
 
-def calc_modelled_emissivity(b_max=1, db_above_1_deg = 0.1, fractional_contribution=const.fractional_contribution, readfile=True, h=const.h_spiral_arm, sigma_arm=const.sigma_arm, arm_angles=const.arm_angles, pitch_angles=const.pitch_angles):
+def calc_modelled_emissivity(b_max=1, db_above_1_deg = 0.1, fractional_contribution=const.fractional_contribution, readfile_effective_area=True, h=const.h_spiral_arm, sigma_arm=const.sigma_arm, arm_angles=const.arm_angles, pitch_angles=const.pitch_angles):
     logging.info("Calculating modelled emissivity of the Milky Way")
-    if readfile == True:
+    if readfile_effective_area == True:
         effective_area = np.load(f'{const.FOLDER_GALAXY_DATA}/effective_area_per_spiral_arm.npy')
-    elif readfile == False:
+    elif readfile_effective_area == False:
         effective_area = calc_effective_area_per_spiral_arm(h, sigma_arm, arm_angles, pitch_angles)
     else:
-        raise ValueError("readfile must be either True or False")
-    calculate_galactic_coordinates(b_max, db_above_1_deg)
+        raise ValueError("readfile_effective_area must be either True or False")
+    print(effective_area)
+    #calculate_galactic_coordinates(b_max, db_above_1_deg)
     logging.info("Coordinates calculated. Now interpolating each spiral arm")
     # coordinates made. Now we need to interpolate each spiral arm and sum up the densities
-    interpolate_density(h, sigma_arm, arm_angles, pitch_angles)
+    #interpolate_density(h, sigma_arm, arm_angles, pitch_angles)
     logging.info("Interpolation done. Now calculating the emissivity")
     common_multiplication_factor = const.total_galactic_n_luminosity * np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/height_distribution_values.npy')
-    for i in range(4): # loop trough the 4 spiral arms
+    for i in range(len(arm_angles)): # loop trough the 4 spiral arms
         logging.info(f"Calculating emissivity for spiral arm number: {i+1}")
         scaled_arm_emissivity = np.load(f'{const.FOLDER_GALAXY_DATA}/interpolated_arm_{i}_0.npy') 
         for j in range(1, settings.num_grid_subdivisions): # loop through the different grid subdivisions
@@ -391,9 +393,9 @@ def calc_modelled_emissivity(b_max=1, db_above_1_deg = 0.1, fractional_contribut
     return  
 
 
-def calc_modelled_intensity(b_max=5, db_above_1_deg = 0.2, fractional_contribution=const.fractional_contribution, readfile=True, h=const.h_spiral_arm, sigma_arm=const.sigma_arm, arm_angles=const.arm_angles, pitch_angles=const.pitch_angles):
+def calc_modelled_intensity(b_max=5, db_above_1_deg = 0.2, fractional_contribution=const.fractional_contribution, readfile_effective_area=True, h=const.h_spiral_arm, sigma_arm=const.sigma_arm, arm_angles=const.arm_angles, pitch_angles=const.pitch_angles):
     logging.info("Calculating the modelled NII intensity of the Milky Way")
-    calc_modelled_emissivity(b_max, db_above_1_deg, fractional_contribution, readfile, h, sigma_arm, arm_angles, pitch_angles)
+    calc_modelled_emissivity(b_max, db_above_1_deg, fractional_contribution, readfile_effective_area, h, sigma_arm, arm_angles, pitch_angles)
     num_rads = len(np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/radial_distances.npy'))
     num_longs = len(np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/longitudes.npy'))
     num_lats = len(np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/latitudes.npy'))
@@ -407,8 +409,8 @@ def calc_modelled_intensity(b_max=5, db_above_1_deg = 0.2, fractional_contributi
     common_multiplication_factor = common_multiplication_factor.ravel() #unraveling so that we can multiply with the interpolated densities
     del latitudinal_cosinus
     gc.collect()
-    intensities_per_arm = np.zeros((4, num_longs)) # to store the intensity as a function of longitude for each spiral arm. Used for the intesnity-plots to compare with Higdon & Lingenfelter
-    for i in range(4):
+    intensities_per_arm = np.zeros((len(arm_angles), num_longs)) # to store the intensity as a function of longitude for each spiral arm. Used for the intesnity-plots to compare with Higdon & Lingenfelter
+    for i in range(len(arm_angles)):
         logging.info(f"Calculating intensity for spiral arm number: {i+1}")
         arm_intensity = np.load(f'{const.FOLDER_GALAXY_DATA}/interpolated_arm_emissivity_{i}.npy') * common_multiplication_factor # spiral arms
         # reshape this 1D array into 3D array to facilitate for the summation over the different longitudes
@@ -448,7 +450,11 @@ def plot_modelled_intensity_per_arm(filename_output = f'{const.FOLDER_MODELS_GAL
     plt.plot(np.linspace(0, 360, len(longitudes)), intensities_per_arm[1], label=f"P. $\ $ f={fractional_contribution[1]}")
     plt.plot(np.linspace(0, 360, len(longitudes)), intensities_per_arm[2], label=f"SA. f={fractional_contribution[2]}")
     plt.plot(np.linspace(0, 360, len(longitudes)), intensities_per_arm[3], label=f"SC. f={fractional_contribution[3]}")
-    plt.plot(np.linspace(0, 360, len(longitudes)), np.sum(intensities_per_arm, axis=0), label="Total")
+    if settings.add_local_arm_to_intensity_plot == True:
+        plt.plot(np.linspace(0, 360, len(longitudes)), intensities_per_arm[4], label=f"Local arm. f={fractional_contribution[4]}")
+        plt.plot(np.linspace(0, 360, len(longitudes)), np.sum(intensities_per_arm, axis=0), label="Total")
+    else:
+        plt.plot(np.linspace(0, 360, len(longitudes)), np.sum(intensities_per_arm[:4], axis=0), label="Total")
     # Redefine the x-axis labels to match the values in longitudes
     x_ticks = (180, 150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210, 180)
     plt.xticks(np.linspace(0, 360, 13), x_ticks)
@@ -479,7 +485,7 @@ def test_max_b():
 
 def main() -> None:
     logging.info("Starting main function")
-    calc_modelled_intensity()
+    calc_modelled_intensity(readfile_effective_area=True)
     plot_modelled_intensity_per_arm()
     #test_max_b()
 

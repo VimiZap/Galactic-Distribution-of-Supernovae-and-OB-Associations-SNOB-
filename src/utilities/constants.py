@@ -5,8 +5,8 @@ h_spiral_arm = 2.4    # kpc, scale length of the disk. The value Higdon and Ling
 h_axisymmetric = 2.4  # kpc, scale length of the disk. The value Higdon and Lingenfelter used
 r_s = 8.178            # kpc, estimate for distance from the Sun to the Galactic center. Same value the atuhors used
 # This rho_max and rho_min seems to be taken from Valee
-rho_min_spiral_arm = 2.9           # kpc, minimum distance from galactic center to the beginning of the spiral arms. Values taken from Valleé (see Higdon and lingenfelter)
-rho_max_spiral_arm = 35            # kpc, maximum distance from galactic center to the end of the spiral arms. Values taken from Valleé (see Higdon and lingenfelter)
+rho_min_spiral_arm = np.array([2.9, 2.9, 2.9, 2.9])           # kpc, minimum distance from galactic center to the beginning of the spiral arms. Values taken from Valleé (see Higdon and lingenfelter)
+rho_max_spiral_arm = np.array([35, 35, 35, 35])            # kpc, maximum distance from galactic center to the end of the spiral arms. Values taken from Valleé (see Higdon and lingenfelter)
 rho_min_axisymmetric = 3           # kpc, minimum distance from galactic center to bright H 2 regions. Evaluates to 3.12 kpc
 rho_max_axisymmetric = 11          # kpc, maximum distance from galactic center to bright H 2 regions. Evaluates to 10.4 kpc
 sigma_height_distr = 0.15          # kpc, scale height of the disk
@@ -32,6 +32,12 @@ theta_start_local = np.radians(55.1) # degrees to radians
 theta_max_local = np.radians(110) # degrees to radians
 rho_min_local = 8.21 # kpc
 rho_max_local = rho_min_local * np.exp(np.tan(pitch_local) * (theta_max_local - theta_start_local))
+# add the local arm to the spiral arm parameters. If the local arm is not to be included, the following lines should be commented out
+rho_min_spiral_arm = np.concatenate((rho_min_spiral_arm, [rho_min_local]))
+rho_max_spiral_arm = np.concatenate((rho_max_spiral_arm, [rho_max_local]))
+arm_angles = np.concatenate((arm_angles, [theta_start_local]))
+pitch_angles = np.concatenate((pitch_angles, [pitch_local]))
+fractional_contribution = np.concatenate((fractional_contribution, [0.01]))
 
 # Stuff for SN, Ass and Galaxy classes:
 seconds_in_myr = 3.156e13
