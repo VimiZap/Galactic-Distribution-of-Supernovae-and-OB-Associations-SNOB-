@@ -26,6 +26,12 @@ fractional_contribution = [0.18, 0.36, 0.18, 0.28]
 spiral_arm_names = ['Norma-Cygnus', 'Perseus', 'Sagittarius-Carina', 'Scutum-Crux']
 number_of_end_points = 45 # number of points to use for the circular projection at the end points of the spiral arms
 
+# parameters for the local arm
+pitch_local = np.radians(2.77) # degrees to radians
+theta_start_local = np.radians(55.1) # degrees to radians
+theta_max_local = np.radians(110) # degrees to radians
+rho_min_local = 8.21 # kpc
+rho_max_local = rho_min_local * np.exp(np.tan(pitch_local) * (theta_max_local - theta_start_local))
 
 # Stuff for SN, Ass and Galaxy classes:
 seconds_in_myr = 3.156e13

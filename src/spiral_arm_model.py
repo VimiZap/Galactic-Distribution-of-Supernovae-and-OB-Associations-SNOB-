@@ -13,23 +13,25 @@ import src.utilities.constants as const
 
 
 
-def spiral_arm_medians(arm_angle, pitch_angle):
+def spiral_arm_medians(arm_angle, pitch_angle, rho_min=const.rho_min_spiral_arm, rho_max=const.rho_max_spiral_arm):
     """ Function to calculate the medians of the spiral arms. The medians are calculated in polar coordinates.
     Args:
         arm_angle (int): starting angle of the spiral arm, radians
         pitch_angle (int): pitch angle of the spiral arm, radians
+        rho_min (float): minimum distance from the Galactic center. Units of kpc
+        rho_max (float): maximum distance from the Galactic center. Units of kpc
 
     Returns:
         theta and rho for the spiral arm medians
     """
     
     theta = [arm_angle]
-    rho = [const.rho_min_spiral_arm]
+    rho = [rho_min]
     dtheta = .01
     k = np.tan(pitch_angle)
-    while rho[-1] < const.rho_max_spiral_arm: # Keep adding points until the last point is at the maximum allowed distance from the Galactic center
+    while rho[-1] < rho_max: # Keep adding points until the last point is at the maximum allowed distance from the Galactic center
         theta.append((theta[-1] + dtheta))
-        rho.append(const.rho_min_spiral_arm * np.exp(k * (theta[-1] - theta[0]))) # Equation 6 in Higdon and Lingenfelter
+        rho.append(rho_min * np.exp(k * (theta[-1] - theta[0]))) # Equation 6 in Higdon and Lingenfelter
     return np.array(theta), np.array(rho)
 
 
@@ -170,6 +172,8 @@ def interpolate_density(h=const.h_spiral_arm, sigma_arm=const.sigma_arm, arm_ang
     transverse_distances, transverse_densities_initial = generate_transverse_spacing_densities(sigma_arm) 
     x_grid = np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/x_grid.npy')
     y_grid = np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/y_grid.npy')
+    print('x_grid.shape', x_grid.shape, 'y_grid.shape', y_grid.shape)
+    print('datatype x_grid, y_grid', x_grid.dtype, y_grid.dtype)
     for i in range(len(arm_angles)):
         # generate the spiral arm medians
         theta, rho = spiral_arm_medians(arm_angles[i], pitch_angles[i])
@@ -419,7 +423,7 @@ def calc_modelled_intensity(b_max=5, db_above_1_deg = 0.2, fractional_contributi
     return
 
 
-def plot_modelled_intensity_per_arm(filename_output = f'{const.FOLDER_MODELS_GALAXY}/modelled_intensity.pdf', filename_intensity_data = f'{const.FOLDER_GALAXY_DATA}/intensities_per_arm.npy', fractional_contribution=const.fractional_contribution, h=const.h_spiral_arm, sigma_arm=const.sigma_arm):
+def plot_modelled_intensity_per_arm(filename_output = f'{const.FOLDER_MODELS_GALAXY}/modelled_intensity.pdf', filename_intensity_data = f'{const.FOLDER_GALAXY_DATA}/intensities_per_arm_b_max_5.npy', fractional_contribution=const.fractional_contribution, h=const.h_spiral_arm, sigma_arm=const.sigma_arm):
     """ Plots the modelled intensity of the Galactic disk as a function of Galactic longitude. Each spiral arm is plotted separately, as well as the total intensity. Assumes that the itensities have been calculated and saved to disk beforehand.
 
     Args:
@@ -471,9 +475,12 @@ def test_max_b():
         filename_intensity_data = f'{const.FOLDER_GALAXY_DATA}/intensities_per_arm_b_max_{b_filename}.npy'
         plot_modelled_intensity_per_arm(filename_output, filename_intensity_data)
 
+
 def main() -> None:
     logging.info("Starting main function")
-    test_max_b()
+    calc_modelled_intensity()
+    plot_modelled_intensity_per_arm()
+    #test_max_b()
 
 
 if __name__ == "__main__":

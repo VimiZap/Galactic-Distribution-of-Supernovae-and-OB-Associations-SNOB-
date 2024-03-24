@@ -2,12 +2,13 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 import numpy as np
-import obs_utilities as obs_ut
+import src.observational_data.obs_utilities as obs_ut
 import src.utilities.utilities as ut
 import src.spiral_arm_model as sam
 import src.utilities.constants as const
 import src.galaxy_model.galaxy_class as gal
 import src.galaxy_model.association_class as asc
+import src.local_arm as la
 import logging
 import numpy as np
 logging.basicConfig(level=logging.INFO)
@@ -197,6 +198,22 @@ def add_spiral_arm_names_to_ax(ax):
     for i in range(len(const.arm_angles)):
 
         ax.text(text_x_pos[i], text_y_pos[i], text_arm_names[i], fontsize=8, zorder=20, rotation=text_rotation[i])
+    return
+
+
+def add_local_arm_to_ax(ax):
+    """ Add the local arm to the plot
+    
+    Args:
+        ax: axis. The axis to add the spiral arms to
+    
+    Returns:
+        None
+    """
+    theta, rho = sam.spiral_arm_medians(const.theta_start_local, const.pitch_local, const.rho_min_local, const.rho_max_local)
+    x = rho * np.cos(theta)
+    y = rho * np.sin(theta)
+    ax.plot(x, y, color='black', marker='o', linewidth = 0.0001, zorder=6, markeredgewidth=0.0001, markersize=0.0001)
     return
 
 
@@ -527,6 +544,7 @@ def plot_modelled_and_known_associations(modelled_galaxy, step=0.5, endpoint=25)
     add_heliocentric_circles_to_ax(ax, step=step)
     add_spiral_arms_to_ax(ax)
     add_spiral_arm_names_to_ax(ax)
+    add_local_arm_to_ax(ax)
     ax.scatter(0, const.r_s, color='red', marker='o', label='Sun', s=10, zorder=11)
     ax.scatter(0, 0, color='black', marker='o', s=15, zorder=11)
     ax.text(-1, 0.5, 'Galactic centre', fontsize=8, zorder=7)
@@ -743,14 +761,14 @@ def main():
     #plot_my_data(step=step)
     #plot_data_wright(True, step=step)
     #plot_data_wright(False, step=step)
-    #galaxy = gal.Galaxy(10, read_data_from_file=True)
+    galaxy = gal.Galaxy(10, read_data_from_file=True)
     #plot_modelled_galaxy(galaxy, step=step, endpoint=25)
-    #plot_modelled_and_known_associations(galaxy, step=step, endpoint=25) 
+    plot_modelled_and_known_associations(galaxy, step=step, endpoint=25) 
     #plot_mass_hist()
     #plot_num_stars_hist()
     #stat_known_associations(num_iterations=10000)
     #plot_avg_asc_mass_hist()
-    plot_avg_asc_age_hist()
+    #plot_avg_asc_age_hist()
 
 
 if __name__ == '__main__':
