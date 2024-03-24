@@ -6,7 +6,9 @@ import src.utilities.utilities as ut
 import matplotlib.pyplot as plt
 import src.spiral_arm_model as sam
 import src.observational_data.analysis_obs_data as aod
+import src.utilities.settings as settings
 from scipy.interpolate import griddata
+
 
 
 

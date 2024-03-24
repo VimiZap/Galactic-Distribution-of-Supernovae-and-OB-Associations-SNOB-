@@ -9,6 +9,7 @@ logging.basicConfig(level=logging.INFO)     # other levels for future reference:
 import src.observational_data.firas_data as firas_data
 import src.utilities.utilities as ut
 import src.utilities.constants as const
+import src.utilities.settings as settings
 #from galaxy_tests import test_plot_density_distribution
 
 
@@ -172,8 +173,9 @@ def interpolate_density(h=const.h_spiral_arm, sigma_arm=const.sigma_arm, arm_ang
     transverse_distances, transverse_densities_initial = generate_transverse_spacing_densities(sigma_arm) 
     x_grid = np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/x_grid.npy')
     y_grid = np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/y_grid.npy')
-    print('x_grid.shape', x_grid.shape, 'y_grid.shape', y_grid.shape)
-    print('datatype x_grid, y_grid', x_grid.dtype, y_grid.dtype)
+    num_grid_subdivisions = settings.num_grid_subdivisions
+    if num_grid_subdivisions < 1:
+        raise ValueError("num_grid_subdivisions must be larger than 0")
     for i in range(len(arm_angles)):
         # generate the spiral arm medians
         theta, rho = spiral_arm_medians(arm_angles[i], pitch_angles[i])
@@ -181,10 +183,17 @@ def interpolate_density(h=const.h_spiral_arm, sigma_arm=const.sigma_arm, arm_ang
         x, y = generate_spiral_arm_coordinates(rho, transverse_distances, theta, pitch_angles[i])
         # generate the spiral arm densities
         density_spiral_arm = generate_spiral_arm_densities(rho, transverse_densities_initial, h)
-        # calculate interpolated density for the spiral arm
-        interpolated_arm = griddata((x, y), density_spiral_arm, (x_grid, y_grid), method='cubic', fill_value=0)
-        interpolated_arm[interpolated_arm < 0] = 0 # set all negative values to 0
-        np.save(f'{const.FOLDER_GALAXY_DATA}/interpolated_arm_{i}.npy', interpolated_arm)
+        for sub_grid in range(num_grid_subdivisions):
+            if sub_grid == num_grid_subdivisions - 1:
+                x_grid_sub = x_grid[sub_grid * int(len(x_grid) / num_grid_subdivisions):]
+                y_grid_sub = y_grid[sub_grid * int(len(y_grid) / num_grid_subdivisions):]
+            else:
+                x_grid_sub = x_grid[sub_grid * int(len(x_grid) / num_grid_subdivisions): (sub_grid + 1) * int(len(x_grid) / num_grid_subdivisions)]
+                y_grid_sub = y_grid[sub_grid * int(len(y_grid) / num_grid_subdivisions): (sub_grid + 1) * int(len(y_grid) / num_grid_subdivisions)]
+            # calculate interpolated density for the spiral arm
+            interpolated_arm = griddata((x, y), density_spiral_arm, (x_grid_sub, y_grid_sub), method='cubic', fill_value=0)
+            interpolated_arm[interpolated_arm < 0] = 0 # set all negative values to 0
+            np.save(f'{const.FOLDER_GALAXY_DATA}/interpolated_arm_{i}_{sub_grid}.npy', interpolated_arm)
     return
 
 
@@ -366,27 +375,19 @@ def calc_modelled_emissivity(b_max=1, db_above_1_deg = 0.1, fractional_contribut
     else:
         raise ValueError("readfile must be either True or False")
     calculate_galactic_coordinates(b_max, db_above_1_deg)
-    num_rads = len(np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/radial_distances.npy'))
-    num_longs = len(np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/longitudes.npy'))
-    num_lats = len(np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/latitudes.npy'))
-    logging.info("Coordinates calculated and read from disk. Now interpolating each spiral arm")
+    logging.info("Coordinates calculated. Now interpolating each spiral arm")
     # coordinates made. Now we need to interpolate each spiral arm and sum up the densities
     interpolate_density(h, sigma_arm, arm_angles, pitch_angles)
-    logging.info("Density calculated. Now calculating the emissivity")
+    logging.info("Interpolation done. Now calculating the emissivity")
     common_multiplication_factor = const.total_galactic_n_luminosity * np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/height_distribution_values.npy')
-    emissivity_rad_long_lat = np.zeros((num_rads, num_longs, num_lats)) # to store the intensity as a function of radius, longitude and latitude. Used for MC-simulation of the galaxy
-    for i in range(4):
-        logging.info(f"Calculating spiral arm number: {i+1}")
-        scaled_arm_emissivity = np.load(f'{const.FOLDER_GALAXY_DATA}/interpolated_arm_{i}.npy') * common_multiplication_factor * fractional_contribution[i] / (effective_area[i] * const.kpc**2) # spiral arms
-        # save this scaled density 
+    for i in range(4): # loop trough the 4 spiral arms
+        logging.info(f"Calculating emissivity for spiral arm number: {i+1}")
+        scaled_arm_emissivity = np.load(f'{const.FOLDER_GALAXY_DATA}/interpolated_arm_{i}_0.npy') 
+        for j in range(1, settings.num_grid_subdivisions): # loop through the different grid subdivisions
+            scaled_arm_emissivity = np.concatenate((scaled_arm_emissivity, np.load(f'{const.FOLDER_GALAXY_DATA}/interpolated_arm_{i}_{j}.npy')))
+        scaled_arm_emissivity *= common_multiplication_factor * fractional_contribution[i] / (effective_area[i] * const.kpc**2) # multiply with the factors that makes the emissivity in units of erg/s/cm^2/sr
+        # save the emissivity for the arm to disk
         np.save(f'{const.FOLDER_GALAXY_DATA}/interpolated_arm_emissivity_{i}.npy', scaled_arm_emissivity)
-        # reshape this 1D array into 3D array to facilitate for the summation over the different longitudes and also the MonteCarlo Simulation
-        scaled_arm_emissivity = scaled_arm_emissivity.reshape((num_rads, num_longs, num_lats))
-        emissivity_rad_long_lat += scaled_arm_emissivity
-    # Following files to be used for MC-simulation of the galaxy
-    np.save(f'{const.FOLDER_GALAXY_DATA}/emissivity_longitudinal.npy', np.sum(emissivity_rad_long_lat, axis=(0, 2))) # Sum up all emissivities for all LOS for each value of longitude. Without running average.
-    np.save(f'{const.FOLDER_GALAXY_DATA}/emissivity_long_lat.npy', np.sum(emissivity_rad_long_lat, axis=(0))) # sum over all radii to get a map for emissivity in the long, lat plane.
-    np.save(f'{const.FOLDER_GALAXY_DATA}/emissivity_rad_long_lat.npy', emissivity_rad_long_lat) # store the entire 3D array of emissivity.
     return  
 
 
@@ -408,7 +409,7 @@ def calc_modelled_intensity(b_max=5, db_above_1_deg = 0.2, fractional_contributi
     gc.collect()
     intensities_per_arm = np.zeros((4, num_longs)) # to store the intensity as a function of longitude for each spiral arm. Used for the intesnity-plots to compare with Higdon & Lingenfelter
     for i in range(4):
-        logging.info(f"Calculating spiral arm number: {i+1}")
+        logging.info(f"Calculating intensity for spiral arm number: {i+1}")
         arm_intensity = np.load(f'{const.FOLDER_GALAXY_DATA}/interpolated_arm_emissivity_{i}.npy') * common_multiplication_factor # spiral arms
         # reshape this 1D array into 3D array to facilitate for the summation over the different longitudes
         arm_intensity = arm_intensity.reshape((num_rads, num_longs, num_lats))
