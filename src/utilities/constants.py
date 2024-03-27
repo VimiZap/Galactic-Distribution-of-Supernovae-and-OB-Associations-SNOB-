@@ -38,6 +38,10 @@ rho_max_spiral_arm = np.concatenate((rho_max_spiral_arm, [rho_max_local]))
 arm_angles = np.concatenate((arm_angles, [theta_start_local]))
 pitch_angles = np.concatenate((pitch_angles, [pitch_local]))
 fractional_contribution = np.concatenate((fractional_contribution, [0.01]))
+# the devoid in sagittarius is generated in spiral_arm_model.py and added to pitch_angles etc. in this file
+# the exception to that is rho_min_sagittarius part of the devoid, which is added here
+rho_min_sagittarius = None # when the devoid is added, this will be overwritten
+rho_max_sagittarius = None # when the devoid is added, this will be overwritten
 
 # Stuff for SN, Ass and Galaxy classes:
 seconds_in_myr = 3.156e13
@@ -56,3 +60,4 @@ FOLDER_OBSERVATIONAL_DATA = 'data/observational'
 FOLDER_GALAXY_TESTS = 'data/plots/tests_galaxy_class'
 FOLDER_MODELS_GALAXY = 'data/plots/models_galaxy'
 FOLDER_OBSERVATIONAL_PLOTS = 'data/plots/observational_plots'
+

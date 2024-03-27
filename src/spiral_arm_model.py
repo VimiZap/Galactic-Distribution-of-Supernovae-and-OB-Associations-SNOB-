@@ -14,7 +14,7 @@ import src.utilities.settings as settings
 
 
 
-def spiral_arm_medians(arm_angle, pitch_angle, rho_min=const.rho_min_spiral_arm, rho_max=const.rho_max_spiral_arm):
+def spiral_arm_medians(arm_angle, pitch_angle, rho_min=const.rho_min_spiral_arm[0], rho_max=const.rho_max_spiral_arm[0]):
     """ Function to calculate the medians of the spiral arms. The medians are calculated in polar coordinates.
     Args:
         arm_angle (int): starting angle of the spiral arm, radians
@@ -33,6 +33,12 @@ def spiral_arm_medians(arm_angle, pitch_angle, rho_min=const.rho_min_spiral_arm,
     while rho[-1] < rho_max: # Keep adding points until the last point is at the maximum allowed distance from the Galactic center
         theta.append((theta[-1] + dtheta))
         rho.append(rho_min * np.exp(k * (theta[-1] - theta[0]))) # Equation 6 in Higdon and Lingenfelter
+    rho = np.array(rho)
+    theta = np.array(theta)
+    if settings.add_devoid_region_sagittarius and rho_max == const.rho_max_sagittarius:
+        mask = rho > const.rho_min_sagittarius
+        rho = rho[mask] # remove the points that are not inside the devoid region of Sagittarius
+        theta = theta[mask]
     return np.array(theta), np.array(rho)
 
 
@@ -229,6 +235,10 @@ def calc_effective_area_per_spiral_arm(h=const.h_spiral_arm, sigma_arm=const.sig
         interpolated_density[interpolated_density < 0] = 0 # set all negative values to 0
         # add the interpolated density to the total galactic density
         effective_area = np.append(effective_area, np.sum(interpolated_density) * d_x * d_y)
+    if settings.add_devoid_region_sagittarius:
+        # the devoid region shall, in effect, just modify the existing emissivity for the Sagittarius-Carina arm
+        # hence the effective area for the devoid region is the same as for the entire arm
+        effective_area[-1] = effective_area[2]
     filepath = f'{const.FOLDER_GALAXY_DATA}/effective_area_per_spiral_arm.npy'
     np.save(filepath, effective_area)
     return effective_area
@@ -379,7 +389,7 @@ def calc_modelled_emissivity(b_max=1, db_above_1_deg = 0.1, fractional_contribut
     #calculate_galactic_coordinates(b_max, db_above_1_deg)
     logging.info("Coordinates calculated. Now interpolating each spiral arm")
     # coordinates made. Now we need to interpolate each spiral arm and sum up the densities
-    #interpolate_density(h, sigma_arm, arm_angles, pitch_angles)
+    interpolate_density(h, sigma_arm, arm_angles, pitch_angles)
     logging.info("Interpolation done. Now calculating the emissivity")
     common_multiplication_factor = const.total_galactic_n_luminosity * np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/height_distribution_values.npy')
     for i in range(len(arm_angles)): # loop trough the 4 spiral arms
@@ -450,9 +460,17 @@ def plot_modelled_intensity_per_arm(filename_output = f'{const.FOLDER_MODELS_GAL
     plt.plot(np.linspace(0, 360, len(longitudes)), intensities_per_arm[1], label=f"P. $\ $ f={fractional_contribution[1]}")
     plt.plot(np.linspace(0, 360, len(longitudes)), intensities_per_arm[2], label=f"SA. f={fractional_contribution[2]}")
     plt.plot(np.linspace(0, 360, len(longitudes)), intensities_per_arm[3], label=f"SC. f={fractional_contribution[3]}")
-    if settings.add_local_arm_to_intensity_plot == True:
+    if settings.add_devoid_region_sagittarius == True and settings.add_local_arm_to_intensity_plot==True:
         plt.plot(np.linspace(0, 360, len(longitudes)), intensities_per_arm[4], label=f"Local arm. f={fractional_contribution[4]}")
+        plt.plot(np.linspace(0, 360, len(longitudes)), intensities_per_arm[5], label=f"Devoid region. f={fractional_contribution[5]}")
         plt.plot(np.linspace(0, 360, len(longitudes)), np.sum(intensities_per_arm, axis=0), label="Total")
+    elif settings.add_devoid_region_sagittarius == True:
+        plt.plot(np.linspace(0, 360, len(longitudes)), intensities_per_arm[5], label=f"Devoid region. f={fractional_contribution[4]}")
+        total = np.sum(intensities_per_arm[:4], axis=0) + intensities_per_arm[5]
+        plt.plot(np.linspace(0, 360, len(longitudes)), total, label="Total")
+    elif settings.add_local_arm_to_intensity_plot == True:
+        plt.plot(np.linspace(0, 360, len(longitudes)), intensities_per_arm[4], label=f"Local arm. f={fractional_contribution[4]}")
+        plt.plot(np.linspace(0, 360, len(longitudes)), np.sum(intensities_per_arm[:5], axis=0), label="Total")
     else:
         plt.plot(np.linspace(0, 360, len(longitudes)), np.sum(intensities_per_arm[:4], axis=0), label="Total")
     # Redefine the x-axis labels to match the values in longitudes
@@ -483,15 +501,87 @@ def test_max_b():
         plot_modelled_intensity_per_arm(filename_output, filename_intensity_data)
 
 
+def find_rho_min(long, r_los_start):
+    """ Function to find the minimum distance between the line of sight and the spiral arm. 
+    The function calculates the distance between each point along the line of sight and every point in the spiral arm, 
+    and returns the x and y coordinates of the point on the spiral arm with minimum distance, as well as the rho-value for that spiral arm point.
+    
+    Args:
+        long (float): Galactic longitude in degrees
+        r_los_start (float): Starting distance from the Sun for the line of sight in kpc
+    
+    Returns:
+        x_closest (float): x-coordinate of the point on the spiral arm with minimum distance
+        y_closest (float): y-coordinate of the point on the spiral arm with minimum distance
+        rho_closest (float): rho-value for the point on the spiral arm with minimum distance
+    """
+    theta_sa, rho_sa = spiral_arm_medians(const.arm_angles[2], const.pitch_angles[2]) # generate the spiral arm medians for sagittarius-carina
+    x_sa = rho_sa*np.cos(theta_sa)
+    y_sa = rho_sa*np.sin(theta_sa)
+    dr = 0.1
+    rs = np.arange(r_los_start, r_los_start + 7 + dr, dr)
+    theta_los = ut.theta(rs, np.radians(long), 0)
+    rho_los = ut.rho(rs, np.radians(long), 0)
+    x_los = rho_los*np.cos(theta_los)
+    y_los = rho_los*np.sin(theta_los)
+    x_diff = (x_los[:, np.newaxis] - x_sa) ** 2
+    y_diff = (y_los[:, np.newaxis] - y_sa) ** 2
+    dists = np.sqrt(x_diff + y_diff) # distances between each point along the line of sight and every point in the spiral arm
+    dist_min = np.min(dists)
+    dist_min_index_rho = np.argwhere(dists == dist_min)[0][1] # index of the minimum distance in the rho_sa array
+    rho_closest = rho_sa[dist_min_index_rho]
+    theta_closest = theta_sa[dist_min_index_rho]
+    x_closest = rho_closest*np.cos(theta_closest)
+    y_closest = rho_closest*np.sin(theta_closest)
+    return x_closest, y_closest, rho_closest
+    
+    
+def find_rho_min_max(long1=30, long2=None):
+    """ Function to find the minimum and maximum distance between the line of sight and the spiral arm.
+    Also adds rho_max to the const.rho_max_spiral_arm array and rho_min to the const.rho_min_sagittarius float.
+
+    Args:
+        long1 (float, optional): Galactic longitude in degrees for the first line of sight. Defaults to 30.
+        long2 (float, optional): Galactic longitude in degrees for the second line of sight. Defaults to None. if None, rho_min and rho_max are calculated for the same line of sight.
+    
+    Returns:
+        rho_min (float): Minimum distance between the line of sight and the spiral arm
+        rho_max (float): Maximum distance between the line of sight and the spiral arm
+    """
+    x_1, y_1, rho_closest1 = find_rho_min(long1, 0)
+    if long2 == None:
+        x_2, y_2, rho_closest2 = find_rho_min(long1, 7)
+    else:
+        x_2, y_2, rho_closest2 = find_rho_min(long2, 7)
+    rho_min = np.min([rho_closest1, rho_closest2])
+    rho_max = np.max([rho_closest1, rho_closest2])
+    const.rho_max_spiral_arm = np.concatenate((const.rho_max_spiral_arm, [rho_max]))
+    const.rho_min_sagittarius = rho_min
+    const.rho_max_sagittarius = rho_max
+    return rho_min, rho_max
+
+
+def add_devoid_region_sagittarius():
+    """ Function to add a devoid region in the Sagittarius-Carina arm. The region is defined by a minimum and maximum distance from the Galactic plane."""
+    find_rho_min_max()
+    const.rho_min_spiral_arm = np.concatenate((const.rho_min_spiral_arm, [const.rho_min_spiral_arm[2]]))
+    const.arm_angles = np.concatenate((const.arm_angles, [const.arm_angles[2]]))
+    const.pitch_angles = np.concatenate((const.pitch_angles, [const.pitch_angles[2]]))
+    const.fractional_contribution = np.concatenate((const.fractional_contribution, [-0.5*const.fractional_contribution[2]]))
+
+
 def main() -> None:
     logging.info("Starting main function")
+    if settings.add_devoid_region_sagittarius == True:
+        add_devoid_region_sagittarius()
     calc_modelled_intensity(readfile_effective_area=True)
-    plot_modelled_intensity_per_arm()
+    plot_modelled_intensity_per_arm(filename_output=f'{const.FOLDER_MODELS_GALAXY}/modelled_intensity_with_devoid.pdf')
     #test_max_b()
 
 
 if __name__ == "__main__":
     main()
+   
 
 # SO the pitch angles must also be changed. 
 # For SA: the larger starting angle, the closer to GC the luminocity is concentrated. Will thus adopt a starting angle of 245 degrees for next test run
