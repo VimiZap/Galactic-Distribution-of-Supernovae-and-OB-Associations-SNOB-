@@ -177,7 +177,6 @@ def interpolate_density(h=None, sigma_arm=None, arm_angles=None, pitch_angles=No
         3D np.array: Interpolated densities for each spiral arm along axis 0. Axis 1 and 2 are the densities with respect to the grid
     """
     # Load default parameters if not provided
-    # Load default parameters if not provided
     if h is None:
         h = const.h_spiral_arm
     if sigma_arm is None:

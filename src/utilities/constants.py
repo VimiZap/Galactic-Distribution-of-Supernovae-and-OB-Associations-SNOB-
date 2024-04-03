@@ -59,4 +59,5 @@ FOLDER_OBSERVATIONAL_DATA = 'data/observational'
 FOLDER_GALAXY_TESTS = 'data/plots/tests_galaxy_class'
 FOLDER_MODELS_GALAXY = 'data/plots/models_galaxy'
 FOLDER_OBSERVATIONAL_PLOTS = 'data/plots/observational_plots'
+FOLDER_CHI_SQUARED = 'data\chi_square_tests'
 
