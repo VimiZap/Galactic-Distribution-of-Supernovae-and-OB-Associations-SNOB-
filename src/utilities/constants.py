@@ -17,7 +17,6 @@ cygnus_nii_luminosity = 2.4e37 # erg/s, luminosity of the Cygnus Loop in N II 20
 measured_nii_30_deg = 0.00011711056373558678 # erg/s/cm²/sr measured N II 205 micron line intensity at 30 degrees longitude. Retrieved from the FIRAS data with the function firas_data.find_firas_intensity_at_central_long(30)
 kpc = 3.08567758e21    # 1 kpc in cm
 # kpc^2, source-weighted Galactic-disk area. See https://iopscience.iop.org/article/10.1086/303587/pdf, equation 37
-a_d_spiral_arm = 2*np.pi*h_spiral_arm**2 * ((1+rho_min_spiral_arm/h_spiral_arm)*np.exp(-rho_min_spiral_arm/h_spiral_arm) - (1+rho_max_spiral_arm/h_spiral_arm)*np.exp(-rho_max_spiral_arm/h_spiral_arm))
 a_d_axisymmetric = 2*np.pi*h_axisymmetric**2 * ((1+rho_min_axisymmetric/h_axisymmetric)*np.exp(-rho_min_axisymmetric/h_axisymmetric) - (1+rho_max_axisymmetric/h_axisymmetric)*np.exp(-rho_max_axisymmetric/h_axisymmetric)) 
 # starting angles, pitch-angles and fractional contributions for the spiral arms, respectively Norma-Cygnus(NC), Perseus(P), Sagittarius-Carina(SA), Scutum-Crux(SC)
 arm_angles = np.radians([65, 160, 240, 330])  # best fit for the new r_s

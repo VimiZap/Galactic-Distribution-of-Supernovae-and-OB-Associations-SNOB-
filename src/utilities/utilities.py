@@ -43,6 +43,18 @@ def z(r, b):
     return r * np.sin(b)
 
 
+def xy_to_long(x, y):
+    """ Function to calculate the Galactic longitude from the x and y coordinates
+
+    Args:
+        x: x-coordinate
+        y: y-coordinate
+    Returns:
+        Galactic longitude in radians
+    """
+    return np.arctan2(y - const.r_s, x) + np.pi/2
+
+
 def axisymmetric_disk_population(rho, h):
     """ Function describing the density of the disk at a distance rho from the Galactic center
 
@@ -67,26 +79,26 @@ def height_distribution(z, sigma):
 
 
 def running_average(data, window_size):
-   """ Calculates the running average of the data
+    """ Calculates the running average of the data
 
-   Args: 
-        data: 1D np.array with data
-        window_size: int, the size of the window used to calculate the running average. Denotes the number of points for each window
-    Returns:
-        1D np.array with the running average of the data
-   """
-   array_running_averaged = []
-   delta = int((window_size)//2)
-   for i in range(len(data)):
-      if i-delta < 0:
-         val = np.sum(data[-delta + i:]) + np.sum(data[:delta + i + 1])
-         array_running_averaged.append(val)
-      elif i+delta >= len(data):
-         val = np.sum(data[i-delta:]) + np.sum(data[:delta + i - len(data) + 1])
-         array_running_averaged.append(val)
-      else:
-         array_running_averaged.append(np.sum(data[i-delta:i+delta + 1]))
-   return np.array(array_running_averaged)
+    Args: 
+            data: 1D np.array with data
+            window_size: int, the size of the window used to calculate the running average. Denotes the number of points for each window
+        Returns:
+            1D np.array with the running average of the data
+    """
+    array_running_averaged = []
+    delta = int((window_size)//2)
+    for i in range(len(data)):
+        if i-delta < 0:
+            val = np.sum(data[-delta + i:]) + np.sum(data[:delta + i + 1])
+            array_running_averaged.append(val)
+        elif i+delta >= len(data):
+            val = np.sum(data[i-delta:]) + np.sum(data[:delta + i - len(data) + 1])
+            array_running_averaged.append(val)
+        else:
+            array_running_averaged.append(np.sum(data[i-delta:i+delta + 1]))
+    return np.array(array_running_averaged)
 
 
 def sum_pairwise(data):
@@ -114,8 +126,7 @@ def rearange_data(data):
         1D np.array with the rearanged data. Half the size of the input array
     """
     if not len(data) % 2 == 0:
-        print("The array must contain an even number of points")
-        return None
+        raise ValueError("The array must contain an even number of points")
     middle = int(len(data)/2)
     data_centre_left = data[0]
     data_left = sum_pairwise(data[1:middle-1])

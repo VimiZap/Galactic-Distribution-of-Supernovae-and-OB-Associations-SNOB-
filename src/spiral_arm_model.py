@@ -164,7 +164,7 @@ def generate_spiral_arm_densities(rho, transverse_densities_initial, h=const.h_s
     return density_spiral_arm
 
 
-def interpolate_density(h=const.h_spiral_arm, sigma_arm=const.sigma_arm, arm_angles=const.arm_angles, pitch_angles=const.pitch_angles):
+def interpolate_density(h=None, sigma_arm=None, arm_angles=None, pitch_angles=None):
     """ Integrates the densities of the spiral arms over the entire galactic plane. The returned density is in units of kpc^-2. 
     Compared with the paper, it integrates P_\rho x P_\Delta at the top of page 6
 
@@ -176,6 +176,16 @@ def interpolate_density(h=const.h_spiral_arm, sigma_arm=const.sigma_arm, arm_ang
     Returns:
         3D np.array: Interpolated densities for each spiral arm along axis 0. Axis 1 and 2 are the densities with respect to the grid
     """
+    # Load default parameters if not provided
+    # Load default parameters if not provided
+    if h is None:
+        h = const.h_spiral_arm
+    if sigma_arm is None:
+        sigma_arm = const.sigma_arm
+    if arm_angles.any() is None:
+        arm_angles = const.arm_angles
+    if pitch_angles.any() is None:
+        pitch_angles = const.pitch_angles
     transverse_distances, transverse_densities_initial = generate_transverse_spacing_densities(sigma_arm) 
     x_grid = np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/x_grid.npy')
     y_grid = np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/y_grid.npy')
@@ -203,7 +213,7 @@ def interpolate_density(h=const.h_spiral_arm, sigma_arm=const.sigma_arm, arm_ang
     return
 
 
-def calc_effective_area_per_spiral_arm(h=const.h_spiral_arm, sigma_arm=const.sigma_arm, arm_angles=const.arm_angles, pitch_angles=const.pitch_angles):
+def calc_effective_area_per_spiral_arm(h=None, sigma_arm=None, arm_angles=None, pitch_angles=None):
     """ Function to calculate the effective area for each spiral arm. The density of each spiral arm is integrated over the entire galactic plane.
     The returned effective areas are in units of kpc^2, and appears in the same order as the spiral arms in arm_angles.
 
@@ -223,6 +233,15 @@ def calc_effective_area_per_spiral_arm(h=const.h_spiral_arm, sigma_arm=const.sig
     d_y = 70 / 3000 # distance between each interpolated point in the y direction. 70 kpc is the diameter of the Milky Way, 1000 is the number of points
     grid_x, grid_y = np.mgrid[-35:35:3000j, -35:35:3000j]
     effective_area = []
+    # Load default parameters if not provided
+    if h is None:
+        h = const.h_spiral_arm
+    if sigma_arm is None:
+        sigma_arm = const.sigma_arm
+    if arm_angles.any() is None:
+        arm_angles = const.arm_angles
+    if pitch_angles.any() is None:
+        pitch_angles = const.pitch_angles
     for i in range(len(arm_angles)):
         # generate the spiral arm medians
         theta, rho = spiral_arm_medians(arm_angles[i], pitch_angles[i], const.rho_min_spiral_arm[i], const.rho_max_spiral_arm[i])
@@ -231,14 +250,14 @@ def calc_effective_area_per_spiral_arm(h=const.h_spiral_arm, sigma_arm=const.sig
         # generate the spiral arm densities
         density_spiral_arm = generate_spiral_arm_densities(rho, transverse_densities_initial, h)
         # calculate interpolated density for the spiral arm
-        interpolated_density = griddata((x, y), density_spiral_arm, (grid_x, grid_y), fill_value=0)
+        interpolated_density = griddata((x, y), density_spiral_arm, (grid_x, grid_y), method='cubic', fill_value=0)
         interpolated_density[interpolated_density < 0] = 0 # set all negative values to 0
         # add the interpolated density to the total galactic density
         effective_area = np.append(effective_area, np.sum(interpolated_density) * d_x * d_y)
     if settings.add_devoid_region_sagittarius:
         # the devoid region shall, in effect, just modify the existing emissivity for the Sagittarius-Carina arm
         # hence the effective area for the devoid region is the same as for the entire arm
-        effective_area[-1] = effective_area[2]
+        effective_area[5] = effective_area[2]
     filepath = f'{const.FOLDER_GALAXY_DATA}/effective_area_per_spiral_arm.npy'
     np.save(filepath, effective_area)
     return effective_area
@@ -377,7 +396,7 @@ def calculate_galactic_coordinates(b_max=5, db_above_1_deg = 0.2, b_min=0.01, b_
     return
     
 
-def calc_modelled_emissivity(b_max=1, db_above_1_deg = 0.1, fractional_contribution=const.fractional_contribution, readfile_effective_area=True, h=const.h_spiral_arm, sigma_arm=const.sigma_arm, arm_angles=const.arm_angles, pitch_angles=const.pitch_angles):
+def calc_modelled_emissivity(b_max=1, db_above_1_deg = 0.1, fractional_contribution=None, readfile_effective_area=True, h=None, sigma_arm=None, arm_angles=None, pitch_angles=None):
     logging.info("Calculating modelled emissivity of the Milky Way")
     if readfile_effective_area == True:
         effective_area = np.load(f'{const.FOLDER_GALAXY_DATA}/effective_area_per_spiral_arm.npy')
@@ -385,6 +404,17 @@ def calc_modelled_emissivity(b_max=1, db_above_1_deg = 0.1, fractional_contribut
         effective_area = calc_effective_area_per_spiral_arm(h, sigma_arm, arm_angles, pitch_angles)
     else:
         raise ValueError("readfile_effective_area must be either True or False")
+    # Load default parameters if not provided
+    if fractional_contribution is None:
+        fractional_contribution = const.fractional_contribution
+    if h == None:
+        h = const.h_spiral_arm
+    if sigma_arm == None:
+        sigma_arm = const.sigma_arm
+    if arm_angles is None:
+        arm_angles = const.arm_angles
+    if pitch_angles is None:
+        pitch_angles = const.pitch_angles
     print(effective_area)
     #calculate_galactic_coordinates(b_max, db_above_1_deg)
     logging.info("Coordinates calculated. Now interpolating each spiral arm")
@@ -403,8 +433,19 @@ def calc_modelled_emissivity(b_max=1, db_above_1_deg = 0.1, fractional_contribut
     return  
 
 
-def calc_modelled_intensity(b_max=5, db_above_1_deg = 0.2, fractional_contribution=const.fractional_contribution, readfile_effective_area=True, h=const.h_spiral_arm, sigma_arm=const.sigma_arm, arm_angles=const.arm_angles, pitch_angles=const.pitch_angles):
+def calc_modelled_intensity(b_max=5, db_above_1_deg = 0.2, fractional_contribution=None, readfile_effective_area=True, h=None, sigma_arm=None, arm_angles=None, pitch_angles=None):
     logging.info("Calculating the modelled NII intensity of the Milky Way")
+    # Load default parameters if not provided
+    if fractional_contribution is None:
+        fractional_contribution = const.fractional_contribution
+    if h == None:
+        h = const.h_spiral_arm
+    if sigma_arm == None:
+        sigma_arm = const.sigma_arm
+    if arm_angles is None:
+        arm_angles = const.arm_angles
+    if pitch_angles is None:
+        pitch_angles = const.pitch_angles
     calc_modelled_emissivity(b_max, db_above_1_deg, fractional_contribution, readfile_effective_area, h, sigma_arm, arm_angles, pitch_angles)
     num_rads = len(np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/radial_distances.npy'))
     num_longs = len(np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/longitudes.npy'))
@@ -436,7 +477,7 @@ def calc_modelled_intensity(b_max=5, db_above_1_deg = 0.2, fractional_contributi
     return
 
 
-def plot_modelled_intensity_per_arm(filename_output = f'{const.FOLDER_MODELS_GALAXY}/modelled_intensity.pdf', filename_intensity_data = f'{const.FOLDER_GALAXY_DATA}/intensities_per_arm_b_max_5.npy', fractional_contribution=const.fractional_contribution, h=const.h_spiral_arm, sigma_arm=const.sigma_arm):
+def plot_modelled_intensity_per_arm(filename_output = f'{const.FOLDER_MODELS_GALAXY}/modelled_intensity.pdf', filename_intensity_data = f'{const.FOLDER_GALAXY_DATA}/intensities_per_arm_b_max_5.npy', fractional_contribution=None, h=None, sigma_arm=None):
     """ Plots the modelled intensity of the Galactic disk as a function of Galactic longitude. Each spiral arm is plotted separately, as well as the total intensity. Assumes that the itensities have been calculated and saved to disk beforehand.
 
     Args:
@@ -449,8 +490,16 @@ def plot_modelled_intensity_per_arm(filename_output = f'{const.FOLDER_MODELS_GAL
     Returns:
         None: The plot is saved to disk
     """
+    # Load default parameters if not provided
+    if fractional_contribution is None:
+        fractional_contribution = const.fractional_contribution
+    if h == None:
+        h = const.h_spiral_arm
+    if sigma_arm == None:
+        sigma_arm = const.sigma_arm
     # plot the FIRAS data for the NII 205 micron line
     bin_edges_line_flux, bin_centre_line_flux, line_flux, line_flux_error = firas_data.firas_data_for_plotting()
+    plt.figure(figsize=(10, 6))
     plt.stairs(values=line_flux, edges=bin_edges_line_flux, fill=False, color='black')
     plt.errorbar(bin_centre_line_flux, line_flux, yerr=line_flux_error,fmt='none', ecolor='black', capsize=0, elinewidth=1)
     # plot the modelled intensity
@@ -460,19 +509,20 @@ def plot_modelled_intensity_per_arm(filename_output = f'{const.FOLDER_MODELS_GAL
     plt.plot(np.linspace(0, 360, len(longitudes)), intensities_per_arm[1], label=f"P. $\ $ f={fractional_contribution[1]}")
     plt.plot(np.linspace(0, 360, len(longitudes)), intensities_per_arm[2], label=f"SA. f={fractional_contribution[2]}")
     plt.plot(np.linspace(0, 360, len(longitudes)), intensities_per_arm[3], label=f"SC. f={fractional_contribution[3]}")
-    if settings.add_devoid_region_sagittarius == True and settings.add_local_arm_to_intensity_plot==True:
+    intensities_total = np.sum(intensities_per_arm[:4], axis=0)
+    if settings.add_local_arm_to_intensity_plot == True:
         plt.plot(np.linspace(0, 360, len(longitudes)), intensities_per_arm[4], label=f"Local arm. f={fractional_contribution[4]}")
-        plt.plot(np.linspace(0, 360, len(longitudes)), intensities_per_arm[5], label=f"Devoid region. f={fractional_contribution[5]}")
-        plt.plot(np.linspace(0, 360, len(longitudes)), np.sum(intensities_per_arm, axis=0), label="Total")
-    elif settings.add_devoid_region_sagittarius == True:
+        intensities_total += intensities_per_arm[4]
+    if settings.add_devoid_region_sagittarius == True:
         plt.plot(np.linspace(0, 360, len(longitudes)), intensities_per_arm[5], label=f"Devoid region. f={fractional_contribution[4]}")
-        total = np.sum(intensities_per_arm[:4], axis=0) + intensities_per_arm[5]
-        plt.plot(np.linspace(0, 360, len(longitudes)), total, label="Total")
-    elif settings.add_local_arm_to_intensity_plot == True:
-        plt.plot(np.linspace(0, 360, len(longitudes)), intensities_per_arm[4], label=f"Local arm. f={fractional_contribution[4]}")
-        plt.plot(np.linspace(0, 360, len(longitudes)), np.sum(intensities_per_arm[:5], axis=0), label="Total")
-    else:
-        plt.plot(np.linspace(0, 360, len(longitudes)), np.sum(intensities_per_arm[:4], axis=0), label="Total")
+        intensities_total += intensities_per_arm[5]
+    if settings.add_gum_cygnus == True:
+        gum = np.load(f'{const.FOLDER_GALAXY_DATA}/intensities_gum.npy')
+        cygnus = np.load(f'{const.FOLDER_GALAXY_DATA}/intensities_cygnus.npy')
+        gum_cygnus = gum + cygnus
+        plt.plot(np.linspace(0, 360, len(longitudes)), gum_cygnus, label=f"Local OBA.")
+        intensities_total += gum_cygnus
+    plt.plot(np.linspace(0, 360, len(longitudes)), intensities_total, label="Total intensity")
     # Redefine the x-axis labels to match the values in longitudes
     x_ticks = (180, 150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210, 180)
     plt.xticks(np.linspace(0, 360, 13), x_ticks)
@@ -574,12 +624,19 @@ def main() -> None:
     logging.info("Starting main function")
     if settings.add_devoid_region_sagittarius == True:
         add_devoid_region_sagittarius()
-    calc_modelled_intensity(readfile_effective_area=True)
+    #calc_modelled_intensity(readfile_effective_area=True)
     plot_modelled_intensity_per_arm(filename_output=f'{const.FOLDER_MODELS_GALAXY}/modelled_intensity_with_devoid.pdf')
     #test_max_b()
 
 
 if __name__ == "__main__":
+    logging.info("Starting main function")
+    """ if settings.add_devoid_region_sagittarius == True:
+        add_devoid_region_sagittarius()
+    calc_effective_area_per_spiral_arm()
+    effective_area = np.load(f'{const.FOLDER_GALAXY_DATA}/effective_area_per_spiral_arm.npy')
+    print(effective_area)
+    """
     main()
    
 
