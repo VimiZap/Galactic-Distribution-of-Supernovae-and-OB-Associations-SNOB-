@@ -5,6 +5,8 @@ import src.utilities.utilities as ut
 from matplotlib.ticker import AutoMinorLocator
 import src.observational_data.firas_data as firas_data
 from scipy.interpolate import griddata
+import logging
+logging.basicConfig(level=logging.INFO)
 
 
 
@@ -78,16 +80,13 @@ def generate_uniform_sphere(radius, center_r, center_l, center_b, resolution=250
 def intensity(longitudes, densities, central_long, window_size=5):
     dl = 0.1 # Keep this value at 0.1 in order for the resulting intensities to be able to be plotted together with the spiral arms
     bins = np.arange(0, 360 + dl, dl)
-    print('len bins: ', len(bins))
     central_bins = bins[:-1] + dl / 2
     central_bins = ut.rearange_data(central_bins)[:-1] / 2
     binned_intensity, bin_edges = np.histogram(np.degrees(longitudes), bins=bins, weights=densities)
-    print('len binned_intensity: ', len(binned_intensity))
     num_intensities_per_bin, _ = np.histogram(np.degrees(longitudes), bins=bins)
     num_intensities_per_bin[num_intensities_per_bin == 0] = 1
     binned_intensity /= num_intensities_per_bin
     rearanged_intensity = ut.rearange_data(binned_intensity)[:-1]
-    print('len rearanged_intensity: ', len(rearanged_intensity))
     window_size = window_size / dl
     rearanged_intensity = ut.running_average(rearanged_intensity, window_size) / window_size 
     fwhm = np.radians(7)
@@ -95,6 +94,23 @@ def intensity(longitudes, densities, central_long, window_size=5):
     gaussian_density_weights = gaussian_distribution(np.radians(central_bins), central_long, std)
     rearanged_intensity *= gaussian_density_weights
     return rearanged_intensity
+
+
+def calc_effective_area(radius, distance_r=0, position_l=0, position_b=0):
+    logging.info('Calculating the effective area of the Gum Nebula and Cygnus Loop')
+    d_x = 70 / 3000 # distance between each interpolated point in the x direction. 70 kpc is the diameter of the Milky Way, 1000 is the number of points
+    d_y = 70 / 3000 # distance between each interpolated point in the y direction. 70 kpc is the diameter of the Milky Way, 1000 is the number of points
+    grid_x, grid_y = np.mgrid[-35:35:3000j, -35:35:3000j]
+    theta = np.linspace(0, 2 * np.pi, 100)
+    radial_points = np.linspace(0, radius, 100)
+    theta_grid, radial_grid = np.meshgrid(theta, radial_points, indexing='ij')
+    x = radial_grid * np.cos(theta_grid)
+    y = radial_grid * np.sin(theta_grid)
+    density = np.ones_like(x)
+    interpolated_density = griddata((x.flatten(), y.flatten()), density.flatten(), (grid_x, grid_y), method='cubic', fill_value=0)
+    interpolated_density[interpolated_density < 0] = 0 # set all negative values to 0
+    effective_area = np.sum(interpolated_density) * d_x * d_y
+    return effective_area
 
 
 def cygnus():
@@ -124,6 +140,11 @@ def gum():
     intensity_gum = intensity(l_gum, density * const.gum_nii_luminosity, gum_long) / effective_area_gum
     np.save(f'{const.FOLDER_GALAXY_DATA}/intensities_gum.npy', intensity_gum)
     return r_gum, l_gum, b_gum, intensity_gum
+
+
+def generate_gum_cygnus():
+    gum()
+    cygnus()
 
 
 def test_plot_sphere():
@@ -177,9 +198,6 @@ def plot_modelled_intensity_gum_cygnus(filename_output = f'{const.FOLDER_MODELS_
     _, _, _, gum_intensity = gum()
     total_intensity = cyg_intensity + gum_intensity
     num_longs = len(np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/longitudes.npy'))
-    print('num_longs_used_elsewere in the code:', num_longs)
-    print('len(cyg_intensity):', len(cyg_intensity))
-    print('len(gum_intensity):', len(gum_intensity))
     #plt.plot(np.linspace(0, 360, len(cyg_intensity)), cyg_intensity, label='Cygnus Loop')
     #plt.plot(np.linspace(0, 360, len(gum_intensity)), gum_intensity, label='Gum Nebula')
     plt.plot(np.linspace(0, 360, len(total_intensity)), total_intensity, label='Local OBA')
@@ -192,25 +210,10 @@ def plot_modelled_intensity_gum_cygnus(filename_output = f'{const.FOLDER_MODELS_
     plt.show()
 
 
-def calc_effective_area(radius, distance_r=0, position_l=0, position_b=0):
-    print('calculating effective area')
-    d_x = 70 / 3000 # distance between each interpolated point in the x direction. 70 kpc is the diameter of the Milky Way, 1000 is the number of points
-    d_y = 70 / 3000 # distance between each interpolated point in the y direction. 70 kpc is the diameter of the Milky Way, 1000 is the number of points
-    grid_x, grid_y = np.mgrid[-35:35:3000j, -35:35:3000j]
-    theta = np.linspace(0, 2 * np.pi, 100)
-    radial_points = np.linspace(0, radius, 100)
-    theta_grid, radial_grid = np.meshgrid(theta, radial_points, indexing='ij')
-    x = radial_grid * np.cos(theta_grid)
-    y = radial_grid * np.sin(theta_grid)
-    density = np.ones_like(x)
-    interpolated_density = griddata((x.flatten(), y.flatten()), density.flatten(), (grid_x, grid_y), method='cubic', fill_value=0)
-    interpolated_density[interpolated_density < 0] = 0 # set all negative values to 0
-    effective_area = np.sum(interpolated_density) * d_x * d_y
-    return effective_area
-
-
-#test_plot_sphere()
-#plot_gum_cyg()
-plot_modelled_intensity_gum_cygnus()
-#test_resolution()
-#cygnus()
+if '__name__' == '__main__':
+    generate_gum_cygnus()
+    #test_plot_sphere()
+    #plot_gum_cyg()
+    plot_modelled_intensity_gum_cygnus()
+    #test_resolution()
+    #cygnus()

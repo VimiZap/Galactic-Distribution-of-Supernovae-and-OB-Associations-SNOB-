@@ -8,6 +8,7 @@ from scipy import stats
 from scipy.interpolate import griddata
 import datetime
 import os
+from pathlib import Path
 import logging
 logging.basicConfig(level=logging.INFO)
 
@@ -40,14 +41,23 @@ def load_modelled_data(filename_arm_intensities='intensities_per_arm_b_max_5.npy
     longitudes = np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/longitudes.npy')
     intensities_modelled = np.sum(intensities_per_arm[:4], axis=0)
     if settings.add_local_arm_to_intensity_plot == True: # add the local arm contribution
-        intensities_modelled += intensities_per_arm[4]
+        try: 
+            intensities_modelled += intensities_per_arm[4]
+        except: 
+            logging.warning("The local arm has not been added to the modelled data. You can generate it in spiral_arm_model.py")
     if settings.add_devoid_region_sagittarius == True: # take into account the known devoid region of Sagittarius
-        intensities_modelled += intensities_per_arm[5]
+        try:
+            intensities_modelled += intensities_per_arm[5]
+        except:
+            logging.warning("The devoid region of Sagittarius has not been added to the modelled data. You can generate it in spiral_arm_model.py")
     if settings.add_gum_cygnus == True: # add the contribution from the nearby OBA
-        gum = np.load(f'{const.FOLDER_GALAXY_DATA}/intensities_gum.npy')
-        cygnus = np.load(f'{const.FOLDER_GALAXY_DATA}/intensities_cygnus.npy')
-        gum_cygnus = gum + cygnus
-        intensities_modelled += gum_cygnus
+        try:
+            gum = np.load(f'{const.FOLDER_GALAXY_DATA}/intensities_gum.npy')
+            cygnus = np.load(f'{const.FOLDER_GALAXY_DATA}/intensities_cygnus.npy')
+            gum_cygnus = gum + cygnus
+            intensities_modelled += gum_cygnus
+        except:
+            logging.warning("The Gum Nebula and Cygnus Loop contributions have not been added to the modelled data. You can generate them in gum_cygnus.py")
     return intensities_modelled
 
 
@@ -99,6 +109,9 @@ def optimize_spiral_arm_start_angle(delta):
     # Get the function name
     function_name = os.path.splitext(os.path.basename(__file__))[0]
     filename_log = os.path.join(const.FOLDER_CHI_SQUARED, f"{function_name}_{current_time}.txt")
+    # check if the folder exists, if not create it
+    Path(const.FOLDER_CHI_SQUARED).mkdir(parents=True, exist_ok=True)
+    
     ###
     firas_intensity, firas_variance = load_firas_data()
     arm_angles = const.arm_angles.copy() - delta - 1 # subtract delta from each arm. Subtract 1 to make sure the first iteration is correct
@@ -116,22 +129,22 @@ def optimize_spiral_arm_start_angle(delta):
     chi_squared_min = np.inf
     with open(filename_log, 'w') as file:
         # i = Norma-Cygnus, j = Perseus, k = Sagittarius-Carina, l = Scutum-Crux
-        file.write('Arm_angle_NC, Arm_angle_P, Arm_angle_SA, Arm_angle_SC, Chi-squared\n')
+        file.write('Arm_angle_NC, Arm_angle_P, Arm_angle_SA, Arm_angle_SC, Pitch_angle_NC, Pitch_angle_P, Pitch_angle_SA, Pitch_angle_SC, f_NC, f_P, f_SA, f_SC, h, sigma, Chi-squared\n')
         for i in range(num_angles_to_sample): 
             arm_angles[0] += 1 / scale
-            interpolate_density_one_arm(const.h_axisymmetric, arm_angles[0], const.pitch_angles[0], transverse_distances, transverse_densities_initial, arm_index=0)
+            interpolate_density_one_arm(const.h_spiral_arm, arm_angles[0], const.pitch_angles[0], transverse_distances, transverse_densities_initial, arm_index=0)
             for j in range(num_angles_to_sample): 
                 arm_angles[1] += 1 / scale
-                interpolate_density_one_arm(const.h_axisymmetric, arm_angles[1], const.pitch_angles[1], transverse_distances, transverse_densities_initial, arm_index=1)
+                interpolate_density_one_arm(const.h_spiral_arm, arm_angles[1], const.pitch_angles[1], transverse_distances, transverse_densities_initial, arm_index=1)
                 for k in range(num_angles_to_sample):
                     arm_angles[2] += 1 / scale
-                    interpolate_density_one_arm(const.h_axisymmetric, arm_angles[2], const.pitch_angles[2], transverse_distances, transverse_densities_initial, arm_index=2)
+                    interpolate_density_one_arm(const.h_spiral_arm, arm_angles[2], const.pitch_angles[2], transverse_distances, transverse_densities_initial, arm_index=2)
                     for l in range(num_angles_to_sample): 
                         arm_angles[3] += 1 / scale
-                        interpolate_density_one_arm(const.h_axisymmetric, arm_angles[3], const.pitch_angles[3], transverse_distances, transverse_densities_initial, arm_index=3)
+                        interpolate_density_one_arm(const.h_spiral_arm, arm_angles[3], const.pitch_angles[3], transverse_distances, transverse_densities_initial, arm_index=3)
                         intensities_modelled = load_modelled_data()
                         chi_squared_val = chi_squared(firas_intensity, firas_variance, intensities_modelled)
-                        file.write(f'{arm_angles[0]}, {arm_angles[1]}, {arm_angles[2]}, {arm_angles[3]}, {chi_squared_val}\n')
+                        file.write(f'{arm_angles[0]}, {arm_angles[1]}, {arm_angles[2]}, {arm_angles[3]}, {const.pitch_angles[0]}, {const.pitch_angles[1]}, {const.pitch_angles[2]}, {const.pitch_angles[3]}, {const.fractional_contribution[0]}, {const.fractional_contribution[1]}, {const.fractional_contribution[2]}, {const.fractional_contribution[3]}, {const.h_spiral_arm}, {const.sigma_arm}, {chi_squared_val}\n')
                         if chi_squared_val < chi_squared_min:
                             chi_squared_min = chi_squared_val
                             best_angles = arm_angles.copy()

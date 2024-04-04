@@ -10,6 +10,7 @@ import src.observational_data.firas_data as firas_data
 import src.utilities.utilities as ut
 import src.utilities.constants as const
 import src.utilities.settings as settings
+import src.gum_cygnus as gum_cygnus
 #from galaxy_tests import test_plot_density_distribution
 
 
@@ -403,6 +404,8 @@ def calc_modelled_emissivity(b_max=1, db_above_1_deg = 0.1, fractional_contribut
         effective_area = calc_effective_area_per_spiral_arm(h, sigma_arm, arm_angles, pitch_angles)
     else:
         raise ValueError("readfile_effective_area must be either True or False")
+    if len(effective_area) != len(arm_angles):
+        raise ValueError("Some spiral arms are missing their effective area. Please recalculate the effective areas")
     # Load default parameters if not provided
     if fractional_contribution is None:
         fractional_contribution = const.fractional_contribution
@@ -414,7 +417,6 @@ def calc_modelled_emissivity(b_max=1, db_above_1_deg = 0.1, fractional_contribut
         arm_angles = const.arm_angles
     if pitch_angles is None:
         pitch_angles = const.pitch_angles
-    print(effective_area)
     #calculate_galactic_coordinates(b_max, db_above_1_deg)
     logging.info("Coordinates calculated. Now interpolating each spiral arm")
     # coordinates made. Now we need to interpolate each spiral arm and sum up the densities
@@ -473,6 +475,9 @@ def calc_modelled_intensity(b_max=5, db_above_1_deg = 0.2, fractional_contributi
     b_filename = str(b_max).replace(".", "_")
     filename_intensity_data = f'{const.FOLDER_GALAXY_DATA}/intensities_per_arm_b_max_{b_filename}.npy'
     np.save(filename_intensity_data, intensities_per_arm) # saving the same array we are plotting usually. Sum over all spiral arms to get one longitudinal map. With running average
+    if settings.add_gum_cygnus == True:
+        logging.info("Calculating the intensity for the Gum and Cygnus regions")
+        gum_cygnus.generate_gum_cygnus()
     return
 
 
@@ -510,17 +515,27 @@ def plot_modelled_intensity_per_arm(filename_output = f'{const.FOLDER_MODELS_GAL
     plt.plot(np.linspace(0, 360, len(longitudes)), intensities_per_arm[3], label=f"SC. f={fractional_contribution[3]}")
     intensities_total = np.sum(intensities_per_arm[:4], axis=0)
     if settings.add_local_arm_to_intensity_plot == True:
-        plt.plot(np.linspace(0, 360, len(longitudes)), intensities_per_arm[4], label=f"Local arm. f={fractional_contribution[4]}")
-        intensities_total += intensities_per_arm[4]
+        try: # check if the local arm has been generated or not
+            plt.plot(np.linspace(0, 360, len(longitudes)), intensities_per_arm[4], label=f"Local arm. f={fractional_contribution[4]}")
+            intensities_total += intensities_per_arm[4]
+        except: # if not, raise a warning
+            logging.warning("The local arm was not included in the model. It may not have been generated. Skipping this part of the plot. Try calling the function 'calc_modelled_intensity' first")
     if settings.add_devoid_region_sagittarius == True:
-        plt.plot(np.linspace(0, 360, len(longitudes)), intensities_per_arm[5], label=f"Devoid region. f={fractional_contribution[4]}")
-        intensities_total += intensities_per_arm[5]
+        try: # check first if the devoid region has been generated or not
+            plt.plot(np.linspace(0, 360, len(longitudes)), intensities_per_arm[5], label=f"Devoid region. f={fractional_contribution[4]}")
+            intensities_total += intensities_per_arm[5]
+        except: # if not, raise a warning
+            logging.warning("The devoid region was not included in the model. It may not have been generated. Skipping this part of the plot. Try calling the function 'calc_modelled_intensity' first")
     if settings.add_gum_cygnus == True:
-        gum = np.load(f'{const.FOLDER_GALAXY_DATA}/intensities_gum.npy')
-        cygnus = np.load(f'{const.FOLDER_GALAXY_DATA}/intensities_cygnus.npy')
-        gum_cygnus = gum + cygnus
-        plt.plot(np.linspace(0, 360, len(longitudes)), gum_cygnus, label=f"Local OBA.")
-        intensities_total += gum_cygnus
+        try: # check if the gum-cygnus regions have been generated
+            gum = np.load(f'{const.FOLDER_GALAXY_DATA}/intensities_gum.npy')
+            cygnus = np.load(f'{const.FOLDER_GALAXY_DATA}/intensities_cygnus.npy')
+            gum_cygnus = gum + cygnus
+            plt.plot(np.linspace(0, 360, len(longitudes)), gum_cygnus, label=f"Local OBA.")
+            intensities_total += gum_cygnus
+        except: # if not, raise a warning
+            logging.warning("The Gum and Cygnus regions were not included in the model. They may not have been generated. Skipping this part of the plot. Try calling the function 'gum' and 'cygnus' in gum_cygnus.py first")
+        
     plt.plot(np.linspace(0, 360, len(longitudes)), intensities_total, label="Total intensity")
     # Redefine the x-axis labels to match the values in longitudes
     x_ticks = (180, 150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210, 180)
@@ -623,7 +638,7 @@ def main() -> None:
     logging.info("Starting main function")
     if settings.add_devoid_region_sagittarius == True:
         add_devoid_region_sagittarius()
-    #calc_modelled_intensity(readfile_effective_area=True)
+    calc_modelled_intensity(readfile_effective_area=False)
     plot_modelled_intensity_per_arm(filename_output=f'{const.FOLDER_MODELS_GALAXY}/modelled_intensity_with_devoid.pdf')
     #test_max_b()
 
