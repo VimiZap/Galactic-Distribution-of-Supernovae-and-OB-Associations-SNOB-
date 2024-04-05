@@ -1,4 +1,5 @@
 import pandas as pd
+import seaborn as sns
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 import numpy as np
@@ -155,12 +156,13 @@ def add_spiral_arms_to_ax(ax):
     Returns:
         None
     """
+    colors = sns.color_palette('bright', 7)
     for i in range(len(const.arm_angles)):
         # generate the spiral arm medians
         theta, rho = sam.spiral_arm_medians(const.arm_angles[i], const.pitch_angles[i])
         x = rho*np.cos(theta)
         y = rho*np.sin(theta)
-        ax.plot(x, y, color='black', marker='o', linewidth = 0.0001, zorder=6, markeredgewidth=0.0001, markersize=0.0001) # plot the spiral arm medians
+        ax.plot(x, y, color='black', marker='o', linewidth = 0.0001, zorder=6, markeredgewidth=0.0001, markersize=0.0001, color=colors[i]) # plot the spiral arm medians
     return
 
 

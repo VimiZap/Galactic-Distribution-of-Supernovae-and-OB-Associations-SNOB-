@@ -19,6 +19,7 @@ kpc = 3.08567758e21    # 1 kpc in cm
 # kpc^2, source-weighted Galactic-disk area. See https://iopscience.iop.org/article/10.1086/303587/pdf, equation 37
 a_d_axisymmetric = 2*np.pi*h_axisymmetric**2 * ((1+rho_min_axisymmetric/h_axisymmetric)*np.exp(-rho_min_axisymmetric/h_axisymmetric) - (1+rho_max_axisymmetric/h_axisymmetric)*np.exp(-rho_max_axisymmetric/h_axisymmetric)) 
 # starting angles, pitch-angles and fractional contributions for the spiral arms, respectively Norma-Cygnus(NC), Perseus(P), Sagittarius-Carina(SA), Scutum-Crux(SC)
+#arm_angles = np.radians([63, 157, 238, 330])  # best fit for the new r_s
 arm_angles = np.radians([65, 160, 240, 330])  # best fit for the new r_s
 pitch_angles = np.radians([14, 14, 14, 16]) # best fir to new r_s
 fractional_contribution = [0.18, 0.36, 0.18, 0.28] 

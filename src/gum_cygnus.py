@@ -120,7 +120,7 @@ def cygnus():
     cygnus_radius = 0.075 # kpc
     effective_area_cyg = calc_effective_area(cygnus_radius)
     max_angular_extent = np.arctan2(cygnus_radius, cygnus_distance) * 2 # assuming a perfect sphere
-    print(f'Cygnus max angular extent: {np.degrees(max_angular_extent)}')
+    #print(f'Cygnus max angular extent: {np.degrees(max_angular_extent)}')
     r_cygnus, l_cygnus, b_cygnus, density = generate_uniform_sphere(cygnus_radius, cygnus_distance, cygnus_long, cygnus_lat)
     intensity_cyg = intensity(l_cygnus, density * const.cygnus_nii_luminosity, cygnus_long, window_size=5) / effective_area_cyg
     np.save(f'{const.FOLDER_GALAXY_DATA}/intensities_cygnus.npy', intensity_cyg)
@@ -135,7 +135,7 @@ def gum():
     gum_radius = 0.030 # kpc
     effective_area_gum = calc_effective_area(gum_radius)
     max_angular_extent = np.arctan2(gum_radius, gum_distance) * 2 # assuming a perfect sphere
-    print(f'Gum max angular extent: {np.degrees(max_angular_extent)}')
+    #print(f'Gum max angular extent: {np.degrees(max_angular_extent)}')
     r_gum, l_gum, b_gum, density = generate_uniform_sphere(gum_radius, gum_distance, gum_long, gum_lat)
     intensity_gum = intensity(l_gum, density * const.gum_nii_luminosity, gum_long) / effective_area_gum
     np.save(f'{const.FOLDER_GALAXY_DATA}/intensities_gum.npy', intensity_gum)
