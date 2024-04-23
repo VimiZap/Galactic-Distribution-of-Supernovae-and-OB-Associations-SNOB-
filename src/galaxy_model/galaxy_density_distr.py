@@ -53,9 +53,8 @@ def interpolate_density(x_grid, y_grid, h=const.h_lyc, sigma_arm=const.sigma_arm
         interpolated_arm = sam.griddata((x, y), density_spiral_arm, (x_grid, y_grid), method='cubic', fill_value=0)
         interpolated_arm[interpolated_arm < 0] = 0 # set all negative values to 0
         # normalize the density to the highest value of the density
-        interpolated_arm /= np.max(interpolated_arm)
         interpolated_densities.append(interpolated_arm)
-    interpolated_densities = np.array(interpolated_densities)
+    interpolated_densities /= np.max(interpolated_densities) # normalize the densities to the highest value of the densities
     logging.info("Interpolation done")
     return interpolated_densities
 

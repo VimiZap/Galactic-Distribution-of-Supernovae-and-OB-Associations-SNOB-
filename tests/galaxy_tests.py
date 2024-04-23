@@ -364,6 +364,7 @@ def plot_associations_from_galaxy(galaxy):
 
 
 def main():
+    #test_association_placement(read_data_from_file=False)
     test_plot_density_distribution(read_data_from_file=False, plot_lines_of_sight=False) # test the density distribution of the Milky Way. Plots both the unweighted, analytical density distribution and the weighted, modelled emissivity from which the associations are drawn 
     """ plot_diffusion_of_sns_3d() # plot the diffusion of SNP's in 3D to see how they diffuse away from the association centre with time
     test_association_placement() # test the placement of the associations from the emissivity. Drawn using MC simulation
