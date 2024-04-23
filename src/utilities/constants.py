@@ -3,6 +3,7 @@ import numpy as np
 # constants for the axisymmetric and spiral arm models
 h_spiral_arm = 2.4    # kpc, scale length of the disk. The value Higdon and Lingenfelter used
 h_axisymmetric = 2.4  # kpc, scale length of the disk. The value Higdon and Lingenfelter used
+h_lyc = 3.5           # kpc, scale length of the disk for the Lyc emission. The value McKee and Williams used (1997)
 r_s = 8.178            # kpc, estimate for distance from the Sun to the Galactic center. Same value the atuhors used
 # This rho_max and rho_min seems to be taken from Valee
 rho_min_spiral_arm = np.array([2.9, 2.9, 2.9, 2.9])           # kpc, minimum distance from galactic center to the beginning of the spiral arms. Values taken from Valleé (see Higdon and lingenfelter)

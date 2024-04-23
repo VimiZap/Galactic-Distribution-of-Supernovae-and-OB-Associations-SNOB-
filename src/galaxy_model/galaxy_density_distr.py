@@ -23,7 +23,7 @@ def monte_carlo_numpy_choise(density_distribution, NUM_ASC):
     return grid_index
 
 
-def interpolate_density(x_grid, y_grid, h=const.h_spiral_arm, sigma_arm=const.sigma_arm, arm_angles=const.arm_angles, pitch_angles=const.pitch_angles):
+def interpolate_density(x_grid, y_grid, h=const.h_lyc, sigma_arm=const.sigma_arm, arm_angles=const.arm_angles, pitch_angles=const.pitch_angles):
     """ Integrates the densities of the spiral arms over the entire galactic plane. The returned density is in units of kpc^-2. 
     
     Args:
