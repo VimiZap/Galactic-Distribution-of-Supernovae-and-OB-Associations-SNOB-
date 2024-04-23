@@ -12,35 +12,29 @@ import src.utilities.utilities as ut
 import src.utilities.constants as const
 import src.utilities.settings as settings
 import src.gum_cygnus as gum_cygnus
-#from galaxy_tests import test_plot_density_distribution
 
 
-
-def spiral_arm_medians(arm_angle, pitch_angle, rho_min=const.rho_min_spiral_arm[0], rho_max=const.rho_max_spiral_arm[0]):
+def spiral_arm_medians(arm_angle, pitch_angle, rho_min, rho_max):
     """ Function to calculate the medians of the spiral arms. The medians are calculated in polar coordinates.
     Args:
         arm_angle (int): starting angle of the spiral arm, radians
         pitch_angle (int): pitch angle of the spiral arm, radians
-        rho_min (float): minimum distance from the Galactic center. Units of kpc
-        rho_max (float): maximum distance from the Galactic center. Units of kpc
-
+        rho_min (float): minimum distance from the Galactic center to the beginning of the spiral arm. Units of kpc
+        rho_max (float): maximum distance from the Galactic center to the end of the spiral arm. Units of kpc
     Returns:
         theta and rho for the spiral arm medians
     """
-    
     theta = [arm_angle]
     rho = [rho_min]
     dtheta = .01
     k = np.tan(pitch_angle)
+    if k < 0:
+        raise ValueError("The pitch angle must be positive. Please check input parameters and ensure all angles are in radians.")
     while rho[-1] < rho_max: # Keep adding points until the last point is at the maximum allowed distance from the Galactic center
         theta.append((theta[-1] + dtheta))
         rho.append(rho_min * np.exp(k * (theta[-1] - theta[0]))) # Equation 6 in Higdon and Lingenfelter
     rho = np.array(rho)
     theta = np.array(theta)
-    if settings.add_devoid_region_sagittarius and rho_max == const.rho_max_sagittarius:
-        mask = rho > const.rho_min_sagittarius
-        rho = rho[mask] # remove the points that are not inside the devoid region of Sagittarius
-        theta = theta[mask]
     return np.array(theta), np.array(rho)
 
 
@@ -53,7 +47,7 @@ def arm_transverse_density(transverse_distances, sigma_arm=const.sigma_arm):
     Returns:
         the fall off of spiral arm populations transverse an arm median
     """
-    return np.exp(-0.5 * transverse_distances ** 2 / sigma_arm ** 2)  / (np.sqrt(2 * np.pi) * sigma_arm) # in the paper, they do not include this normalization factor for some reason
+    return np.exp(-0.5 * transverse_distances ** 2 / sigma_arm ** 2)  # Important to note the normalization factor is not included so that the transverse densities are relative to the spiral arm median
 
 
 def generate_transverse_spacing_densities(sigma_arm=const.sigma_arm, d_min=0.01, d_max=5, scaling=0.1):
@@ -140,66 +134,81 @@ def generate_spiral_arm_coordinates(arm_medians, transverse_distances, thetas, p
     return x_spiral_arm, y_spiral_arm
 
 
-def generate_spiral_arm_densities(rho, transverse_densities_initial, h=const.h_spiral_arm):
+def generate_spiral_arm_densities(rho, transverse_densities_initial, h=const.h_spiral_arm, arm_index=0, transverse_distances=None, sigma_devoid=const.sigma_devoid, rho_min_sagittarius=const.rho_min_sagittarius, rho_max_sagittarius=const.rho_max_sagittarius):
     """ Function to calculate the densities for the spiral arm. The densities are calculated for the spiral arm median, the transverse points and the circular projection at the end points
     Args:
         rho: 1D array of radial distances to the spiral arm median
         transverse_densities_initial: 1D array of transverse distances from the spiral arm median. Initial simply indicates that these are the distances on one side of the spiral arm median
         h: scale length of the disk.
-    
+        arm_index: index for the spiral arm. Default is 0, only used for adding the devoid region of the Sagittarius arm
+        transverse_distances: 1D array of transverse distances from the spiral arm median. Default is None, only used for adding the devoid region of the Sagittarius arm
+        sigma_devoid: float, optional. Dispersion of the Sagittarius arm devoid region. Default is const.sigma_devoid
+        rho_min_sagittarius: float, optional. Minimum distance from the Galactic center to the beginning of the Sagittarius arm devoid region. Default is const.rho_min_sagittarius
+        rho_max_sagittarius: float, optional. Maximum distance from the Galactic center to the end of the Sagittarius arm devoid region. Default is const.rho_max_sagittarius
     Returns:
         density_spiral_arm: 1D array of densities for the spiral arm. The densities appears in the same order as the spiral arm points in rho_coords and theta_coords as returned by generate_spiral_arm_coordinates
     """
-    transverse_densities = np.append(arm_transverse_density(transverse_distances = 0), transverse_densities_initial) # the 1 is to take into account the arm median itself. SHOULD INSTEAD OF USING 1 TRY TO USE arm_transverse_density(transverse_distances = 0, sigma_arm) HERE
+    # calculate first the transverse densities for the arm. Does not contain the contrbution from the circular projection at the end points, but has the arm median density
+    # note the transverse densities are described by a Gaussian distribution relative to the arm median
+    transverse_densities = np.append(arm_transverse_density(transverse_distances = 0), transverse_densities_initial) # the 1 is to take into account the arm median itself.
     transverse_densities = np.append(np.flip(transverse_densities_initial), transverse_densities) # so that we have the transverse densities on both sides of the spiral arm
     # calculate the densities for the arm median
     arm_median_densities = ut.axisymmetric_disk_population(rho, h) #1D array
-    # calculate the transverse densities for the arm. Does not contain the contrbution from the circular projection at the end points, but has the arm median density
-    # note the transverse densities are described by a Gaussian distribution relative to the arm median
-    arm_transverse_densities = transverse_densities * arm_median_densities[:, np.newaxis] #2D array
+    # Handle the Sagittarius arm devoid region
+    if arm_index == 2 and settings.add_devoid_region_sagittarius == True:
+        rho_min_sag_idx = np.argmin(np.abs(rho - rho_min_sagittarius)) # index for the beginning of the Sagittarius arm devoid region
+        rho_max_sag_idx = np.argmin(np.abs(rho - rho_max_sagittarius)) # index for the end of the Sagittarius arm devoid region
+        transverse_densities_sag_devoid_initial = arm_transverse_density(transverse_distances, sigma_arm=sigma_devoid) # the transverse densities for the Sagittarius arm devoid region
+        transverse_densities_sag_devoid = np.append(arm_transverse_density(transverse_distances = 0, sigma_arm=sigma_devoid), transverse_densities_sag_devoid_initial) # This is to take into account the arm median itself.
+        transverse_densities_sag_devoid = np.append(np.flip(transverse_densities_sag_devoid_initial), transverse_densities_sag_devoid) # so that we have the transverse densities on both sides of the spiral arm
+        # Now we need to combine the transverse densities for the Sagittarius arm devoid region with the transverse densities for the rest of the arm
+        # The first part of Saggitarius, which is not devoid of gas:
+        arm_transverse_densities_1 = transverse_densities * arm_median_densities[:rho_min_sag_idx, np.newaxis] #2D array
+        # The devoid region of Sagittarius:
+        arm_transverse_densities_2 = transverse_densities_sag_devoid * arm_median_densities[rho_min_sag_idx:rho_max_sag_idx, np.newaxis] #2D array
+        # The last part of Saggitarius, which is not devoid of gas:
+        arm_transverse_densities_3 = transverse_densities * arm_median_densities[rho_max_sag_idx:, np.newaxis] #2D array
+        arm_transverse_densities = np.concatenate((arm_transverse_densities_1, arm_transverse_densities_2, arm_transverse_densities_3)) # combine the different parts of the Sagittarius arm
+    else: 
+        # calculate the densities for all arms except the Sagittarius arm
+        arm_transverse_densities = transverse_densities * arm_median_densities[:, np.newaxis] #2D array
     # calculate the densities for the end points projected in a circle around the end points
     # Note the use of transverse_densities_initial: this is because the density for each line of points in the circular projection are equal to each other. 
-    # Also, it is important to note that the arm median density for the end points are not included in the circular projection, as the arm median would be repeated number_of_end_points times
+    # Also, it is important to note that the arm median density for the end points are not included in the circular projection, as the arm median would be repeated const.number_of_end_points times
     density_start_arm = transverse_densities_initial * arm_median_densities[0] # this is a 1D array, but the same values goes for every index in start_arm along axis 0
     density_end_arm = transverse_densities_initial * arm_median_densities[-1] # this is a 1D array, but the same values goes for every index in end_arm along axis 0
     density_spiral_arm = np.concatenate([np.tile(density_start_arm, const.number_of_end_points), arm_transverse_densities.flatten(), np.tile(density_end_arm, const.number_of_end_points)])
     return density_spiral_arm
 
 
-def interpolate_density(h=None, sigma_arm=None, arm_angles=None, pitch_angles=None):
+def interpolate_density(h=const.h_spiral_arm, sigma_arm=const.sigma_arm, arm_angles=const.arm_angles, pitch_angles=const.pitch_angles):
     """ Integrates the densities of the spiral arms over the entire galactic plane. The returned density is in units of kpc^-2. 
     Compared with the paper, it integrates P_\rho x P_\Delta at the top of page 6
 
     Args:
-        grid_x (2D np.array): Contains all the x-values for the grid
-        grid_y (2D np.array): Contaqins all the y-values for the grid
-        method (str, optional): Interpolation method used in scipys griddata. Defaults to 'linear'.
+        h (float, optional): Scale length of the disk. Defaults to h_spiral_arm.
+        sigma_arm (float, optional): Dispersion of the spiral arms. Defaults to sigma_arm.
+        arm_angles (list, optional): Starting angles for the spiral arms. Defaults to arm_angles.
+        pitch_angles (list, optional): Pitch angles for the spiral arms. Defaults to pitch_angles.
 
     Returns:
         3D np.array: Interpolated densities for each spiral arm along axis 0. Axis 1 and 2 are the densities with respect to the grid
     """
-    # Load default parameters if not provided
-    if h is None:
-        h = const.h_spiral_arm.copy()
-    if sigma_arm is None:
-        sigma_arm = const.sigma_arm.copy()
-    if arm_angles.any() is None:
-        arm_angles = const.arm_angles.copy()
-    if pitch_angles.any() is None:
-        pitch_angles = const.pitch_angles.copy()
     transverse_distances, transverse_densities_initial = generate_transverse_spacing_densities(sigma_arm) 
     x_grid = np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/x_grid.npy')
     y_grid = np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/y_grid.npy')
     num_grid_subdivisions = settings.num_grid_subdivisions
-    if num_grid_subdivisions < 1:
+    rho_min_array = const.rho_min_spiral_arm
+    rho_max_array = const.rho_max_spiral_arm
+    if num_grid_subdivisions <= 0:
         raise ValueError("num_grid_subdivisions must be larger than 0")
     for i in range(len(arm_angles)):
         # generate the spiral arm medians
-        theta, rho = spiral_arm_medians(arm_angles[i], pitch_angles[i], const.rho_min_spiral_arm[i], const.rho_max_spiral_arm[i])
+        theta, rho = spiral_arm_medians(arm_angles[i], pitch_angles[i], rho_min=rho_min_array[i], rho_max=rho_max_array[i])
         # generate the spiral arm points
         x, y = generate_spiral_arm_coordinates(rho, transverse_distances, theta, pitch_angles[i])
         # generate the spiral arm densities
-        density_spiral_arm = generate_spiral_arm_densities(rho, transverse_densities_initial, h)
+        density_spiral_arm = generate_spiral_arm_densities(rho, transverse_densities_initial, h, arm_index=i, transverse_distances=transverse_distances)
         for sub_grid in range(num_grid_subdivisions):
             if sub_grid == num_grid_subdivisions - 1:
                 x_grid_sub = x_grid[sub_grid * int(len(x_grid) / num_grid_subdivisions):]
@@ -214,7 +223,7 @@ def interpolate_density(h=None, sigma_arm=None, arm_angles=None, pitch_angles=No
     return
 
 
-def calc_effective_area_per_spiral_arm(h=None, sigma_arm=None, arm_angles=None, pitch_angles=None, interpolate_all_arms=True):
+def calc_effective_area_per_spiral_arm(h=const.h_spiral_arm, sigma_arm=const.sigma_arm, arm_angles=const.arm_angles, pitch_angles=const.pitch_angles, readfile_effective_area=True):
     """ Function to calculate the effective area for each spiral arm. The density of each spiral arm is integrated over the entire galactic plane.
     The returned effective areas are in units of kpc^2, and appears in the same order as the spiral arms in arm_angles.
 
@@ -223,45 +232,41 @@ def calc_effective_area_per_spiral_arm(h=None, sigma_arm=None, arm_angles=None, 
         sigma_arm (float, optional): Dispersion of the spiral arms. Defaults to sigma_arm.
         arm_angles (list, optional): Starting angles for the spiral arms. Defaults to arm_angles.
         pitch_angles (list, optional): Pitch angles for the spiral arms. Defaults to pitch_angles.
+        readfile_effective_area (bool, optional): If True, the effective areas are read from a file and returned. If False, the effective areas are calculated. Defaults to True.
 
     Returns:
         1D np.array: Effective area for each spiral arm. The effective areas appears in the same order as the spiral arms in arm_angles.
         Also saves the effective areas to a file
     """
     logging.info("Calculating the effective area for each spiral arm")
-    transverse_distances, transverse_densities_initial = generate_transverse_spacing_densities(sigma_arm) 
-    d_x = 70 / 3000 # distance between each interpolated point in the x direction. 70 kpc is the diameter of the Milky Way, 1000 is the number of points
-    d_y = 70 / 3000 # distance between each interpolated point in the y direction. 70 kpc is the diameter of the Milky Way, 1000 is the number of points
-    grid_x, grid_y = np.mgrid[-35:35:3000j, -35:35:3000j]
-    effective_area = []
-    # Load default parameters if not provided
-    if h is None:
-        h = const.h_spiral_arm.copy()
-    if sigma_arm is None:
-        sigma_arm = const.sigma_arm.copy()
-    if arm_angles.any() is None:
-        arm_angles = const.arm_angles.copy()
-    if pitch_angles.any() is None:
-        pitch_angles = const.pitch_angles.copy()
-    for i in range(len(arm_angles)):
-        # generate the spiral arm medians
-        theta, rho = spiral_arm_medians(arm_angles[i], pitch_angles[i], const.rho_min_spiral_arm[i], const.rho_max_spiral_arm[i])
-        # generate the spiral arm points
-        x, y = generate_spiral_arm_coordinates(rho, transverse_distances, theta, pitch_angles[i])
-        # generate the spiral arm densities
-        density_spiral_arm = generate_spiral_arm_densities(rho, transverse_densities_initial, h)
-        # calculate interpolated density for the spiral arm
-        interpolated_density = griddata((x, y), density_spiral_arm, (grid_x, grid_y), method='cubic', fill_value=0)
-        interpolated_density[interpolated_density < 0] = 0 # set all negative values to 0
-        # add the interpolated density to the total galactic density
-        effective_area = np.append(effective_area, np.sum(interpolated_density) * d_x * d_y)
-    if settings.add_devoid_region_sagittarius and interpolate_all_arms:
-        # the devoid region shall, in effect, just modify the existing emissivity for the Sagittarius-Carina arm
-        # hence the effective area for the devoid region is the same as for the entire arm
-        effective_area[5] = effective_area[2]
     filepath = f'{const.FOLDER_GALAXY_DATA}/effective_area_per_spiral_arm.npy'
-    np.save(filepath, effective_area)
-    return effective_area
+    if readfile_effective_area == True:
+        effective_area = np.load(filepath)
+        return effective_area
+    elif readfile_effective_area == False:
+        transverse_distances, transverse_densities_initial = generate_transverse_spacing_densities(sigma_arm) 
+        d_x = 70 / 3000 # distance between each interpolated point in the x direction. 70 kpc is the diameter of the Milky Way, 3000 is the number of points
+        d_y = 70 / 3000 # distance between each interpolated point in the y direction. 70 kpc is the diameter of the Milky Way, 3000 is the number of points
+        grid_x, grid_y = np.mgrid[-35:35:3000j, -35:35:3000j]
+        effective_area = []
+        rho_min_array = const.rho_min_spiral_arm
+        rho_max_array = const.rho_max_spiral_arm
+        for i in range(len(arm_angles)):
+            # generate the spiral arm medians
+            theta, rho = spiral_arm_medians(arm_angles[i], pitch_angles[i], rho_min=rho_min_array[i], rho_max=rho_max_array[i])
+            # generate the spiral arm points
+            x, y = generate_spiral_arm_coordinates(rho, transverse_distances, theta, pitch_angles[i])
+            # generate the spiral arm densities
+            density_spiral_arm = generate_spiral_arm_densities(rho, transverse_densities_initial, h, arm_index=i, transverse_distances=transverse_distances)
+            # calculate interpolated density for the spiral arm
+            interpolated_density = griddata((x, y), density_spiral_arm, (grid_x, grid_y), method='cubic', fill_value=0)
+            interpolated_density[interpolated_density < 0] = 0 # set all negative values to 0
+            # add the interpolated density to the total galactic density 
+            effective_area = np.append(effective_area, np.sum(interpolated_density) * d_x * d_y)
+        np.save(filepath, effective_area)
+        return effective_area
+    else:
+        raise ValueError("readfile_effective_area must be either True or False")
 
 
 def generate_latitudinal_points(b_max=5.0, db_above_1_deg = 0.2, b_min=0.01, b_lim_exp=1, scaling=0.015):
@@ -324,6 +329,18 @@ def generate_latitudinal_points(b_max=5.0, db_above_1_deg = 0.2, b_min=0.01, b_l
     
 
 def calculate_galactic_coordinates(b_max=5, db_above_1_deg = 0.2, b_min=0.01, b_lim_exp=1, scaling=0.015):
+    """ Function to calculate the galactic coordinates. The coordinates are calculated in such a way that the density of points is higher close to the Galactic plane.
+
+    Args:
+        b_max: maximum angular distance from the plane
+        db_above_1_deg: increment in angular distance from the plane above 1 degree. Default is 0.2
+        b_min: minimum angular distance from the plane. Default is 0.01
+        b_lim_exp: limit on angular distance from plane for the exponential distribution. Default is 1
+        scaling: scaling of the exponential distribution. A value of 0.015 generates between 110 - 130 points. Larger scaling = fewer points. Default is 0.015
+    
+    Returns:
+        None. Saves the radial distances, longitudes, latitudes, dr, dl, latitudinal cosinus, z_grid, height_distribution_values, rho_coords_galaxy, theta_coords_galaxy, x_grid, y_grid to disk
+    """
     logging.info("Calculating the galactic coordinates")
     # Calculate coordinates
     dr = 0.2   # increments in dr (kpc):
@@ -397,35 +414,42 @@ def calculate_galactic_coordinates(b_max=5, db_above_1_deg = 0.2, b_min=0.01, b_
     return
     
 
-def calc_modelled_emissivity(b_max=1, db_above_1_deg = 0.1, fractional_contribution=None, readfile_effective_area=True, h=None, sigma_arm=None, arm_angles=None, pitch_angles=None, interpolate_all_arms=True):
+def calc_modelled_emissivity(readfile_effective_area=True, interpolate_all_arms=True, recalculate_coordinates=False, b_max=5, db_above_1_deg = 0.1, fractional_contribution=const.fractional_contribution, h=const.h_spiral_arm, sigma_arm=const.sigma_arm, arm_angles=const.arm_angles, pitch_angles=const.pitch_angles):
+    """ Function to calculate the modelled emissivity of the Milky Way. The emissivity is calculated for each spiral arm and saved to disk. The emissivity is in units of erg/s/cm^2/sr
+    
+    Args:
+        readfile_effective_area: If True, the effective areas are read from a file. If False, the effective areas are calculated. Default is True
+        interpolate_all_arms: If True, the densities for each spiral arm are interpolated. Default is True
+        recalculate_coordinates: If True, the galactic coordinates are recalculated. Default is False
+        b_max: Maximum angular distance from the Galactic plane. Default is 5
+        db_above_1_deg: Increment in angular distance from the plane above 1 degree. Default is 0.1
+        fractional_contribution: Fractional contribution of each spiral arm. Default is const.fractional_contribution
+        h: Scale length of the disk. Default is h_spiral_arm
+        sigma_arm: Dispersion of the spiral arms. Default is sigma_arm
+        arm_angles: Starting angles for the spiral arms. Default is arm_angles
+        pitch_angles: Pitch angles for the spiral arms. Default is pitch_angles
+        
+    """
     logging.info("Calculating modelled emissivity of the Milky Way")
-    if readfile_effective_area == True:
-        effective_area = np.load(f'{const.FOLDER_GALAXY_DATA}/effective_area_per_spiral_arm.npy')
-    elif readfile_effective_area == False:
-        effective_area = calc_effective_area_per_spiral_arm(h, sigma_arm, arm_angles, pitch_angles, interpolate_all_arms)
-    else:
-        raise ValueError("readfile_effective_area must be either True or False")
-    if len(effective_area) != len(arm_angles):
-        raise ValueError(f"Number of effective areas does not match the number of spiral arms. Please recalculate the effective areas. Number of arm_angles: {len(arm_angles)}. Number of effective areas: {len(effective_area)}")
-    # Load default parameters if not provided
-    if fractional_contribution is None:
-        fractional_contribution = const.fractional_contribution
-    if h == None:
-        h = const.h_spiral_arm
-    if sigma_arm == None:
-        sigma_arm = const.sigma_arm
-    if arm_angles is None:
-        arm_angles = const.arm_angles
-    if pitch_angles is None:
-        pitch_angles = const.pitch_angles
-    #calculate_galactic_coordinates(b_max, db_above_1_deg)
-    #logging.info("Coordinates calculated. Now interpolating each spiral arm")
+    effective_area = calc_effective_area_per_spiral_arm(h, sigma_arm, arm_angles, pitch_angles, readfile_effective_area)
+    if recalculate_coordinates:
+        calculate_galactic_coordinates(b_max, db_above_1_deg)
+    logging.info("Coordinates calculated. Now interpolating each spiral arm")
     # coordinates made. Now we need to interpolate each spiral arm and sum up the densities
     if interpolate_all_arms:
         interpolate_density(h, sigma_arm, arm_angles, pitch_angles)
     #logging.info("Interpolation done. Now calculating the emissivity")
     common_multiplication_factor = const.total_galactic_n_luminosity * np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/height_distribution_values.npy')
-    for i in range(len(arm_angles)): # loop trough the 4 spiral arms
+    if settings.add_local_arm_to_intensity_plot == False and np.sum(fractional_contribution[:4]) != 1:
+        # if we do not want to include the local arm in the intensity plot, we need to adjust the fractional contribution so the sum of the fractional contributions is 1
+        fractional_contribution[0] += fractional_contribution[4]
+        fractional_contribution[0] = np.round(fractional_contribution[0], 2)
+    if settings.add_local_arm_to_intensity_plot == True and np.sum(fractional_contribution) != 1:
+        # if we want to include the local arm in the intensity plot, we need to adjust the fractional contribution so the sum of the fractional contributions is 1
+        # here we are explicitly assuming that the if statement above has been executed in a previous run
+        fractional_contribution[0] -= fractional_contribution[4]
+        fractional_contribution[0] = np.round(fractional_contribution[0], 2)
+    for i in range(len(arm_angles)): # loop trough the 5 spiral arms
         #logging.info(f"Calculating emissivity for spiral arm number: {i+1}")
         scaled_arm_emissivity = np.load(f'{const.FOLDER_GALAXY_DATA}/interpolated_arm_{i}_0.npy') 
         for j in range(1, settings.num_grid_subdivisions): # loop through the different grid subdivisions
@@ -436,20 +460,27 @@ def calc_modelled_emissivity(b_max=1, db_above_1_deg = 0.1, fractional_contribut
     return  
 
 
-def calc_modelled_intensity(b_max=5, db_above_1_deg = 0.2, fractional_contribution=None, readfile_effective_area=True, h=None, sigma_arm=None, arm_angles=None, pitch_angles=None, interpolate_all_arms=True):
+def calc_modelled_intensity(readfile_effective_area=True, interpolate_all_arms=True, calc_gum_cyg=True, recalculate_coordinates=False, b_max=5, db_above_1_deg=0.1, fractional_contribution=const.fractional_contribution, h=const.h_spiral_arm, sigma_arm=const.sigma_arm, arm_angles=const.arm_angles, pitch_angles=const.pitch_angles):
+    """ Function to calculate the modelled intensity of the Milky Way. The intensity is calculated for each spiral arm and saved to disk. The intensity is in units of erg/s/cm^2/sr/s
+    
+    Args:
+        readfile_effective_area: If True, the effective areas are read from a file. If False, the effective areas are calculated. Default is True
+        interpolate_all_arms: If True, the densities for each spiral arm are interpolated. Default is True
+        calc_gum_cyg: If True, the intensity for the Gum and Cygnus regions are calculated. Default is True
+        recalculate_coordinates: If True, the galactic coordinates are recalculated. Default is False
+        b_max: Maximum angular distance from the Galactic plane. Default is 5
+        db_above_1_deg: Increment in angular distance from the plane above 1 degree. Default is 0.1
+        fractional_contribution: Fractional contribution of each spiral arm. Default is const.fractional_contribution
+        h: Scale length of the disk. Default is h_spiral_arm
+        sigma_arm: Dispersion of the spiral arms. Default is sigma_arm
+        arm_angles: Starting angles for the spiral arms. Default is arm_angles
+        pitch_angles: Pitch angles for the spiral arms. Default is pitch_angles
+    
+    Returns:
+        None. Saves the intensity for each spiral arm to disk
+    """
     logging.info("Calculating the modelled NII intensity of the Milky Way")
-    # Load default parameters if not provided
-    if fractional_contribution is None:
-        fractional_contribution = const.fractional_contribution
-    if h == None:
-        h = const.h_spiral_arm
-    if sigma_arm == None:
-        sigma_arm = const.sigma_arm
-    if arm_angles is None:
-        arm_angles = const.arm_angles
-    if pitch_angles is None:
-        pitch_angles = const.pitch_angles
-    calc_modelled_emissivity(b_max, db_above_1_deg, fractional_contribution, readfile_effective_area, h, sigma_arm, arm_angles, pitch_angles, interpolate_all_arms)
+    calc_modelled_emissivity(readfile_effective_area, interpolate_all_arms, recalculate_coordinates, b_max, db_above_1_deg, fractional_contribution, h, sigma_arm, arm_angles, pitch_angles)
     num_rads = len(np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/radial_distances.npy'))
     num_longs = len(np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/longitudes.npy'))
     num_lats = len(np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/latitudes.npy'))
@@ -477,13 +508,13 @@ def calc_modelled_intensity(b_max=5, db_above_1_deg = 0.2, fractional_contributi
     b_filename = str(b_max).replace(".", "_")
     filename_intensity_data = f'{const.FOLDER_GALAXY_DATA}/intensities_per_arm_b_max_{b_filename}.npy'
     np.save(filename_intensity_data, intensities_per_arm) # saving the same array we are plotting usually. Sum over all spiral arms to get one longitudinal map. With running average
-    if settings.add_gum_cygnus == True:
+    if settings.add_gum_cygnus == True and calc_gum_cyg == True:
         logging.info("Calculating the intensity for the Gum and Cygnus regions")
         gum_cygnus.generate_gum_cygnus()
     return
 
 
-def plot_modelled_intensity_per_arm(filename_output = f'{const.FOLDER_MODELS_GALAXY}/modelled_intensity.pdf', filename_intensity_data = f'{const.FOLDER_GALAXY_DATA}/intensities_per_arm_b_max_5.npy', fractional_contribution=None, h=None, sigma_arm=None):
+def plot_modelled_intensity_per_arm(filename_output = f'{const.FOLDER_MODELS_GALAXY}/modelled_intensity.pdf', filename_intensity_data = f'{const.FOLDER_GALAXY_DATA}/intensities_per_arm_b_max_5.npy', fractional_contribution=const.fractional_contribution, h=const.h_spiral_arm, sigma_arm=const.sigma_arm):
     """ Plots the modelled intensity of the Galactic disk as a function of Galactic longitude. Each spiral arm is plotted separately, as well as the total intensity. Assumes that the itensities have been calculated and saved to disk beforehand.
 
     Args:
@@ -496,20 +527,13 @@ def plot_modelled_intensity_per_arm(filename_output = f'{const.FOLDER_MODELS_GAL
     Returns:
         None: The plot is saved to disk
     """
-    # Load default parameters if not provided
-    if fractional_contribution is None:
-        fractional_contribution = const.fractional_contribution
-    if h == None:
-        h = const.h_spiral_arm
-    if sigma_arm == None:
-        sigma_arm = const.sigma_arm
     # plot the FIRAS data for the NII 205 micron line
     bin_edges_line_flux, bin_centre_line_flux, line_flux, line_flux_error = firas_data.firas_data_for_plotting()
     plt.figure(figsize=(10, 6))
     plt.stairs(values=line_flux, edges=bin_edges_line_flux, fill=False, color='black')
     plt.errorbar(bin_centre_line_flux, line_flux, yerr=line_flux_error,fmt='none', ecolor='black', capsize=0, elinewidth=1)
     # plot the modelled intensity
-    intensities_per_arm = np.lib.format.open_memmap(filename_intensity_data)
+    intensities_per_arm = np.load(filename_intensity_data)
     longitudes = np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/longitudes.npy')
     colors = sns.color_palette('bright', 7)
     plt.plot(np.linspace(0, 360, len(longitudes)), intensities_per_arm[0], label=f"NC. f={fractional_contribution[0]}", color=colors[0])
@@ -517,18 +541,13 @@ def plot_modelled_intensity_per_arm(filename_output = f'{const.FOLDER_MODELS_GAL
     plt.plot(np.linspace(0, 360, len(longitudes)), intensities_per_arm[2], label=f"SA. f={fractional_contribution[2]}", color=colors[2])
     plt.plot(np.linspace(0, 360, len(longitudes)), intensities_per_arm[3], label=f"SC. f={fractional_contribution[3]}", color=colors[3])
     intensities_total = np.sum(intensities_per_arm[:4], axis=0)
+    # Data for the local arm ang gum cygnus regoions are saved in separate files. To change the devoid region, the spiral arms must be recalculated
     if settings.add_local_arm_to_intensity_plot == True:
         try: # check if the local arm has been generated or not
             plt.plot(np.linspace(0, 360, len(longitudes)), intensities_per_arm[4], label=f"Local arm. f={fractional_contribution[4]}", color=colors[4])
             intensities_total += intensities_per_arm[4]
         except: # if not, raise a warning
             logging.warning("The local arm was not included in the model. It may not have been generated. Skipping this part of the plot. Try calling the function 'calc_modelled_intensity' first")
-    if settings.add_devoid_region_sagittarius == True:
-        try: # check first if the devoid region has been generated or not
-            plt.plot(np.linspace(0, 360, len(longitudes)), intensities_per_arm[5], label=f"Devoid region. f={fractional_contribution[4]}", color=colors[2])
-            intensities_total += intensities_per_arm[5]
-        except: # if not, raise a warning
-            logging.warning("The devoid region was not included in the model. It may not have been generated. Skipping this part of the plot. Try calling the function 'calc_modelled_intensity' first")
     if settings.add_gum_cygnus == True:
         try: # check if the gum-cygnus regions have been generated
             gum = np.load(f'{const.FOLDER_GALAXY_DATA}/intensities_gum.npy')
@@ -538,7 +557,6 @@ def plot_modelled_intensity_per_arm(filename_output = f'{const.FOLDER_MODELS_GAL
             intensities_total += gum_cygnus
         except: # if not, raise a warning
             logging.warning("The Gum and Cygnus regions were not included in the model. They may not have been generated. Skipping this part of the plot. Try calling the function 'gum' and 'cygnus' in gum_cygnus.py first")
-        
     plt.plot(np.linspace(0, 360, len(longitudes)), intensities_total, label="Total intensity", color=colors[6])
     # Redefine the x-axis labels to match the values in longitudes
     x_ticks = (180, 150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210, 180)
@@ -568,97 +586,26 @@ def test_max_b():
         plot_modelled_intensity_per_arm(filename_output, filename_intensity_data)
 
 
-def find_rho_min(long, r_los_start):
-    """ Function to find the minimum distance between the line of sight and the spiral arm. 
-    The function calculates the distance between each point along the line of sight and every point in the spiral arm, 
-    and returns the x and y coordinates of the point on the spiral arm with minimum distance, as well as the rho-value for that spiral arm point.
-    
-    Args:
-        long (float): Galactic longitude in degrees
-        r_los_start (float): Starting distance from the Sun for the line of sight in kpc
-    
-    Returns:
-        x_closest (float): x-coordinate of the point on the spiral arm with minimum distance
-        y_closest (float): y-coordinate of the point on the spiral arm with minimum distance
-        rho_closest (float): rho-value for the point on the spiral arm with minimum distance
-    """
-    theta_sa, rho_sa = spiral_arm_medians(const.arm_angles[2], const.pitch_angles[2]) # generate the spiral arm medians for sagittarius-carina
-    x_sa = rho_sa*np.cos(theta_sa)
-    y_sa = rho_sa*np.sin(theta_sa)
-    dr = 0.1
-    rs = np.arange(r_los_start, r_los_start + 7 + dr, dr)
-    theta_los = ut.theta(rs, np.radians(long), 0)
-    rho_los = ut.rho(rs, np.radians(long), 0)
-    x_los = rho_los*np.cos(theta_los)
-    y_los = rho_los*np.sin(theta_los)
-    x_diff = (x_los[:, np.newaxis] - x_sa) ** 2
-    y_diff = (y_los[:, np.newaxis] - y_sa) ** 2
-    dists = np.sqrt(x_diff + y_diff) # distances between each point along the line of sight and every point in the spiral arm
-    dist_min = np.min(dists)
-    dist_min_index_rho = np.argwhere(dists == dist_min)[0][1] # index of the minimum distance in the rho_sa array
-    rho_closest = rho_sa[dist_min_index_rho]
-    theta_closest = theta_sa[dist_min_index_rho]
-    x_closest = rho_closest*np.cos(theta_closest)
-    y_closest = rho_closest*np.sin(theta_closest)
-    return x_closest, y_closest, rho_closest
-    
-    
-def find_rho_min_max(long1=30, long2=None):
-    """ Function to find the minimum and maximum distance between the line of sight and the spiral arm.
-    Also adds rho_max to the const.rho_max_spiral_arm array and rho_min to the const.rho_min_sagittarius float.
-
-    Args:
-        long1 (float, optional): Galactic longitude in degrees for the first line of sight. Defaults to 30.
-        long2 (float, optional): Galactic longitude in degrees for the second line of sight. Defaults to None. if None, rho_min and rho_max are calculated for the same line of sight.
-    
-    Returns:
-        rho_min (float): Minimum distance between the line of sight and the spiral arm
-        rho_max (float): Maximum distance between the line of sight and the spiral arm
-    """
-    x_1, y_1, rho_closest1 = find_rho_min(long1, 0)
-    if long2 == None:
-        x_2, y_2, rho_closest2 = find_rho_min(long1, 7)
-    else:
-        x_2, y_2, rho_closest2 = find_rho_min(long2, 7)
-    rho_min = np.min([rho_closest1, rho_closest2])
-    rho_max = np.max([rho_closest1, rho_closest2])
-    const.rho_max_spiral_arm = np.concatenate((const.rho_max_spiral_arm, [rho_max]))
-    const.rho_min_sagittarius = rho_min
-    const.rho_max_sagittarius = rho_max
-    return rho_min, rho_max
-
-
-def add_devoid_region_sagittarius():
-    """ Function to add a devoid region in the Sagittarius-Carina arm. The region is defined by a minimum and maximum distance from the Galactic plane."""
-    find_rho_min_max()
-    const.rho_min_spiral_arm = np.concatenate((const.rho_min_spiral_arm, [const.rho_min_spiral_arm[2]]))
-    const.arm_angles = np.concatenate((const.arm_angles, [const.arm_angles[2]]))
-    const.pitch_angles = np.concatenate((const.pitch_angles, [const.pitch_angles[2]]))
-    const.fractional_contribution = np.concatenate((const.fractional_contribution, [-0.5*const.fractional_contribution[2]]))
-
-
 def main() -> None:
     logging.info("Starting main function")
-    if settings.add_devoid_region_sagittarius == True:
-        add_devoid_region_sagittarius()
+    settings.add_gum_cygnus = False
+    settings.add_local_arm_to_intensity_plot = False
+    settings.add_devoid_region_sagittarius = False
+    test_max_b()
     calc_modelled_intensity(readfile_effective_area=False)
-    plot_modelled_intensity_per_arm(filename_output=f'{const.FOLDER_MODELS_GALAXY}/modelled_intensity_parameters_ymw16.pdf')
-    #test_max_b()
+    plot_modelled_intensity_per_arm(filename_output=f'{const.FOLDER_MODELS_GALAXY}/modelled_intensity_four_arms.pdf')
+    settings.add_gum_cygnus = True
+    calc_modelled_intensity(readfile_effective_area=False)
+    plot_modelled_intensity_per_arm(filename_output=f'{const.FOLDER_MODELS_GALAXY}/modelled_intensity_four_arms_gum_cygnus.pdf')
+    settings.add_local_arm_to_intensity_plot = True
+    calc_modelled_intensity(readfile_effective_area=False)
+    plot_modelled_intensity_per_arm(filename_output=f'{const.FOLDER_MODELS_GALAXY}/modelled_intensity_five_arms_gum_cygnus.pdf')
+    settings.add_devoid_region_sagittarius = True
+    calc_modelled_intensity(readfile_effective_area=False) 
+    plot_modelled_intensity_per_arm(filename_output=f'{const.FOLDER_MODELS_GALAXY}/modelled_intensity_all_contributions.pdf')
 
 
 if __name__ == "__main__":
     logging.info("Starting main function")
-    """ if settings.add_devoid_region_sagittarius == True:
-        add_devoid_region_sagittarius()
-    calc_effective_area_per_spiral_arm()
-    effective_area = np.load(f'{const.FOLDER_GALAXY_DATA}/effective_area_per_spiral_arm.npy')
-    print(effective_area)
-    """
     main()
-   
 
-# SO the pitch angles must also be changed. 
-# For SA: the larger starting angle, the closer to GC the luminocity is concentrated. Will thus adopt a starting angle of 245 degrees for next test run
-# For SC: the larger starting angle, the closer to GC the luminocity is concentrated. Will thus adopt a starting angle of 335 degrees for next test run
-# For P: the smaller the starting angle, the closer to GC the luminocity is concentrated. Also, the height of the peak is reduced by about 20% between the smallest and largest starting angle. Will keep the starting angle at 160 degrees for next test run
-# For NC: the higher the value, the more right-skewed the luminocity distribution becomes. Will set the starting angle at 65 degrees for next test run. Also, a larger angle makes the "dump" in the middle les dumpy, and vice versa.

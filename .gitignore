@@ -3,3 +3,4 @@ galaxy_data
 .venv/
 .gitignore
 old_tests/
+data/chi_square_tests

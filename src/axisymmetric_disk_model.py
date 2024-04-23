@@ -5,6 +5,7 @@ import logging
 logging.basicConfig(level=logging.INFO)
 import observational_data.firas_data as firas_data
 import src.utilities.constants as const
+from matplotlib.ticker import AutoMinorLocator
 
 
 def calc_modelled_intensity(b_max = 5):
@@ -44,6 +45,7 @@ def calc_modelled_intensity(b_max = 5):
     closest_index = np.argmin(abs_diff) # Find the index of the element with the smallest absolute difference
     modelled_value_30_degrees = intensities[closest_index] # Retrieve the closest value from the integrated spectrum
     luminosity_axisymmetric = const.measured_nii_30_deg / modelled_value_30_degrees # Calculate the normalization factor
+    logging.info("Normalization factor calculated: %s", luminosity_axisymmetric)
     intensities *= luminosity_axisymmetric # normalize the modelled emissivity to the measured value at 30 degrees longitude    
     # Note: for comparison reasons with Higdon and Lingenfelter I am not using a running average on the intensities, as it smoothen the spikes
     logging.info("Saving the modelled intensity and the normalization factor")
@@ -54,25 +56,31 @@ def calc_modelled_intensity(b_max = 5):
 
 
 def plot_axisymmetric():
+    filename_output =  f'{const.FOLDER_MODELS_GALAXY}/axisymmetric_modelled_emissivity_h_2.4.pdf'
     longitudes = np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/axisymmetric_longitudes.npy')
     intensities = np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/axisymmetric_intensities.npy')
     luminosity = np.load(f'{const.FOLDER_GALAXY_DATA}/axisymmetric_luminosity.npy')
-    fig, ax = plt.subplots()
-    firas_data.add_firas_data_to_plot(ax)
-    ax.plot(np.linspace(0, 360, len(longitudes)), intensities)
+    # plot the FIRAS data for the NII 205 micron line
+    bin_edges_line_flux, bin_centre_line_flux, line_flux, line_flux_error = firas_data.firas_data_for_plotting()
+    plt.figure(figsize=(10, 6))
+    plt.stairs(values=line_flux, edges=bin_edges_line_flux, fill=False, color='black')
+    plt.errorbar(bin_centre_line_flux, line_flux, yerr=line_flux_error,fmt='none', ecolor='black', capsize=0, elinewidth=1)
+    # plot the modelled intensity
+    plt.plot(np.linspace(0, 360, len(longitudes)), intensities)
     # Redefine the x-axis labels to match the values in longitudes
     x_ticks = (180, 150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210, 180)
-    ax.set_xticks(np.linspace(0, 360, 13))
-    ax.set_xticklabels(x_ticks)
-    ax.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
-    ax.set_xlabel("Galactic longitude l (degrees)")
-    ax.set_ylabel("Modelled emissivity")
-    ax.set_title("Modelled emissivity of the Galactic disk")
-    ax.text(0.02, 0.95, fr'$H_\rho$ = {const.h_axisymmetric} kpc & $\sigma_z$ = {const.sigma_height_distr} kpc', transform=ax.transAxes, fontsize=8, color='black')
-    ax.text(0.02, 0.9, fr'NII Luminosity = {luminosity:.2e} erg/s', transform=ax.transAxes, fontsize=8, color='black')
-    ax.text(0.02, 0.85, fr'{const.rho_min_axisymmetric:.2e}  $\leq \rho \leq$ {const.rho_max_axisymmetric:.2e} kpc', transform=ax.transAxes, fontsize=8, color='black')
-    fig.savefig(f'{const.FOLDER_MODELS_GALAXY}/axisymmetric_modelled_emissivity_h_2.4.pdf')  # save plot in the output folder
-    plt.close(fig)
+    plt.xticks(np.linspace(0, 360, 13), x_ticks)
+    plt.gca().xaxis.set_minor_locator(AutoMinorLocator(3)) 
+    plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+    plt.xlabel("Galactic longitude l (degrees)")
+    plt.ylabel("Line intensity in erg cm$^{-2}$ s$^{-1}$ sr$^{-1}$")
+    plt.title("Modelled intensity of the Galactic disk")
+    # Add parameter values as text labels
+    plt.text(0.02, 0.95, fr'$H_\rho$ = {const.h_axisymmetric} kpc & $\sigma_z$ = {const.sigma_height_distr} kpc', transform=plt.gca().transAxes, fontsize=8, color='black')
+    plt.text(0.02, 0.9, fr'NII Luminosity = {luminosity:.2e} erg/s', transform=plt.gca().transAxes, fontsize=8, color='black')
+    plt.text(0.02, 0.85, fr'{const.rho_min_axisymmetric:.2e}  $\leq \rho \leq$ {const.rho_max_axisymmetric:.2e} kpc', transform=plt.gca().transAxes, fontsize=8, color='black')
+    plt.savefig(filename_output)
+    plt.close()
 
 
 def main():

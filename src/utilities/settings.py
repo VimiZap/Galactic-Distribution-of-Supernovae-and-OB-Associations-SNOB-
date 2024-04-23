@@ -8,6 +8,6 @@ num_grid_subdivisions = 1
 # boolean to determine whether to add the local arm to the intensity plot
 add_local_arm_to_intensity_plot = True
 # boolean to determine whether to add the devoid region of Sagittarius to the intensity plot
-add_devoid_region_sagittarius = False
+add_devoid_region_sagittarius = True
 # boolean to determine whether to add the Gum Nebula and Cygnus region to the intensity plot
 add_gum_cygnus = True

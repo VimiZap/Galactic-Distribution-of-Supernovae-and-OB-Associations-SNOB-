@@ -40,13 +40,15 @@ def interpolate_density(x_grid, y_grid, h=const.h_spiral_arm, sigma_arm=const.si
     logging.info("Interpolating the density distribution of the Milky Way")
     transverse_distances, transverse_densities_initial = sam.generate_transverse_spacing_densities(sigma_arm) #d_min: minimum distance from the spiral arm
     interpolated_densities = []
+    rho_min_spiral_arm = const.rho_min_spiral_arm
+    rho_max_spiral_arm = const.rho_max_spiral_arm
     for i in range(len(arm_angles)):
         # generate the spiral arm medians
-        theta, rho = sam.spiral_arm_medians(arm_angles[i], pitch_angles[i])
+        theta, rho = sam.spiral_arm_medians(arm_angles[i], pitch_angles[i], rho_min_spiral_arm[i], rho_max_spiral_arm[i])
         # generate the spiral arm points 
         x, y = sam.generate_spiral_arm_coordinates(rho, transverse_distances, theta, pitch_angles[i])
         # generate the spiral arm densities
-        density_spiral_arm = sam.generate_spiral_arm_densities(rho, transverse_densities_initial, h)
+        density_spiral_arm = sam.generate_spiral_arm_densities(rho, transverse_densities_initial, h, arm_index=i, transverse_distances=transverse_distances)
         # calculate interpolated density for the spiral arm
         interpolated_arm = sam.griddata((x, y), density_spiral_arm, (x_grid, y_grid), method='cubic', fill_value=0)
         interpolated_arm[interpolated_arm < 0] = 0 # set all negative values to 0

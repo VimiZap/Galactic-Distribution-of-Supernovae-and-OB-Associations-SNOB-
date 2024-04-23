@@ -159,10 +159,10 @@ def add_spiral_arms_to_ax(ax):
     colors = sns.color_palette('bright', 7)
     for i in range(len(const.arm_angles)):
         # generate the spiral arm medians
-        theta, rho = sam.spiral_arm_medians(const.arm_angles[i], const.pitch_angles[i])
+        theta, rho = sam.spiral_arm_medians(const.arm_angles[i], const.pitch_angles[i], arm_index=i)
         x = rho*np.cos(theta)
         y = rho*np.sin(theta)
-        ax.plot(x, y, color='black', marker='o', linewidth = 0.0001, zorder=6, markeredgewidth=0.0001, markersize=0.0001, color=colors[i]) # plot the spiral arm medians
+        ax.plot(x, y, marker='o', linewidth = 0.0001, zorder=6, markeredgewidth=0.0001, markersize=0.0001, color=colors[i]) # plot the spiral arm medians
     return
 
 
@@ -212,7 +212,8 @@ def add_local_arm_to_ax(ax):
     Returns:
         None
     """
-    theta, rho = sam.spiral_arm_medians(const.theta_start_local, const.pitch_local, const.rho_min_local, const.rho_max_local)
+    arm_index=4
+    theta, rho = sam.spiral_arm_medians(arm_angle=const.arm_angles[arm_index], pitch_angle=const.pitch_angles[arm_index], arm_index=arm_index)
     x = rho * np.cos(theta)
     y = rho * np.sin(theta)
     ax.plot(x, y, color='black', marker='o', linewidth = 0.0001, zorder=6, markeredgewidth=0.0001, markersize=0.0001)

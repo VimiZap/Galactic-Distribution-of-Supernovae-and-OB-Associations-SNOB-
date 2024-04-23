@@ -1,186 +1,401 @@
 import numpy as np
+import src.observational_data.firas_data as firas_data
+import src.utilities.constants as const
+import src.utilities.settings as settings
+import src.spiral_arm_model as sam
 import matplotlib.pyplot as plt
+from matplotlib.ticker import AutoMinorLocator
+from src.chi_squared import interpolate_density_one_arm, calc_effective_area_one_arm
+import seaborn as sns
 import logging
 logging.basicConfig(level=logging.INFO)
-import src.utilities.constants as const
-import src.spiral_arm_model as sam
-import src.utilities.utilities as ut
 
+
+TOP = 2.2e-4 # y-axis limit for the plots. Used for the tests which have long label names
+LINEWIDTH = 1 # linewidth for the plots
+NUM_FITTED_PARAMETERS = 40 # number of fitted parameters in the model
+linestyles = [(0, (3, 5, 1, 5, 1, 5)), (0, (1, 1)), (5, (10, 3)), (0, (3, 1, 1, 1, 1, 1)), (0, (3, 1, 1, 1))] # https://matplotlib.org/stable/gallery/lines_bars_and_markers/linestyles.html for reference
+
+
+def reduced_chi_squared(observational_data, observational_data_variance, modelled_data):
+    """ Function to calculate the chi-squared value of the modelled data compared to the observational data
+
+    Args:
+        observational_data (np.array): The observational data
+        observational_data_variance (np.array): The variance of the observational data
+        modelled_data (np.array): The modelled data
+    Returns:
+        chi_squared (float): The chi-squared value of the modelled data compared to the observational data"""
+    if len(observational_data) != len(modelled_data) != len(observational_data_variance):
+        raise ValueError("The length of the observational data, observational data variance and modelled data must be the same. Lengths are, respectively: ", len(observational_data), len(observational_data_variance), len(modelled_data))
+    # Filter the data
+    chi_squared = np.sum(((observational_data - modelled_data) ** 2) / observational_data_variance)
+    N = len(observational_data)  # number of data points
+    degrees_of_freedom = N - NUM_FITTED_PARAMETERS
+    if degrees_of_freedom <= 0:
+        raise ValueError("The number of degrees of freedom must be positive.")
+    reduced_chi_squared = chi_squared / degrees_of_freedom
+    return reduced_chi_squared
+
+
+def load_firas_data():
+    """ Function to load the FIRAS data and variance, and expand the data to match the modelled data in number of points to facilitate the chi-squared calculation 
+
+    Returns:
+        expanded_firas_intensity (np.array): The FIRAS data expanded to match the modelled data
+        expanded_firas_variance (np.array): The FIRAS variance expanded to match the modelled data
+    """
+    bin_edges_line_flux, bin_centre_line_flux, line_flux, line_flux_error = firas_data.firas_data_for_plotting()
+    firas_variance = (line_flux_error / 2) ** 2
+    intensities_modelled = load_modelled_data()
+    # the length of the firas data and modelled data differ. We need to expand the firas data to match the modelled data
+    longitude_values = np.linspace(0, 360, len(intensities_modelled)) # create a list of longitudes for which we have modelled data
+    binned_longitudes, bin_edges = np.histogram(longitude_values, bins=bin_edges_line_flux) # bin the longitudes in the same way as the firas data
+    expanded_firas_intensity = np.repeat(line_flux, repeats=binned_longitudes) # expand the firas data to match the modelled data by repeating the values a number of times determined by the binning of longitude values
+    expanded_firas_variance = np.repeat(firas_variance, repeats=binned_longitudes) # expand the firas variance to match the modelled data by repeating the values a number of times determined by the binning of longitude values
+    return expanded_firas_intensity, expanded_firas_variance
+
+
+def load_modelled_data(filename_arm_intensities='intensities_per_arm_b_max_5.npy'):
+    """ Function to load all modelled components of the total NII intensity
+
+    Args: 
+        filename_arm_intensities (str): The filename of the file containing the modelled intensities per arm
+    Returns:
+        intensities_modelled (1D np.array): The modelled NII intensity data
+    """
+    intensities_per_arm = np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/{filename_arm_intensities}') 
+    intensities_modelled = np.sum(intensities_per_arm[:4], axis=0) # sum the intensities of the four spiral arms
+    if settings.add_local_arm_to_intensity_plot == True: # add the local arm contribution
+        try: 
+            intensities_modelled += intensities_per_arm[4]
+        except: 
+            logging.warning("The local arm has not been added to the modelled data. You can generate it in spiral_arm_model.py")
+    if settings.add_gum_cygnus == True: # add the contribution from the nearby OBA
+        try:
+            gum = np.load(f'{const.FOLDER_GALAXY_DATA}/intensities_gum.npy')
+            cygnus = np.load(f'{const.FOLDER_GALAXY_DATA}/intensities_cygnus.npy')
+            gum_cygnus = gum + cygnus
+            intensities_modelled += gum_cygnus
+        except:
+            logging.warning("The Gum Nebula and Cygnus Loop contributions have not been added to the modelled data. You can generate them in gum_cygnus.py")
+    return intensities_modelled
+
+
+def plot_test_start_angle_major_arms(filename_output=f'{const.FOLDER_MODELS_GALAXY}/test_start_angle_major_arms.pdf'):
+    """ Function to plot the resulting N II intensity for different start angles of the major arms
     
-
-def test_fractional_contribution(method='linear', readfile='true', h=const.h_spiral_arm, sigma_arm=const.sigma_arm):
-    num_rows, num_cols = 2, 2
-    # array with fractional contribution of each spiral arm to be testet. Respectively respectively Norma-Cygnus(NC), Perseus(P), Sagittarius-Carina(SA), Scutum-Crux(SC)
-    fractional_contribution = [[0.25, 0.25, 0.25, 0.25],
-                               [0.18, 0.36, 0.18, 0.28],
-                               [0.15, 0.39, 0.15, 0.31],
-                               [0.17, 0.34, 0.15, 0.34]]
-    # Create subplots for each arm
-    fig, axes = plt.subplots(num_rows, num_cols, figsize=(10, 10))
-    # Adjust the horizontal and vertical spacing
-    plt.subplots_adjust(hspace=0.4, wspace=0.12)
-    # wspace=0.6 became too tight
-    for i in range(num_rows):
-        for j in range(num_cols):
-            print("Calculating with fractional contribution list: ", i * num_cols + j + 1)
-            ax = axes[i, j]
-            longitudes, densities_as_func_of_long = calc_modelled_emissivity(fractional_contribution[i * num_cols + j], method, readfile)
-            print(longitudes.shape, densities_as_func_of_long.shape, np.sum(densities_as_func_of_long, axis=0).shape)
-            print(np.linspace(0, 100, len(longitudes)))
-            print(np.sum(densities_as_func_of_long, axis=0))
-            ax.plot(np.linspace(0, 360, len(longitudes)), densities_as_func_of_long[0], label=f"NC. f={fractional_contribution[i * num_cols + j][0]}")
-            ax.plot(np.linspace(0, 360, len(longitudes)), densities_as_func_of_long[1], label=f"P. $\ $ f={fractional_contribution[i * num_cols + j][1]}")
-            ax.plot(np.linspace(0, 360, len(longitudes)), densities_as_func_of_long[2], label=f"SA. f={fractional_contribution[i * num_cols + j][2]}")
-            ax.plot(np.linspace(0, 360, len(longitudes)), densities_as_func_of_long[3], label=f"SC. f={fractional_contribution[i * num_cols + j][3]}")
-            ax.plot(np.linspace(0, 360, len(longitudes)), np.sum(densities_as_func_of_long, axis=0), label="Total")
-            ax.text(0.02, 0.95, fr'$H_\rho$ = {h} kpc & $\sigma_A$ = {sigma_arm} kpc', transform=ax.transAxes, fontsize=8, color='black')
-            # Redefine the x-axis labels to match the values in longitudes
-            x_ticks = (180, 150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210, 180)
-            ax.set_xticks(x_ticks) #np.linspace(0, 360, 13), 
-            ax.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
-            ax.set_xlabel("Galactic longitude l (degrees)")
-            ax.set_ylabel("Modelled emissivity")
-            ax.set_title("Modelled emissivity of the Galactic disk")
-            ax.legend()         
-    print("Done with plotting. Saving figure...") 
-    plt.suptitle('Testing different values for the fractional contribution of each spiral arm')
-    plt.savefig("output/test_fractional_contribution2", dpi=1200, bbox_inches='tight')
-    #plt.show()  # To display the plot
-
-
-def test_disk_scale_length(method='linear', readfile='true', fractional_contribution=const.fractional_contribution, sigma_arm=const.sigma_arm):
-    # Function to test different values for the disk scale length to see which gives the best fit compared to the data
-    disk_scale_lengths = np.array([1.8, 2.1, 2.4, 2.7, 3.0])
-    linestyles = np.array(['solid', 'dotted', 'dashed', 'dashdot', (0, (1, 10))])
-    for i in range(len(disk_scale_lengths)):
-        longitudes, densities_as_func_of_long = calc_modelled_emissivity(fractional_contribution, method, readfile, h=disk_scale_lengths[i], sigma_arm=sigma_arm)
-        plt.plot(np.linspace(0, 100, len(longitudes)), np.sum(densities_as_func_of_long, axis=0), linestyile=linestyles[i], color='black', label=f"$H_\rho$ = {disk_scale_lengths[i]} kpc")
-        # Redefine the x-axis labels to match the values in longitudes
+    Args:
+        filename_output (str): The filename of the output plot
+    """
+    logging.info("Plotting the test for the start angle of the major arms")
+    bin_edges_line_flux, bin_centre_line_flux, line_flux, line_flux_error = firas_data.firas_data_for_plotting()
+    plt.figure(figsize=(10, 6))
+    plt.stairs(values=line_flux, edges=bin_edges_line_flux, fill=False, color='black')
+    plt.errorbar(bin_centre_line_flux, line_flux, yerr=line_flux_error,fmt='none', ecolor='black', capsize=0, elinewidth=1)
+    # FIRAS data to calculate the reduced chi-squared value:
+    expanded_firas_intensity, expanded_firas_variance = load_firas_data()
+    # parameters for the plot:
+    longitudes = np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/longitudes.npy')
+    colors = sns.color_palette('bright', 5)
+    arm_angles_to_check = [const.arm_angles,
+                            np.array([const.arm_angles[0] + np.radians(10), const.arm_angles[1], const.arm_angles[2], const.arm_angles[3], const.arm_angles[4]]),
+                            np.array([const.arm_angles[0], const.arm_angles[1] + np.radians(10), const.arm_angles[2], const.arm_angles[3], const.arm_angles[4]]),
+                            np.array([const.arm_angles[0], const.arm_angles[1], const.arm_angles[2] + np.radians(10), const.arm_angles[3], const.arm_angles[4]]),
+                            np.array([const.arm_angles[0], const.arm_angles[1], const.arm_angles[2], const.arm_angles[3] + np.radians(10), const.arm_angles[4]])]
+    for i in range(len(arm_angles_to_check)):
+        arm_angles = arm_angles_to_check[i]
+        sam.calc_modelled_intensity(readfile_effective_area=False, arm_angles=arm_angles)
+        intensities_total = load_modelled_data()
+        reduced_chi_squared_value = reduced_chi_squared(expanded_firas_intensity, expanded_firas_variance, intensities_total)
+        label = f'$\\theta_{{NC}}$: {np.round(np.degrees(arm_angles[0]), 0)}°, $\\theta_{{P}}$: {np.round(np.degrees(arm_angles[1]), 0)}°, $\\theta_{{SA}}$: {np.round(np.degrees(arm_angles[2]), 0)}°, $\\theta_{{SC}}$: {np.round(np.degrees(arm_angles[3]), 0)}°. Reduced $\\chi^2$: {reduced_chi_squared_value:.2f}'
+        plt.plot(np.linspace(0, 360, len(longitudes)), intensities_total, label=label, color=colors[i], linestyle=linestyles[i], linewidth=LINEWIDTH)
+    # Redefine the x-axis labels to match the values in longitudes
     x_ticks = (180, 150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210, 180)
-    plt.xticks(np.linspace(0, 100, 13), x_ticks)
+    plt.xticks(np.linspace(0, 360, 13), x_ticks)
+    plt.gca().xaxis.set_minor_locator(AutoMinorLocator(3)) 
+    plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+    plt.ylim(top=TOP)
+    plt.xlabel("Galactic longitude l (degrees)")
+    plt.ylabel("Line intensity in erg cm$^{-2}$ s$^{-1}$ sr$^{-1}$")
+    plt.title("Modelled intensity of the Galactic disk")
+    # Add parameter values as text labels
+    plt.text(0.02, 0.95, fr'$H_\rho$ = {const.h_spiral_arm} kpc & $\sigma_A$ = {const.sigma_arm} kpc', transform=plt.gca().transAxes, fontsize=8, color='black')
+    plt.text(0.02, 0.9, fr'NII Luminosity = {const.total_galactic_n_luminosity:.2e} erg/s', transform=plt.gca().transAxes, fontsize=8, color='black')
+    plt.legend()
+    plt.savefig(filename_output)
+    plt.close()
+
+
+def plot_test_pitch_angle_major_arms(filename_output=f'{const.FOLDER_MODELS_GALAXY}/test_pitch_angle_major_arms.pdf'):
+    """ Function to plot the resulting N II intensity for different pitch angles of the major arms
+    
+    Args:
+        filename_output (str): The filename of the output plot
+    """
+    logging.info("Plotting the test for the pitch angles of the major arms")
+    bin_edges_line_flux, bin_centre_line_flux, line_flux, line_flux_error = firas_data.firas_data_for_plotting()
+    plt.figure(figsize=(10, 6))
+    plt.stairs(values=line_flux, edges=bin_edges_line_flux, fill=False, color='black')
+    plt.errorbar(bin_centre_line_flux, line_flux, yerr=line_flux_error,fmt='none', ecolor='black', capsize=0, elinewidth=1)
+    # FIRAS data to calculate the reduced chi-squared value:
+    expanded_firas_intensity, expanded_firas_variance = load_firas_data()
+    # parameters for the plot:
+    longitudes = np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/longitudes.npy')
+    colors = sns.color_palette('bright', 5)
+    pitch_angles_to_check = [const.pitch_angles,
+                            np.array([const.pitch_angles[0] + np.radians(2), const.pitch_angles[1], const.pitch_angles[2], const.pitch_angles[3], const.pitch_angles[4]]),
+                            np.array([const.pitch_angles[0], const.pitch_angles[1] + np.radians(2), const.pitch_angles[2], const.pitch_angles[3], const.pitch_angles[4]]),
+                            np.array([const.pitch_angles[0], const.pitch_angles[1], const.pitch_angles[2] + np.radians(2), const.pitch_angles[3], const.pitch_angles[4]]),
+                            np.array([const.pitch_angles[0], const.pitch_angles[1], const.pitch_angles[2], const.pitch_angles[3] + np.radians(2), const.pitch_angles[4]])]
+    for i in range(len(pitch_angles_to_check)):
+        sam.calc_modelled_intensity(readfile_effective_area=False, pitch_angles=pitch_angles_to_check[i])
+        intensities_total = load_modelled_data()
+        reduced_chi_squared_value = reduced_chi_squared(expanded_firas_intensity, expanded_firas_variance, intensities_total)
+        label = f'$p_{{NC}}: {np.round(np.degrees(pitch_angles_to_check[i][0]), 2)}°, p_{{P}}: {np.round(np.degrees(pitch_angles_to_check[i][1]), 2)}°, p_{{SA}}: {np.round(np.degrees(pitch_angles_to_check[i][2]), 2)}°, p_{{SC}}: {np.round(np.degrees(pitch_angles_to_check[i][3]), 2)}°. \\text{{Reduced }} \\chi^2: {reduced_chi_squared_value:.2f}$'
+        plt.plot(np.linspace(0, 360, len(longitudes)), intensities_total, label=label, color=colors[i], linestyle=linestyles[i], linewidth=LINEWIDTH)
+    # Redefine the x-axis labels to match the values in longitudes
+    x_ticks = (180, 150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210, 180)
+    plt.xticks(np.linspace(0, 360, 13), x_ticks)
+    plt.gca().xaxis.set_minor_locator(AutoMinorLocator(3)) 
+    plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+    plt.ylim(top=TOP)
+    plt.xlabel("Galactic longitude l (degrees)")
+    plt.ylabel("Line intensity in erg cm$^{-2}$ s$^{-1}$ sr$^{-1}$")
+    plt.title("Modelled intensity of the Galactic disk")
+    # Add parameter values as text labels
+    plt.text(0.02, 0.95, fr'$H_\rho$ = {const.h_spiral_arm} kpc & $\sigma_A$ = {const.sigma_arm} kpc', transform=plt.gca().transAxes, fontsize=8, color='black')
+    plt.text(0.02, 0.9, fr'NII Luminosity = {const.total_galactic_n_luminosity:.2e} erg/s', transform=plt.gca().transAxes, fontsize=8, color='black')
+    plt.legend()
+    plt.savefig(filename_output)
+    plt.close()
+
+
+def plot_test_fractional_contribution(filename_output=f'{const.FOLDER_MODELS_GALAXY}/test_fractional_contribution.pdf'):
+    """ Function to plot the resulting N II intensity for different fractional contributions of the major arms
+    
+    Args:
+        filename_output (str): The filename of the output plot
+    """
+    logging.info("Plotting the test for the fractional contribution of the major arms")
+    bin_edges_line_flux, bin_centre_line_flux, line_flux, line_flux_error = firas_data.firas_data_for_plotting()
+    plt.figure(figsize=(10, 6))
+    plt.stairs(values=line_flux, edges=bin_edges_line_flux, fill=False, color='black')
+    plt.errorbar(bin_centre_line_flux, line_flux, yerr=line_flux_error,fmt='none', ecolor='black', capsize=0, elinewidth=1)
+    # FIRAS data to calculate the reduced chi-squared value:
+    expanded_firas_intensity, expanded_firas_variance = load_firas_data()
+    # parameters for the plot:
+    longitudes = np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/longitudes.npy')
+    colors = sns.color_palette('bright', 5)
+    fractional_contribution_to_check = [const.fractional_contribution,
+                                        np.array([0.18, 0.35, 0.18, 0.28, 0.01]),
+                                        np.array([0.25, 0.24, 0.25, 0.25, 0.01]),
+                                        np.array([0.15, 0.39, 0.15, 0.30, 0.01])]
+    for i in range(len(fractional_contribution_to_check)):
+        sam.calc_modelled_intensity(readfile_effective_area=False, fractional_contribution=fractional_contribution_to_check[i])
+        intensities_total = load_modelled_data()
+        reduced_chi_squared_value = reduced_chi_squared(expanded_firas_intensity, expanded_firas_variance, intensities_total)
+        label = f'f_NC: {fractional_contribution_to_check[i][0]}, f_P: {fractional_contribution_to_check[i][1]}, f_SA: {fractional_contribution_to_check[i][2]}, f_SC: {fractional_contribution_to_check[i][3]}. Reduced $\\chi^2$: {reduced_chi_squared_value:.2f}'
+        plt.plot(np.linspace(0, 360, len(longitudes)), intensities_total, label=label, color=colors[i], linestyle=linestyles[i], linewidth=LINEWIDTH)
+    # Redefine the x-axis labels to match the values in longitudes
+    x_ticks = (180, 150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210, 180)
+    plt.xticks(np.linspace(0, 360, 13), x_ticks)
+    plt.gca().xaxis.set_minor_locator(AutoMinorLocator(3)) 
+    plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+    plt.ylim(top=TOP)
+    plt.xlabel("Galactic longitude l (degrees)")
+    plt.ylabel("Line intensity in erg cm$^{-2}$ s$^{-1}$ sr$^{-1}$")
+    plt.title("Modelled intensity of the Galactic disk")
+    # Add parameter values as text labels
+    plt.text(0.02, 0.95, fr'$H_\rho$ = {const.h_spiral_arm} kpc & $\sigma_A$ = {const.sigma_arm} kpc', transform=plt.gca().transAxes, fontsize=8, color='black')
+    plt.text(0.02, 0.9, fr'NII Luminosity = {const.total_galactic_n_luminosity:.2e} erg/s', transform=plt.gca().transAxes, fontsize=8, color='black')
+    plt.legend()
+    plt.savefig(filename_output)
+    plt.close()
+
+
+def plot_test_sigma_arm(filename_output=f'{const.FOLDER_MODELS_GALAXY}/test_sigma_arm.pdf'):
+    """ Function to plot the resulting N II intensity for different sigmas for the spiral arms
+    
+    Args:
+        filename_output (str): The filename of the output plot
+    """
+    logging.info("Plotting the test for the width of the spiral arms")
+    bin_edges_line_flux, bin_centre_line_flux, line_flux, line_flux_error = firas_data.firas_data_for_plotting()
+    plt.figure(figsize=(10, 6))
+    plt.stairs(values=line_flux, edges=bin_edges_line_flux, fill=False, color='black')
+    plt.errorbar(bin_centre_line_flux, line_flux, yerr=line_flux_error,fmt='none', ecolor='black', capsize=0, elinewidth=1)
+    # FIRAS data to calculate the reduced chi-squared value:
+    expanded_firas_intensity, expanded_firas_variance = load_firas_data()
+    # parameters for the plot:
+    longitudes = np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/longitudes.npy')
+    colors = sns.color_palette('bright', 5)
+    sigma_arm_to_check = [0.25, 0.4, 0.5, 0.6, 0.75]
+    for i in range(len(sigma_arm_to_check)):
+        sam.calc_modelled_intensity(readfile_effective_area=False, sigma_arm=sigma_arm_to_check[i])
+        intensities_total = load_modelled_data()
+        reduced_chi_squared_value = reduced_chi_squared(expanded_firas_intensity, expanded_firas_variance, intensities_total)
+        label = f'$\sigma_a$: {sigma_arm_to_check[i]} kpc. Reduced $\\chi^2$: {reduced_chi_squared_value:.2f}'
+        plt.plot(np.linspace(0, 360, len(longitudes)), intensities_total, label=label, color=colors[i], linestyle=linestyles[i], linewidth=LINEWIDTH)
+    # Redefine the x-axis labels to match the values in longitudes
+    x_ticks = (180, 150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210, 180)
+    plt.xticks(np.linspace(0, 360, 13), x_ticks)
+    plt.gca().xaxis.set_minor_locator(AutoMinorLocator(3)) 
     plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
     plt.xlabel("Galactic longitude l (degrees)")
-    plt.ylabel("Modelled emissivity")
-    plt.title("Modelled emissivity of the Galactic disk")
-    plt.gca().set_aspect('equal')
+    plt.ylabel("Line intensity in erg cm$^{-2}$ s$^{-1}$ sr$^{-1}$")
+    plt.title("Modelled intensity of the Galactic disk")
     # Add parameter values as text labels
-    plt.text(0.02, 0.95, fr'$\sigma_A$ = {sigma_arm} kpc', transform=plt.gca().transAxes, fontsize=8, color='black')
+    plt.text(0.02, 0.95, fr'$H_\rho$ = {const.h_spiral_arm} kpc', transform=plt.gca().transAxes, fontsize=8, color='black')
+    plt.text(0.02, 0.9, fr'NII Luminosity = {const.total_galactic_n_luminosity:.2e} erg/s', transform=plt.gca().transAxes, fontsize=8, color='black')
     plt.legend()
-    plt.savefig('output/test_disk_scale_length', dpi=1200)
-    plt.show()
+    plt.savefig(filename_output)
+    plt.close()
 
-def test_transverse_scale_length(method='linear', readfile='true', fractional_contribution=const.fractional_contribution, h=const.h_spiral_arm):
-    transverse_scale_lengths = np.array([0.25, 0.4, 0.5, 0.6, 0.75])
-    linestyles = np.array(['solid', 'dotted', 'dashed', 'dashdot', (0, (1, 10))])
-    for i in range(len(transverse_scale_lengths)):
-        longitudes, densities_as_func_of_long = calc_modelled_emissivity(fractional_contribution, method, readfile, h=h, sigma_arm=transverse_scale_lengths[i])
-        plt.plot(np.linspace(0, 100, len(longitudes)), np.sum(densities_as_func_of_long, axis=0), linestyile=linestyles[i], color='black', label=f"$\sigma_A$ = {transverse_scale_lengths[i]} kpc")
-        # Redefine the x-axis labels to match the values in longitudes
+
+def plot_test_h_arm(filename_output=f'{const.FOLDER_MODELS_GALAXY}/test_h_arm.pdf'):
+    """ Function to plot the resulting N II intensity for different scale lengths of the spiral arms
+    
+    Args:
+        filename_output (str): The filename of the output plot
+    """
+    logging.info("Plotting the test for the scale height of the spiral arms")
+    bin_edges_line_flux, bin_centre_line_flux, line_flux, line_flux_error = firas_data.firas_data_for_plotting()
+    plt.figure(figsize=(10, 6))
+    plt.stairs(values=line_flux, edges=bin_edges_line_flux, fill=False, color='black')
+    plt.errorbar(bin_centre_line_flux, line_flux, yerr=line_flux_error,fmt='none', ecolor='black', capsize=0, elinewidth=1)
+    # FIRAS data to calculate the reduced chi-squared value:
+    expanded_firas_intensity, expanded_firas_variance = load_firas_data()
+    # parameters for the plot:
+    longitudes = np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/longitudes.npy')
+    colors = sns.color_palette('bright', 5)
+    h_arm_to_check = [1.8, 2.1, 2.4, 2.7, 3.0]
+    for i in range(len(h_arm_to_check)):
+        sam.calc_modelled_intensity(readfile_effective_area=False, h=h_arm_to_check[i])
+        intensities_total = load_modelled_data()
+        reduced_chi_squared_value = reduced_chi_squared(expanded_firas_intensity, expanded_firas_variance, intensities_total)
+        label = f'H$_\\rho$: {h_arm_to_check[i]} kpc. Reduced $\\chi^2$: {reduced_chi_squared_value:.2f}'
+        plt.plot(np.linspace(0, 360, len(longitudes)), intensities_total, label=label, color=colors[i], linestyle=linestyles[i], linewidth=LINEWIDTH)
+    # Redefine the x-axis labels to match the values in longitudes
     x_ticks = (180, 150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210, 180)
-    plt.xticks(np.linspace(0, 100, 13), x_ticks)
+    plt.xticks(np.linspace(0, 360, 13), x_ticks)
+    plt.gca().xaxis.set_minor_locator(AutoMinorLocator(3)) 
     plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
     plt.xlabel("Galactic longitude l (degrees)")
-    plt.ylabel("Modelled emissivity")
-    plt.title("Modelled emissivity of the Galactic disk")
-    plt.gca().set_aspect('equal')
+    plt.ylabel("Line intensity in erg cm$^{-2}$ s$^{-1}$ sr$^{-1}$")
+    plt.title("Modelled intensity of the Galactic disk")
     # Add parameter values as text labels
-    plt.text(0.02, 0.95, fr'$H_\rho$ = {h} kpc', transform=plt.gca().transAxes, fontsize=8, color='black')
+    plt.text(0.02, 0.95, fr'$H_\rho$ = {const.h_spiral_arm} kpc', transform=plt.gca().transAxes, fontsize=8, color='black')
+    plt.text(0.02, 0.9, fr'NII Luminosity = {const.total_galactic_n_luminosity:.2e} erg/s', transform=plt.gca().transAxes, fontsize=8, color='black')
     plt.legend()
-    plt.savefig('output/transverse_scale_length', dpi=1200)
-    plt.show()
+    plt.savefig(filename_output)
+    plt.close()
 
 
-def find_max_value_and_index(arr):
-    if not arr.any():
-        return None, None  # Return None if the array is empty
+def plot_test_devoid_region_sagittarius(filename_output=f'{const.FOLDER_MODELS_GALAXY}/test_devoid_region.pdf'):
+    """ Function to plot the resulting N II intensity for different parameters of the devoid region in Sagittarius
 
-    max_value = max(arr)
-    max_index = np.argmax(arr)
+    Args:
+        filename_output (str): The filename of the output plot
+    """
+    logging.info("Plotting the test for the devoid region in Sagittarius")
+    bin_edges_line_flux, bin_centre_line_flux, line_flux, line_flux_error = firas_data.firas_data_for_plotting()
+    plt.figure(figsize=(10, 6))
+    plt.stairs(values=line_flux, edges=bin_edges_line_flux, fill=False, color='black')
+    plt.errorbar(bin_centre_line_flux, line_flux, yerr=line_flux_error,fmt='none', ecolor='black', capsize=0, elinewidth=1)
+    # FIRAS data to calculate the reduced chi-squared value:
+    expanded_firas_intensity, expanded_firas_variance = load_firas_data()
+    # parameters for the plot:
+    longitudes = np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/longitudes.npy')
+    colors = sns.color_palette('bright', 5)
+    rho_min_sagittarius_to_check = [5.1, 5.3, 5.5]
+    rho_max_sagittarius_to_check = [7, 6.8, 7.3]
+    sigma_devoid_to_check = [0.25, 0.3, 0.4]
+    transverse_distances, transverse_densities_initial = sam.generate_transverse_spacing_densities(const.sigma_arm) 
+    # calculate initial intensities:
+    sam.calc_modelled_intensity(readfile_effective_area=False)
+    for i in range(len(rho_min_sagittarius_to_check)):
+        interpolate_density_one_arm(arm_index=2, rho_min_sagittarius=rho_min_sagittarius_to_check[i], rho_max_sagittarius=rho_max_sagittarius_to_check[i], sigma_devoid=sigma_devoid_to_check[i], h_spiral_arm=const.h_spiral_arm, arm_angle=const.arm_angles[2], pitch_angle=const.pitch_angles[2], transverse_distances=transverse_distances, transverse_densities_initial=transverse_densities_initial)
+        calc_effective_area_one_arm(arm_index=2, rho_min_sagittarius=rho_min_sagittarius_to_check[i], rho_max_sagittarius=rho_max_sagittarius_to_check[i], sigma_devoid=sigma_devoid_to_check[i])
+        sam.calc_modelled_intensity(readfile_effective_area=True, interpolate_all_arms=False, calc_gum_cyg=False)
+        intensities_total = load_modelled_data()
+        reduced_chi_squared_value = reduced_chi_squared(expanded_firas_intensity, expanded_firas_variance, intensities_total)
+        label = f'$\\rho_{{min}} = {rho_min_sagittarius_to_check[i]}, \\rho_{{max}} = {rho_max_sagittarius_to_check[i]}, \\sigma = {sigma_devoid_to_check[i]}. \\text{{Reduced }} \\chi^2: {reduced_chi_squared_value:.2f}$'
+        plt.plot(np.linspace(0, 360, len(longitudes)), intensities_total, label=label, color=colors[i], linestyle=linestyles[i], linewidth=LINEWIDTH)
+    # Redefine the x-axis labels to match the values in longitudes
+    x_ticks = (180, 150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210, 180)
+    plt.xticks(np.linspace(0, 360, 13), x_ticks)
+    plt.gca().xaxis.set_minor_locator(AutoMinorLocator(3)) 
+    plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+    plt.ylim(top=TOP)
+    plt.xlabel("Galactic longitude l (degrees)")
+    plt.ylabel("Line intensity in erg cm$^{-2}$ s$^{-1}$ sr$^{-1}$")
+    plt.title("Modelled intensity of the Galactic disk")
+    # Add parameter values as text labels
+    plt.text(0.02, 0.95, fr'$H_\rho$ = {const.h_spiral_arm} kpc', transform=plt.gca().transAxes, fontsize=8, color='black')
+    plt.text(0.02, 0.9, fr'NII Luminosity = {const.total_galactic_n_luminosity:.2e} erg/s', transform=plt.gca().transAxes, fontsize=8, color='black')
+    plt.legend()
+    plt.savefig(filename_output)
+    plt.close()
 
-    return max_value, max_index
+
+def plot_test_max_angle_local_arm(filename_output=f'{const.FOLDER_MODELS_GALAXY}/test_max_angle_local_arm.pdf'):
+    """ Function to plot the resulting N II intensity for different maximum angles of the local arm
+
+    Args:
+        filename_output (str): The filename of the output plot
+    """
+    logging.info("Plotting the test for the maximum angle of the local arm")
+    bin_edges_line_flux, bin_centre_line_flux, line_flux, line_flux_error = firas_data.firas_data_for_plotting()
+    plt.figure(figsize=(10, 6))
+    plt.stairs(values=line_flux, edges=bin_edges_line_flux, fill=False, color='black')
+    plt.errorbar(bin_centre_line_flux, line_flux, yerr=line_flux_error,fmt='none', ecolor='black', capsize=0, elinewidth=1)
+    # FIRAS data to calculate the reduced chi-squared value:
+    expanded_firas_intensity, expanded_firas_variance = load_firas_data()
+    # parameters for the plot:
+    longitudes = np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/longitudes.npy')
+    colors = sns.color_palette('bright', 5)
+    theta_max_to_check = [const.theta_max_local, const.theta_max_local + np.radians(3), const.theta_max_local + np.radians(6)] # 110 +- 3 degrees
+    transverse_distances, transverse_densities_initial = sam.generate_transverse_spacing_densities(const.sigma_arm) 
+    # calculate initial intensities:
+    sam.calc_modelled_intensity(readfile_effective_area=False)
+    interpolate_density_one_arm(h_spiral_arm=const.h_spiral_arm, arm_angle=const.arm_angles[2], pitch_angle=const.pitch_angles[2], transverse_distances=transverse_distances, transverse_densities_initial=transverse_densities_initial, arm_index=2, rho_min_sagittarius=const.rho_min_sagittarius, rho_max_sagittarius=const.rho_max_sagittarius, sigma_devoid=const.sigma_devoid)
+    calc_effective_area_one_arm(arm_index=2, rho_min_sagittarius=const.rho_min_sagittarius, rho_max_sagittarius=const.rho_max_sagittarius, sigma_devoid=const.sigma_devoid)
+    for i in range(len(theta_max_to_check)):
+        rho_max_local = const.rho_min_local * np.exp(np.tan(const.pitch_local) * (theta_max_to_check[i] - const.theta_start_local))
+        interpolate_density_one_arm(arm_index=4, rho_min_spiral_arm=const.rho_min_local, rho_max_spiral_arm=rho_max_local, h_spiral_arm=const.h_spiral_arm, arm_angle=const.arm_angles[4], pitch_angle=const.pitch_angles[4], transverse_distances=transverse_distances, transverse_densities_initial=transverse_densities_initial)
+        calc_effective_area_one_arm(arm_index=4, rho_min_spiral_arm=const.rho_min_local, rho_max_spiral_arm=rho_max_local)
+        sam.calc_modelled_intensity(readfile_effective_area=True, interpolate_all_arms=False, calc_gum_cyg=False)
+        intensities_total = load_modelled_data()
+        reduced_chi_squared_value = reduced_chi_squared(expanded_firas_intensity, expanded_firas_variance, intensities_total)
+        label = f'$\\theta_{{max}} = {np.round(np.degrees(theta_max_to_check[i]), 0)}. \\text{{Reduced }} \\chi^2: {reduced_chi_squared_value:.2f}$'
+        plt.plot(np.linspace(0, 360, len(longitudes)), intensities_total, label=label, color=colors[i], linestyle=linestyles[i], linewidth=LINEWIDTH)
+    # Redefine the x-axis labels to match the values in longitudes
+    x_ticks = (180, 150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210, 180)
+    plt.xticks(np.linspace(0, 360, 13), x_ticks)
+    plt.gca().xaxis.set_minor_locator(AutoMinorLocator(3)) 
+    plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+    plt.xlabel("Galactic longitude l (degrees)")
+    plt.ylabel("Line intensity in erg cm$^{-2}$ s$^{-1}$ sr$^{-1}$")
+    plt.title("Modelled intensity of the Galactic disk")
+    # Add parameter values as text labels
+    plt.text(0.02, 0.95, fr'$H_\rho$ = {const.h_spiral_arm} kpc', transform=plt.gca().transAxes, fontsize=8, color='black')
+    plt.text(0.02, 0.9, fr'NII Luminosity = {const.total_galactic_n_luminosity:.2e} erg/s', transform=plt.gca().transAxes, fontsize=8, color='black')
+    plt.legend()
+    plt.savefig(filename_output)
+    plt.close()
 
 
-def find_arm_tangents(fractional_contribution=const.fractional_contribution, gum_cygnus='False', method='cubic', readfile = "false", filename = "output/test_arm_angles/test_arm_start_angle.txt", h=const.h_spiral_arm, sigma_arm=const.sigma_arm):
-    # starting angles for the spiral arms, respectively Norma-Cygnus, Perseus, Sagittarius-Carina, Scutum-Crux
-    # arm_angles = np.radians([70, 160, 250, 340]) #original
-    nc_angle = np.arange(60, 81, 1)
-    p_angle = np.arange(150, 171, 1)
-    sa_angle = np.arange(240, 261, 1)
-    sc_angle = np.arange(330, 351, 1)
-    for i in range(len(nc_angle)):
-        angles = np.radians(np.array([nc_angle[i], p_angle[i], sa_angle[i], sc_angle[i]]))
-        longitudes, densities_as_func_of_long = calc_modelled_emissivity(fractional_contribution, gum_cygnus, method, readfile, h, sigma_arm, angles)        
-        _, max_index_nc = find_max_value_and_index(densities_as_func_of_long[0])
-        _, max_index_p = find_max_value_and_index(densities_as_func_of_long[1])
-        _, max_index_sa = find_max_value_and_index(densities_as_func_of_long[2])
-        _, max_index_sc = find_max_value_and_index(densities_as_func_of_long[3])
-        plt.plot(np.linspace(0, 100, len(longitudes)), densities_as_func_of_long[0], label=f"NC. f={fractional_contribution[0]}")
-        plt.plot(np.linspace(0, 100, len(longitudes)), densities_as_func_of_long[1], label=f"P. $\ $ f={fractional_contribution[1]}")
-        plt.plot(np.linspace(0, 100, len(longitudes)), densities_as_func_of_long[2], label=f"SA. f={fractional_contribution[2]}")
-        plt.plot(np.linspace(0, 100, len(longitudes)), densities_as_func_of_long[3], label=f"SC. f={fractional_contribution[3]}")
-        plt.plot(np.linspace(0, 100, len(longitudes)), np.sum(densities_as_func_of_long, axis=0), label="Total")
-        print(np.sum(densities_as_func_of_long))
-        # Redefine the x-axis labels to match the values in longitudes
-        x_ticks = (180, 150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210, 180)
-        plt.xticks(np.linspace(0, 100, 13), x_ticks)
-        plt.gca().xaxis.set_minor_locator(AutoMinorLocator(3)) 
-        plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
-        plt.xlabel("Galactic longitude l (degrees)")
-        plt.ylabel("Modelled emissivity")
-        plt.title("Modelled emissivity of the Galactic disk")
-        # Add parameter values as text labels
-        plt.text(0.02, 0.95, fr'$H_\rho$ = {h} kpc & $\sigma_A$ = {sigma_arm} kpc', transform=plt.gca().transAxes, fontsize=8, color='black')
-        plt.text(0.02, 0.9, fr'NII Luminosity = {total_galactic_n_luminosity:.2e} erg/s', transform=plt.gca().transAxes, fontsize=8, color='black')
-        plt.text(0.02, 0.85, fr'Arm angles: nc={nc_angle[i]}, p={p_angle[i]}, sa={sa_angle[i]}, sc={sc_angle[i]}', transform=plt.gca().transAxes, fontsize=8, color='black')
-        plt.legend()
-        plt.savefig(f'output/test_arm_angles/set_{i}', dpi=1200)
-        plt.close()
-        # save to file filename
-        with open(filename, 'a') as f:
-            f.write(f"{nc_angle[i]} {p_angle[i]} {sa_angle[i]} {sc_angle[i]} {np.degrees(longitudes[max_index_nc])} {np.degrees(longitudes[max_index_p])} {np.degrees(longitudes[max_index_sa])} {np.degrees(longitudes[max_index_sc])}\n")
-        
-        
-def find_pitch_angles(fractional_contribution=const.fractional_contribution, gum_cygnus='False', method='cubic', readfile = "false", filename = "output/test_pitch_angles_4/test_pitch_angles_4.txt", h=const.h_spiral_arm, sigma_arm=const.sigma_arm):
-    # starting angles for the spiral arms, respectively Norma-Cygnus, Perseus, Sagittarius-Carina, Scutum-Crux
-    # arm_angles = np.radians([70, 160, 250, 340]) #original
-    # pitch_angles = np.radians(np.array([13.5, 13.5, 13.5, 15.5])) # original
-    # Vallées pitch angles: 12.8
-    
-    #pitch_angles = np.arange(12, 15.6, 0.1)
-    pitch_angles = np.arange(13.5, 15.6, 0.1)
-    #Arm_Angles = np.array([65, 160, 245, 335]) #1
-    #Arm_Angles = np.array([65, 155, 240, 330]) #2
-    #Arm_Angles = np.array([65, 160, 250, 330]) #3
-    Arm_Angles = np.array([65, 160, 240, 330]) #4
-    for i in range(len(pitch_angles)):
-        Pitch_Angles = np.radians([pitch_angles[i], pitch_angles[i], pitch_angles[i], pitch_angles[i]])
-        longitudes, densities_as_func_of_long = calc_modelled_emissivity(fractional_contribution, gum_cygnus, method, readfile, h, sigma_arm, np.radians(Arm_Angles), Pitch_Angles)        
-        _, max_index_nc = find_max_value_and_index(densities_as_func_of_long[0])
-        _, max_index_p = find_max_value_and_index(densities_as_func_of_long[1])
-        _, max_index_sa = find_max_value_and_index(densities_as_func_of_long[2])
-        _, max_index_sc = find_max_value_and_index(densities_as_func_of_long[3])
-        plt.plot(np.linspace(0, 100, len(longitudes)), densities_as_func_of_long[0], label=f"NC. f={fractional_contribution[0]}")
-        plt.plot(np.linspace(0, 100, len(longitudes)), densities_as_func_of_long[1], label=f"P. $\ $ f={fractional_contribution[1]}")
-        plt.plot(np.linspace(0, 100, len(longitudes)), densities_as_func_of_long[2], label=f"SA. f={fractional_contribution[2]}")
-        plt.plot(np.linspace(0, 100, len(longitudes)), densities_as_func_of_long[3], label=f"SC. f={fractional_contribution[3]}")
-        plt.plot(np.linspace(0, 100, len(longitudes)), np.sum(densities_as_func_of_long, axis=0), label="Total")
-        print(np.sum(densities_as_func_of_long))
-        # Redefine the x-axis labels to match the values in longitudes
-        x_ticks = (180, 150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210, 180)
-        plt.xticks(np.linspace(0, 100, 13), x_ticks)
-        plt.gca().xaxis.set_minor_locator(AutoMinorLocator(3)) 
-        plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
-        plt.xlabel("Galactic longitude l (degrees)")
-        plt.ylabel("Modelled emissivity")
-        plt.title("Modelled emissivity of the Galactic disk")
-        # Add parameter values as text labels
-        plt.text(0.02, 0.95, fr'$H_\rho$ = {h} kpc & $\sigma_A$ = {sigma_arm} kpc', transform=plt.gca().transAxes, fontsize=8, color='black')
-        plt.text(0.02, 0.9, fr'NII Luminosity = {total_galactic_n_luminosity:.2e} erg/s', transform=plt.gca().transAxes, fontsize=8, color='black')
-        plt.text(0.02, 0.85, fr'Arm angles: nc={Arm_Angles[0]}, p={Arm_Angles[1]}, sa={Arm_Angles[2]}, sc={Arm_Angles[3]}', transform=plt.gca().transAxes, fontsize=8, color='black')
-        plt.text(0.02, 0.8, fr'Pitch angles = {pitch_angles[i]}', transform=plt.gca().transAxes, fontsize=8, color='black')
-        plt.legend()
-        plt.savefig(f'output/test_pitch_angles_4/set_{i}', dpi=1200)
-        plt.close()
-        # save to file filename
-        with open(filename, 'a') as f:
-            f.write(f"{pitch_angles[i]} {np.degrees(longitudes[max_index_nc])} {np.degrees(longitudes[max_index_p])} {np.degrees(longitudes[max_index_sa])} {np.degrees(longitudes[max_index_sc])}\n")
+def main():
+    plot_test_start_angle_major_arms()
+    plot_test_pitch_angle_major_arms()
+    plot_test_fractional_contribution()
+    plot_test_sigma_arm()
+    plot_test_h_arm()
+    plot_test_devoid_region_sagittarius()
+    plot_test_max_angle_local_arm()
+    return
+
+
+if __name__ == "__main__":
+    main()

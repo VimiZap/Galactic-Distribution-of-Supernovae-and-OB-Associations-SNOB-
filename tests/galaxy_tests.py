@@ -9,6 +9,7 @@ import src.galaxy_model.association_class as ass # Note that importing this caus
 import src.galaxy_model.galaxy_class as galaxy
 import src.utilities.utilities as ut
 import src.utilities.constants as const
+import src.utilities.utilities as util
 
 
 N = 10e4 # number of associations in the Galaxy
@@ -273,7 +274,7 @@ def plot_drawn_associations(x_data, y_data, NUM_ASC, filename_output):
 
 
 @ut.timing_decorator
-def test_plot_density_distribution(plane=1000, transverse=1, half_edge=15):
+def test_plot_density_distribution(plane=1000, transverse=1, half_edge=15, read_data_from_file=False, plot_lines_of_sight=False):
     """ Function to test the density distribution of the Milky Way. Plots both the unweighted, analytical density distribution and the weighted, modelled emissivity from which the associations are drawn.
     
     Args:
@@ -285,18 +286,18 @@ def test_plot_density_distribution(plane=1000, transverse=1, half_edge=15):
         Saves two plots in the output folder
     """
     logging.info("Testing the modelled density distribution of the Milky Way")
-    x_grid, y_grid, z_grid, uniform_spiral_arm_density, emissivity = gdd.generate_coords_densities(plane, transverse, half_edge, read_data_from_file=False)
+    x_grid, y_grid, z_grid, uniform_spiral_arm_density, emissivity = gdd.generate_coords_densities(plane, transverse, half_edge, read_data_from_file=read_data_from_file)
     logging.info("Plotting the uniform spiral arm density distribution")
     # Plot the uniform spiral arm density distribution:
-    plot_density_distribution_with_imshow(x_grid, y_grid, uniform_spiral_arm_density, 'uniform', num_bins=plane)
+    plot_density_distribution_with_imshow(x_grid, y_grid, uniform_spiral_arm_density, 'uniform', num_bins=plane, plot_lines_of_sight=plot_lines_of_sight)
     logging.info("Saved density map. Now plotting the emissivity model")
-    plot_density_distribution_with_imshow(x_grid, y_grid, emissivity, 'emissivity', num_bins=plane)
+    plot_density_distribution_with_imshow(x_grid, y_grid, emissivity, 'emissivity', num_bins=plane, plot_lines_of_sight=plot_lines_of_sight)
     logging.info("Done plotting the density distributions of the Milky Way")
     return
 
 
 @ut.timing_decorator
-def plot_density_distribution_with_imshow(x_grid, y_grid, density_distribution, filename_output, num_bins):
+def plot_density_distribution_with_imshow(x_grid, y_grid, density_distribution, filename_output, num_bins, plot_lines_of_sight=False):
     """ Function to plot the density distribution of the Milky Way
     
     Args:
@@ -309,11 +310,21 @@ def plot_density_distribution_with_imshow(x_grid, y_grid, density_distribution, 
     Returns:
         Saves a plot in the output folder
     """
+    plt.figure(figsize=(10, 8))
+    if plot_lines_of_sight:
+        # Lines of sight to add to the plot
+        los_long = np.array([35, 40, 45, 50, 55, 60])
+        rads = np.linspace(0, 9, 300)
+        for long in los_long:
+            theta_los = util.theta(rads, np.radians(long), 0)
+            rho_los = util.rho(rads, np.radians(long), 0)
+            x_los = rho_los*np.cos(theta_los)
+            y_los = rho_los*np.sin(theta_los)
+            plt.scatter(x_los, y_los, label=f'Line of sight for {long}°', s=1)
     # Aggregate data into a 2D histogram for the heatmap
     heatmap, xedges, yedges = np.histogram2d(x_grid, y_grid, bins=num_bins, weights=density_distribution)
     # Normalize the heatmap
     heatmap /= np.sum(heatmap)
-    plt.figure(figsize=(10, 8))
     # Plot the heatmap
     # Note: `extent` is used to scale the axes according to the edges of the bins
     plt.imshow(heatmap.T, extent=[xedges[0], xedges[-1], yedges[0], yedges[-1]], origin='lower', cmap='viridis', aspect='auto')
@@ -353,19 +364,19 @@ def plot_associations_from_galaxy(galaxy):
 
 
 def main():
-    """ plot_diffusion_of_sns_3d() # plot the diffusion of SNP's in 3D to see how they diffuse away from the association centre with time
+    test_plot_density_distribution(read_data_from_file=False, plot_lines_of_sight=True) # test the density distribution of the Milky Way. Plots both the unweighted, analytical density distribution and the weighted, modelled emissivity from which the associations are drawn 
+    plot_diffusion_of_sns_3d() # plot the diffusion of SNP's in 3D to see how they diffuse away from the association centre with time
     test_association_placement() # test the placement of the associations from the emissivity. Drawn using MC simulation
     plot_age_mass_distribution() # highlight the relation between mass and expected lifetime of stars
-    test_plot_density_distribution() # test the density distribution of the Milky Way. Plots both the unweighted, analytical density distribution and the weighted, modelled emissivity from which the associations are drawn """
     length_sim_myr = 150
     galaxy_1 = galaxy.Galaxy(length_sim_myr, star_formation_episodes=1, read_data_from_file=True) # an array with n associations
-    """ galaxy_2 = galaxy.Galaxy(length_sim_myr, star_formation_episodes=3, read_data_from_file=True) # an array with n associations
+    galaxy_2 = galaxy.Galaxy(length_sim_myr, star_formation_episodes=3, read_data_from_file=True) # an array with n associations
     galaxy_3 = galaxy.Galaxy(length_sim_myr, star_formation_episodes=5, read_data_from_file=True) # an array with n associations
-    galaxies = np.array([galaxy_1, galaxy_2, galaxy_3]) """
+    galaxies = np.array([galaxy_1, galaxy_2, galaxy_3])
     plot_mass_distr(galaxy_1) # plot the probability distribution for the mass of SNP's. SNP's from a generated galaxy
-    """ plot_sn_as_func_of_long(galaxy_1) # plot the probability density function of SNPs as function of longitude. SNP's from a generated galaxy
+    plot_sn_as_func_of_long(galaxy_1) # plot the probability density function of SNPs as function of longitude. SNP's from a generated galaxy
     plot_cum_snp_cluster_distr(galaxies) # plot the cumulative distribution of steller clusters as function of number of snp's. SNP's from a generated galaxies with different values of C
-    plot_associations_from_galaxy(galaxy_1) # plot the associations from the galaxy """
+    plot_associations_from_galaxy(galaxy_1) # plot the associations from the galaxy
 
 if __name__ == "__main__":
     main()
