@@ -4,10 +4,14 @@ import numpy as np
 import src.galaxy_model.association_class as asc
 import src.utilities.utilities as ut
 import src.galaxy_model.galaxy_density_distr as gdd
+import matplotlib.pyplot as plt
+import src.utilities.constants as const
 
-AVG_SN_PER_ASC = np.array([204, 620, 980]) # number of star formation episodes = 1, 3, 5
+#AVG_SN_PER_ASC = np.array([204, 620, 980]) # number of star formation episodes = 1, 3, 5
 SN_BIRTHRATE = 2.81e4 # units of SN/Myr
-ASC_BIRTHRATE = np.round(SN_BIRTHRATE / AVG_SN_PER_ASC).astype(int)  # number of associations created per Myr
+#ASC_BIRTHRATE = np.round(SN_BIRTHRATE / AVG_SN_PER_ASC).astype(int)  # number of associations created per Myr
+ASC_BIRTHRATE = np.array([3086, 9257, 15428])  # number of associations created per Myr
+print(ASC_BIRTHRATE)
 STAR_FORMATION_EPISODES = [1, 3, 5]
 C = [0.828, 0.95, 1.0] # values for the constant C for respectively 1, 3 and 5 star formation episodes
 
@@ -160,9 +164,30 @@ class Galaxy():
         return exploded_sn_longitudes
     
 
+def plot_temporal_clustering():
+    plt.figure(figsize=(10, 6))
+    #plt.figure()
+    max_number_snp = 10e3
+    snps = np.arange(0, max_number_snp, 1)
+    for i, c in enumerate(C):
+        plt.plot(snps, c-0.11*np.log(snps), label=f'Number of star-forming episodes = {STAR_FORMATION_EPISODES[i]}')
+    plt.xlabel('$N_*^{\\text{SN}}$')
+    plt.ylabel('$P(> N_*^{\\text{SN}})$')
+    plt.title('Temporal clustering of supernovae progenitors')
+    plt.xscale('log')
+    plt.xlim(1, max_number_snp)
+    plt.ylim(0, 1.0)
+    # Set y-axis ticks to increment by 0.1
+    plt.yticks(np.arange(0, 1.1, 0.1))
+    plt.legend()
+    plt.savefig(f'{const.FOLDER_GALAXY_TESTS}/temporal_clustering_analytical.pdf')
+    plt.close()
+
+
 def main():  
-    Galaxy(1)
-    Galaxy(50)
+    plot_temporal_clustering()
+    #Galaxy(1)
+    #Galaxy(50)
 
 if __name__ == "__main__":
     main()

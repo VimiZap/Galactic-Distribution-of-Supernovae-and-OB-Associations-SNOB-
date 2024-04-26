@@ -54,7 +54,6 @@ def interpolate_density(x_grid, y_grid, h=const.h_lyc, sigma_arm=const.sigma_arm
         interpolated_arm[interpolated_arm < 0] = 0 # set all negative values to 0
         # normalize the density to the highest value of the density
         interpolated_densities.append(interpolated_arm)
-    interpolated_densities /= np.max(interpolated_densities) # normalize the densities to the highest value of the densities
     logging.info("Interpolation done")
     return interpolated_densities
 
@@ -95,6 +94,7 @@ def generate_coords_densities(plane = 1000, transverse = 20, half_edge = 25, rea
     uniform_spiral_arm_density = interpolate_density(x_grid, y_grid) # generate the density
     uniform_spiral_arm_density_total = np.sum(uniform_spiral_arm_density, axis=0) # sum up all the arms to get an array for the total galactic density
     uniform_spiral_arm_density_total = uniform_spiral_arm_density_total.ravel() # flatten the array
+    uniform_spiral_arm_density_total /= uniform_spiral_arm_density_total.max() # normalize the density to unity
     # Either read or calculate the effective area per spiral arm
     if read_eff_area == True:
         effective_area = np.load(f'{const.FOLDER_GALAXY_DATA}/effective_area_per_spiral_arm.npy')
@@ -108,6 +108,7 @@ def generate_coords_densities(plane = 1000, transverse = 20, half_edge = 25, rea
         uniform_spiral_arm_density[i] *= common_multiplication_factor * const.fractional_contribution[i] / (effective_area[i] * const.kpc**2) # scale each spiral arm with the common factor, the fractional contribution and the effective area in cm^2
     emissivity = np.sum(uniform_spiral_arm_density, axis=0)
     emissivity = emissivity.ravel()
+    emissivity /= emissivity.max()
     # Save the data to file
     np.save(f'{const.FOLDER_GALAXY_DATA}/sim_x_grid.npy', x_grid)
     np.save(f'{const.FOLDER_GALAXY_DATA}/sim_y_grid.npy', y_grid)

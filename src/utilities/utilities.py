@@ -199,7 +199,7 @@ def imf_2(mass):
         print("The mass values must be in the range 0.5 <= M/M_sun < 1")
         return
     
-    return np.power(m[2]/m[1], -const.alpha[1]) * np.power(mass / m[2], -const.alpha[2]) # the modified Kroupa initial mass function for 0.01 <= M/M_sun < 0.08
+    return np.power(m[2]/m[1], -const.alpha[1]) * np.power(mass / m[2], -const.alpha[2]) # the modified Kroupa initial mass function for 0.5 <= M/M_sun < 1.0
 
 
 def imf_3(mass):

@@ -364,20 +364,24 @@ def plot_associations_from_galaxy(galaxy):
 
 
 def main():
-    #test_association_placement(read_data_from_file=False)
-    test_plot_density_distribution(read_data_from_file=False, plot_lines_of_sight=False) # test the density distribution of the Milky Way. Plots both the unweighted, analytical density distribution and the weighted, modelled emissivity from which the associations are drawn 
-    """ plot_diffusion_of_sns_3d() # plot the diffusion of SNP's in 3D to see how they diffuse away from the association centre with time
-    test_association_placement() # test the placement of the associations from the emissivity. Drawn using MC simulation
-    plot_age_mass_distribution() # highlight the relation between mass and expected lifetime of stars
-    length_sim_myr = 150
+    #test_association_placement(read_data_from_file=True)
+    #test_plot_density_distribution(read_data_from_file=True, plot_lines_of_sight=False) # test the density distribution of the Milky Way. Plots both the unweighted, analytical density distribution and the weighted, modelled emissivity from which the associations are drawn 
+    #plot_diffusion_of_sns_3d() # plot the diffusion of SNP's in 3D to see how they diffuse away from the association centre with time
+    #test_association_placement() # test the placement of the associations from the emissivity. Drawn using MC simulation
+    #plot_age_mass_distribution() # highlight the relation between mass and expected lifetime of stars
+    length_sim_myr = 10
+    print('generating galaxy 1')
     galaxy_1 = galaxy.Galaxy(length_sim_myr, star_formation_episodes=1, read_data_from_file=True) # an array with n associations
+    print('generating galaxy 2')
     galaxy_2 = galaxy.Galaxy(length_sim_myr, star_formation_episodes=3, read_data_from_file=True) # an array with n associations
+    print('generating galaxy 3')
     galaxy_3 = galaxy.Galaxy(length_sim_myr, star_formation_episodes=5, read_data_from_file=True) # an array with n associations
+    print('all galaxies generated')
     galaxies = np.array([galaxy_1, galaxy_2, galaxy_3])
     plot_mass_distr(galaxy_1) # plot the probability distribution for the mass of SNP's. SNP's from a generated galaxy
     plot_sn_as_func_of_long(galaxy_1) # plot the probability density function of SNPs as function of longitude. SNP's from a generated galaxy
     plot_cum_snp_cluster_distr(galaxies) # plot the cumulative distribution of steller clusters as function of number of snp's. SNP's from a generated galaxies with different values of C
-    plot_associations_from_galaxy(galaxy_1) # plot the associations from the galaxy """
+    plot_associations_from_galaxy(galaxy_1) # plot the associations from the galaxy
 
 if __name__ == "__main__":
     main()
