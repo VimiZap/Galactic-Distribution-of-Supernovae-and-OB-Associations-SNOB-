@@ -10,6 +10,7 @@ import src.utilities.constants as const
 import src.galaxy_model.galaxy_class as gal
 import src.galaxy_model.association_class as asc
 import src.local_arm as la
+from matplotlib.ticker import AutoMinorLocator
 import logging
 import numpy as np
 logging.basicConfig(level=logging.INFO)
@@ -157,12 +158,14 @@ def add_spiral_arms_to_ax(ax):
         None
     """
     colors = sns.color_palette('bright', 7)
+    rho_min_array = const.rho_min_spiral_arm
+    rho_max_array = const.rho_max_spiral_arm
     for i in range(len(const.arm_angles)):
         # generate the spiral arm medians
-        theta, rho = sam.spiral_arm_medians(const.arm_angles[i], const.pitch_angles[i], arm_index=i)
+        theta, rho = sam.spiral_arm_medians(const.arm_angles[i], const.pitch_angles[i], rho_min=rho_min_array[i], rho_max=rho_max_array[i])
         x = rho*np.cos(theta)
         y = rho*np.sin(theta)
-        ax.plot(x, y, marker='o', linewidth = 0.0001, zorder=6, markeredgewidth=0.0001, markersize=0.0001, color=colors[i]) # plot the spiral arm medians
+        ax.plot(x, y, linewidth = 1, zorder=6, markeredgewidth=1, markersize=1, color=colors[i]) # plot the spiral arm medians
     return
 
 
@@ -197,9 +200,9 @@ def add_spiral_arm_names_to_ax(ax):
     text_rotation = [24, 23, 20, 16]
     text_arm_names = ['Norma-Cygnus', 'Scutum-Crux', 'Sagittarius-Carina', 'Perseus']
     
-    for i in range(len(const.arm_angles)):
-
-        ax.text(text_x_pos[i], text_y_pos[i], text_arm_names[i], fontsize=8, zorder=20, rotation=text_rotation[i])
+    for i in range(len(const.arm_angles[:-1])): # skip local arm
+        ax.text(text_x_pos[i], text_y_pos[i], text_arm_names[i], fontsize=8, zorder=20, rotation=text_rotation[i],
+                weight='bold', bbox=dict(facecolor='white', alpha=0.2, edgecolor='none'))
     return
 
 
@@ -213,7 +216,9 @@ def add_local_arm_to_ax(ax):
         None
     """
     arm_index=4
-    theta, rho = sam.spiral_arm_medians(arm_angle=const.arm_angles[arm_index], pitch_angle=const.pitch_angles[arm_index], arm_index=arm_index)
+    rho_min_local = const.rho_min_spiral_arm[arm_index]
+    rho_max_local = const.rho_max_spiral_arm[arm_index]
+    theta, rho = sam.spiral_arm_medians(arm_angle=const.arm_angles[arm_index], pitch_angle=const.pitch_angles[arm_index], rho_min=rho_min_local, rho_max=rho_max_local)
     x = rho * np.cos(theta)
     y = rho * np.sin(theta)
     ax.plot(x, y, color='black', marker='o', linewidth = 0.0001, zorder=6, markeredgewidth=0.0001, markersize=0.0001)
@@ -482,6 +487,7 @@ def known_associations_to_association_class():
     """
     x, y, z, distance, age = my_data_for_plotting()
     num_snp = calc_num_snps_known_associations_batch()
+    print(num_snp)
     associations = []
     for i in range(len(x)):
         # the association is created age[i] myrs ago with nump_snp[i] snps, which are found to be the number needed to explain the observed number of stars in the association. 
@@ -524,7 +530,7 @@ def combine_modelled_and_known_associations(modelled_galaxy, step=0.5, endpoint=
     return known_associations, associations_added
 
 
-def plot_modelled_and_known_associations(modelled_galaxy, step=0.5, endpoint=25):
+def plot_modelled_and_known_associations(modelled_galaxy, sim_time, step=0.5, endpoint=25):
     """ Plot the modelled and known associations together
     
     Args:
@@ -543,7 +549,7 @@ def plot_modelled_and_known_associations(modelled_galaxy, step=0.5, endpoint=25)
     # Now plot the modelled and known associations together
     fig, ax = plt.subplots(figsize=(10, 6))
     add_associations_to_ax(ax, x_obs, y_obs, 'Known associations', 'blue') # want the known associations to get its own label
-    add_associations_to_ax(ax, x_added, y_added, 'Modelled associations', 'green')
+    add_associations_to_ax(ax, x_added, y_added, 'Modelled associations', 'darkgreen')
     add_heliocentric_circles_to_ax(ax, step=step)
     add_spiral_arms_to_ax(ax)
     add_spiral_arm_names_to_ax(ax)
@@ -551,13 +557,14 @@ def plot_modelled_and_known_associations(modelled_galaxy, step=0.5, endpoint=25)
     ax.scatter(0, const.r_s, color='red', marker='o', label='Sun', s=10, zorder=11)
     ax.scatter(0, 0, color='black', marker='o', s=15, zorder=11)
     ax.text(-1, 0.5, 'Galactic centre', fontsize=8, zorder=7)
-    plt.title('Distribution of known and modelled associations in the Galactic plane')
-    plt.xlabel('x (kpc)')
-    plt.ylabel('y (kpc)')
+    plt.title(f'Distribution of known and modelled associations in the Galactic plane. \n Galaxy generated {5} Myrs ago')
+    plt.xlabel('$x$ (kpc)')
+    plt.ylabel('$y$ (kpc)')
     plt.xlim(-7.5, 7.5)
     plt.ylim(-2, 12)
     plt.gca().set_aspect('equal', adjustable='box')
-    plt.legend()
+    legend = plt.legend(framealpha=0.9)
+    legend.set_zorder(50)
     plt.grid(True, zorder=-10)
     plt.savefig(f'{const.FOLDER_OBSERVATIONAL_PLOTS}/combined_associations.pdf')
     plt.close()
@@ -668,13 +675,13 @@ def plot_num_stars_hist():
     plt.close()
 
 
-def calc_avg_asc_mass_hist(num_iterations: int = 10):
-    asc_mass_step = 500
-    bins = np.arange(0, 18000 + asc_mass_step, asc_mass_step)
+def calc_avg_asc_mass_hist(num_iterations: int = 10, star_formation_episodes: int = 1):
+    asc_mass_step = 100
+    bins = np.arange(0, 4000 + asc_mass_step, asc_mass_step)
     hist_known = np.zeros((num_iterations, len(bins) - 1))
     hist_added = np.zeros((num_iterations, len(bins) - 1))
     for it in range(num_iterations):
-        modelled_galaxy = gal.Galaxy(10, read_data_from_file=True)
+        modelled_galaxy = gal.Galaxy(10, read_data_from_file=True, star_formation_episodes=star_formation_episodes)
         known_associations, associations_added = combine_modelled_and_known_associations(modelled_galaxy)
         mass_asc_known = np.array([np.sum(asc.star_masses) for asc in known_associations])
         mass_asc_added = np.array([np.sum(asc.star_masses) for asc in associations_added])
@@ -687,7 +694,7 @@ def calc_avg_asc_mass_hist(num_iterations: int = 10):
     return bins, hist_known_mean, hist_added_mean
 
 
-def plot_avg_asc_mass_hist():
+def plot_avg_asc_mass_hist(star_formation_episodes: int = 1):
     """ Plot the histogram of the number of stars per association for known and modelled associations
     
     Args:
@@ -696,20 +703,21 @@ def plot_avg_asc_mass_hist():
     Returns:
         None. Saves the plot
     """
-    bins, hist_known_mean, hist_added_mean = calc_avg_asc_mass_hist()
+    logging.info('Plotting average association mass histogram')
+    bins, hist_known_mean, hist_added_mean = calc_avg_asc_mass_hist(star_formation_episodes=star_formation_episodes)
+    hist_added_mean = hist_added_mean / np.sum(hist_added_mean) 
+    hist_known_mean = hist_known_mean / np.sum(hist_known_mean)
     bin_centers = (bins[:-1] + bins[1:]) / 2
     bin_widths = np.diff(bins)
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
-    ax1.bar(bin_centers, hist_known_mean, width=bin_widths, label='Known Associations')
-    ax2.bar(bin_centers, hist_added_mean, width=bin_widths, label='Modelled Associations')
-    ax1.set_xlabel('Association mass (M$_\odot$)')
-    ax1.set_ylabel('Frequency')
-    ax1.yaxis.set_major_locator(MaxNLocator(integer=True))    # Set the y-axis to only use integer ticks
-    ax2.set_xlabel('Association mass (M$_\odot$)')
-    ax2.set_ylabel('Frequency')
-    ax1.set_title('Histogram of association masses (Known Associations)')
-    ax2.set_title('Histogram of association masses (Modelled Associations)')
-    plt.savefig(f'{const.FOLDER_OBSERVATIONAL_PLOTS}/asc_mass_hist.pdf')
+    plt.figure(figsize=(10, 6))
+    plt.bar(bin_centers, hist_known_mean, width=bin_widths, label='Known Associations', alpha=0.5)
+    plt.bar(bin_centers, hist_added_mean, width=bin_widths, label='Modelled Associations', alpha=0.5)
+    plt.xlabel('Association mass (M$_\odot$)')
+    plt.ylabel('Frequency')
+    plt.gca().yaxis.set_major_locator(MaxNLocator(integer=True))    # Set the y-axis to only use integer ticks
+    plt.title('Histogram of association masses shown for modelled and known associations.')
+    plt.legend()
+    plt.savefig(f'{const.FOLDER_OBSERVATIONAL_PLOTS}/asc_mass_hist_{star_formation_episodes}_snps_formed_at_different_times.pdf')
     plt.close()
 
 
@@ -741,7 +749,7 @@ def plot_avg_asc_age_hist():
     Returns:
         None. Saves the plot
     """
-    bins, hist_known_mean, hist_added_mean = calc_avg_asc_age_hist()
+    """ bins, hist_known_mean, hist_added_mean = calc_avg_asc_age_hist()
     bin_centers = (bins[:-1] + bins[1:]) / 2
     bin_widths = np.diff(bins)
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
@@ -756,6 +764,27 @@ def plot_avg_asc_age_hist():
     ax1.set_title('Histogram of association ages (Known Associations)')
     ax2.set_title('Histogram of association ages (Modelled Associations)')
     plt.savefig(f'{const.FOLDER_OBSERVATIONAL_PLOTS}/asc_age_hist.pdf')
+    plt.close() """
+    logging.info('Plotting average association age histogram')
+    known_associations = known_associations_to_association_class()
+    asc_age_step = 1
+    bins = np.arange(0, 50 + asc_age_step, asc_age_step)
+    age_asc_known = np.array([asc.age for asc in known_associations])
+    hist_known, _ = np.histogram(age_asc_known, bins=bins)
+    bin_centers = (bins[:-1] + bins[1:]) / 2
+    bin_widths = np.diff(bins)
+    plt.figure(figsize=(10, 6))
+    plt.bar(bin_centers, hist_known, width=bin_widths, label='Known Associations')
+    plt.xlabel('Association age (Myr)')
+    plt.ylabel('Frequency')
+    plt.title('Histogram of known association ages')
+    plt.gca().yaxis.set_major_locator(MaxNLocator(integer=True))    # Set the y-axis to only use integer ticks
+    # add tick marks for x-axis
+    plt.gca().xaxis.set_minor_locator(AutoMinorLocator(10)) 
+
+    
+    plt.xlim(0, 50)
+    plt.savefig(f'{const.FOLDER_OBSERVATIONAL_PLOTS}/asc_age_hist.pdf')
     plt.close()
 
 
@@ -764,14 +793,17 @@ def main():
     #plot_my_data(step=step)
     #plot_data_wright(True, step=step)
     #plot_data_wright(False, step=step)
-    galaxy = gal.Galaxy(10, read_data_from_file=True)
+    sim_time=5
+    galaxy = gal.Galaxy(sim_time, read_data_from_file=True, star_formation_episodes=3)
     #plot_modelled_galaxy(galaxy, step=step, endpoint=25)
-    plot_modelled_and_known_associations(galaxy, step=step, endpoint=25) 
+    #plot_modelled_and_known_associations(galaxy, sim_time=sim_time, step=step, endpoint=25) 
     #plot_mass_hist()
     #plot_num_stars_hist()
     #stat_known_associations(num_iterations=10000)
-    #plot_avg_asc_mass_hist()
-    #plot_avg_asc_age_hist()
+    plot_avg_asc_mass_hist(star_formation_episodes=1)
+    plot_avg_asc_mass_hist(star_formation_episodes=3)
+    plot_avg_asc_mass_hist(star_formation_episodes=5)
+    plot_avg_asc_age_hist()
 
 
 if __name__ == '__main__':

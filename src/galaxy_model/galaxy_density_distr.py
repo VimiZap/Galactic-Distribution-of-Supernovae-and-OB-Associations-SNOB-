@@ -5,6 +5,7 @@ logging.basicConfig(level=logging.INFO)
 import src.spiral_arm_model as sam
 import src.utilities.utilities as ut
 import src.utilities.constants as const
+from pathlib import Path
 
 
 @ut.timing_decorator    
@@ -59,7 +60,7 @@ def interpolate_density(x_grid, y_grid, h=const.h_lyc, sigma_arm=const.sigma_arm
 
 
 @ut.timing_decorator
-def generate_coords_densities(plane = 1000, transverse = 20, half_edge = 25, read_eff_area=True, read_data_from_file=True):
+def generate_coords_densities(plane = 1000, transverse = 20, half_edge = 25, readfile_effective_area=True, read_data_from_file=True):
     """ Function to generate the coordinates and densities for the density distribution of the Milky Way
 
     Args:
@@ -75,6 +76,8 @@ def generate_coords_densities(plane = 1000, transverse = 20, half_edge = 25, rea
         uniform_spiral_arm_density_total (np.array): The uniform spiral arm density distribution
         emissivity (np.array): The modelled emissivity
     """
+    # check if the folder exists, if not create it
+    Path(const.FOLDER_GALAXY_DATA).mkdir(parents=True, exist_ok=True)
     if read_data_from_file == True:
         if os.path.exists(f'{const.FOLDER_GALAXY_DATA}/sim_x_grid.npy'):
             logging.info("File sm_x_grid.npy exists in the folder")
@@ -96,10 +99,10 @@ def generate_coords_densities(plane = 1000, transverse = 20, half_edge = 25, rea
     uniform_spiral_arm_density_total = uniform_spiral_arm_density_total.ravel() # flatten the array
     uniform_spiral_arm_density_total /= uniform_spiral_arm_density_total.max() # normalize the density to unity
     # Either read or calculate the effective area per spiral arm
-    if read_eff_area == True:
+    if readfile_effective_area == True:
         effective_area = np.load(f'{const.FOLDER_GALAXY_DATA}/effective_area_per_spiral_arm.npy')
-    elif read_eff_area == False:
-        effective_area = sam.calc_effective_area_per_spiral_arm()
+    elif readfile_effective_area == False:
+        effective_area = sam.calc_effective_area_per_spiral_arm(readfile_effective_area=readfile_effective_area)
     else:
         raise ValueError("readfile must be either True or False")
     # Calculate the emissivity

@@ -18,7 +18,7 @@ class Association():
             x (float): x-coordinate of the association. Units of kpc
             y (float): y-coordinate of the association. Units of kpc
             z (float): z-coordinate of the association. Units of kpc
-            creation_time (int): how many years ago the association was created. Units of Myr
+            association_creation_time (int): how many years ago the association was created. Units of Myr
             c (int): number of star formation episodes
             n (int, optional): number of SNPs in the association. If None, a random number of SNPs is drawn. Otherwise, the given number of SNPs is used.
             
@@ -91,6 +91,7 @@ class Association():
             n (int): number of SNPs in the association
         """
         if n==None: # draw random number of SNPs
+            print("AIGHYUSDAHSDIGBIAUHSDEASDIHUJASDIHUOASDHIUASDIHUASDEIHUASDEIHUASDIHUYASDHIUASIDUHASDHUIOASDIHUA")
             return int(np.ceil(np.exp((c - self.rng.random())/0.11))) 
         else: # use the given number of SNPs
             return n

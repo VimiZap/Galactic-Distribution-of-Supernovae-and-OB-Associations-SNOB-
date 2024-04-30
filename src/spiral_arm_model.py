@@ -12,6 +12,7 @@ import src.utilities.utilities as ut
 import src.utilities.constants as const
 import src.utilities.settings as settings
 import src.gum_cygnus as gum_cygnus
+from pathlib import Path
 
 
 def spiral_arm_medians(arm_angle, pitch_angle, rho_min, rho_max):
@@ -194,6 +195,8 @@ def interpolate_density(h=const.h_spiral_arm, sigma_arm=const.sigma_arm, arm_ang
     Returns:
         3D np.array: Interpolated densities for each spiral arm along axis 0. Axis 1 and 2 are the densities with respect to the grid
     """
+    # check if the folder exists, if not create it
+    Path(const.FOLDER_GALAXY_DATA).mkdir(parents=True, exist_ok=True)
     transverse_distances, transverse_densities_initial = generate_transverse_spacing_densities(sigma_arm) 
     x_grid = np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/x_grid.npy')
     y_grid = np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/y_grid.npy')
@@ -240,6 +243,8 @@ def calc_effective_area_per_spiral_arm(h=const.h_spiral_arm, sigma_arm=const.sig
     """
     logging.info("Calculating the effective area for each spiral arm")
     filepath = f'{const.FOLDER_GALAXY_DATA}/effective_area_per_spiral_arm.npy'
+    # check if the folder exists, if not create it
+    Path(const.FOLDER_GALAXY_DATA).mkdir(parents=True, exist_ok=True)
     if readfile_effective_area == True:
         effective_area = np.load(filepath)
         return effective_area
@@ -430,6 +435,8 @@ def calc_modelled_emissivity(readfile_effective_area=True, interpolate_all_arms=
         pitch_angles: Pitch angles for the spiral arms. Default is pitch_angles
         
     """
+    # check if the folder exists, if not create it
+    Path(const.FOLDER_GALAXY_DATA).mkdir(parents=True, exist_ok=True)
     logging.info("Calculating modelled emissivity of the Milky Way")
     effective_area = calc_effective_area_per_spiral_arm(h, sigma_arm, arm_angles, pitch_angles, readfile_effective_area)
     if recalculate_coordinates:
@@ -479,6 +486,8 @@ def calc_modelled_intensity(readfile_effective_area=True, interpolate_all_arms=T
     Returns:
         None. Saves the intensity for each spiral arm to disk
     """
+    # check if the folder exists, if not create it
+    Path(const.FOLDER_GALAXY_DATA).mkdir(parents=True, exist_ok=True)
     logging.info("Calculating the modelled NII intensity of the Milky Way")
     calc_modelled_emissivity(readfile_effective_area, interpolate_all_arms, recalculate_coordinates, b_max, db_above_1_deg, fractional_contribution, h, sigma_arm, arm_angles, pitch_angles)
     num_rads = len(np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/radial_distances.npy'))

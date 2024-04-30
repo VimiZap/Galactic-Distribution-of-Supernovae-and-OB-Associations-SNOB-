@@ -6,12 +6,15 @@ import src.utilities.utilities as ut
 import src.galaxy_model.galaxy_density_distr as gdd
 import matplotlib.pyplot as plt
 import src.utilities.constants as const
+from matplotlib.ticker import AutoMinorLocator
+from matplotlib.ticker import MaxNLocator
+
 
 #AVG_SN_PER_ASC = np.array([204, 620, 980]) # number of star formation episodes = 1, 3, 5
 SN_BIRTHRATE = 2.81e4 # units of SN/Myr
-#ASC_BIRTHRATE = np.round(SN_BIRTHRATE / AVG_SN_PER_ASC).astype(int)  # number of associations created per Myr
-ASC_BIRTHRATE = np.array([3086, 9257, 15428])  # number of associations created per Myr
-print(ASC_BIRTHRATE)
+ASC_BIRTHRATE = np.array([3084, 3085, 3085])  # number of associations created per Myr
+SNS_BIRTHRATE = np.array([23270, 26600, 28100])  # number of supernovae progenitors created per Myr
+AVG_NUM_SNP_PER_ASC = np.array([8, 9, 9]) # small and similar number - should just take 10 for all
 STAR_FORMATION_EPISODES = [1, 3, 5]
 C = [0.828, 0.95, 1.0] # values for the constant C for respectively 1, 3 and 5 star formation episodes
 
@@ -82,7 +85,7 @@ class Galaxy():
         """
         self._calculate_association_position_batch(asc_birthrate, c, sim_time_duration) # add the first batch of associations, created at the beginning of the simulation
         logging.info(f'Simulation time: {sim_time_duration}')
-        for sim_time in range(sim_time_duration - 1, -1, -1): # iterate over the simulation time, counting down to the present. sim_time_duration - 1 because the first batch of associations is already added
+        for sim_time in range(sim_time_duration - 1, 0, -1): # iterate over the simulation time, counting down to the present. sim_time_duration - 1 because the first batch of associations is already added and we don't generate new associations at sim_time = 0
             if sim_time % 10 == 0:
                 logging.info(f'Simulation time: {sim_time}')
             self._calculate_association_position_batch(asc_birthrate, c, sim_time)
@@ -111,6 +114,54 @@ class Galaxy():
         return self._star_formation_episodes
     
 
+    def _association_distribution(self, n_min, n_max, N = None):
+        # it is assumed n_min and n_max are adjusted for the numbner of star forming episodes
+        constant = 1.65 * 1.7e6 * 1.1e-3 # 1.1e-3 = f_SN = the fraction of stars that end their lives as core-collapse supernovae
+        if N == None: # if N is not given, generate the range of N. N != None is interpreted as the user wants the number of associations for a specific N
+            N = np.arange(n_min, n_max + 1) # default step size is 1. The range is inclusive of n_max
+            return constant / N**2
+        return int(np.ceil(constant / N**2))
+    
+    
+    def _association_distribution_normalized(self, n_min, n_max):
+        distribution = self._association_distribution(n_min, n_max)
+        return distribution / np.sum(distribution)
+    
+    
+    def _calc_num_associations(self, n_min, n_max):
+        N = np.arange(n_min, n_max + 1)
+        # Using the normalized association distribution to draw N
+        distribution = self._association_distribution_normalized(n_min, n_max)
+        # Draw the actual number of associations as given by a random multinomial distribution
+        #num_snp_drawn = self.rng.choice(a=N, size=1000, p=distribution)
+        num_snp_drawn = np.array([])
+        num_snp_target = SNS_BIRTHRATE[self._star_formation_episodes_index]
+        count = 0
+        print(f'number of star forming episodes: {self._star_formation_episodes}. n_min, n_max: {n_min, n_max}. num_snp_target: {num_snp_target}.')
+        min_num_snp = np.inf
+        while np.sum(num_snp_drawn) < num_snp_target*0.99:
+            count += 1
+            new_num_snp_drawn = self.rng.choice(a=N, size=self._star_formation_episodes, p=distribution)
+            new_num_snp_drawn = np.sum(new_num_snp_drawn, dtype=int)
+            new_num_snp_drawn = int(new_num_snp_drawn)
+            if new_num_snp_drawn < n_min*self._star_formation_episodes:
+                print('WTFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF')
+            if new_num_snp_drawn < min_num_snp:
+                min_num_snp = new_num_snp_drawn
+            if new_num_snp_drawn <= 2 & self._star_formation_episodes > 1:
+                raise ValueError('new_num_snp_drawn <= 2')
+            #print('new_num_snp_drawn:', new_num_snp_drawn)
+            #new_num_snp_drawn *= self._star_formation_episodes
+            #print('new_num_snp_drawn:', new_num_snp_drawn)
+            diff = num_snp_target - np.sum(num_snp_drawn) - new_num_snp_drawn
+            if diff < 0: 
+                print('diff:', diff)
+                print('count:', count)
+                #new_num_snp_drawn = new_num_snp_drawn + diff
+            num_snp_drawn = np.concatenate((num_snp_drawn, [new_num_snp_drawn]))
+        print(f'count: {count}. num star formation episodes: {self._star_formation_episodes}. min_num_snp: {min_num_snp}. np.min(num_snp_drawn): {np.min(num_snp_drawn)}. np.max(num_snp_drawn): {np.max(num_snp_drawn)}.')
+        return num_snp_drawn
+        
     def _update_snps(self, sim_time):
         """ Method to update the supernovae progenitors to the given simulation time."""
         for association in self._galaxy:
@@ -138,12 +189,23 @@ class Galaxy():
         Returns:
             None
         """
-        grid_indexes = self.rng.choice(a=len(self.emissivity), size=asc_birthrate, p=self.emissivity) 
+        n_min = 2
+        n_max = 1870 #* self._star_formation_episodes
+        num_snp = self._calc_num_associations(n_min, n_max)
+        print(f'Number of associations: {len(num_snp)}. Number of SNPs: {np.sum(num_snp)}. Number of SNPs per association: {np.mean(num_snp)}. Number of star formation episodes: {self._star_formation_episodes}. Min num snp: {np.min(num_snp)}. Max num snp: {np.max(num_snp)}. Datatype: {num_snp.dtype}.')
+        grid_indexes = self.rng.choice(a=len(self.emissivity), size=len(num_snp), p=self.emissivity) 
+        xs = self.x_grid[grid_indexes] # get the x-values for the drawn associations
+        ys = self.y_grid[grid_indexes] # get the y-values for the drawn associations
+        zs = self.z_grid[grid_indexes] # get the z-values for the drawn associations
+        for i in range(len(num_snp)):
+            self._galaxy.append(asc.Association(x=xs[i], y=ys[i], z=zs[i], association_creation_time=sim_time, c=c, n=int(num_snp[i]))) # add the association to the galaxy
+       
+        """ grid_indexes = self.rng.choice(a=len(self.emissivity), size=asc_birthrate, p=self.emissivity) 
         xs = self.x_grid[grid_indexes] # get the x-values for the drawn associations
         ys = self.y_grid[grid_indexes] # get the y-values for the drawn associations
         zs = self.z_grid[grid_indexes] # get the z-values for the drawn associations
         for i in range(asc_birthrate):
-                self._galaxy.append(asc.Association(x=xs[i], y=ys[i], z=zs[i], association_creation_time=sim_time, c=c)) # add the association to the galaxy
+                self._galaxy.append(asc.Association(x=xs[i], y=ys[i], z=zs[i], association_creation_time=sim_time, c=c)) # add the association to the galaxy """
     
 
     def get_exploded_supernovae_masses(self):
@@ -186,7 +248,44 @@ def plot_temporal_clustering():
 
 def main():  
     plot_temporal_clustering()
-    #Galaxy(1)
+    simulation_time = 1
+    galaxy_1 = Galaxy(simulation_time, star_formation_episodes=1)
+    galaxy_3 = Galaxy(simulation_time, star_formation_episodes=3)
+    galaxy_5 = Galaxy(simulation_time, star_formation_episodes=5)
+    print(f'Number of associations in galaxy_1 born per Myr: {galaxy_1.num_asc / simulation_time}')
+    print(f'Number of associations in galaxy_3 born per Myr: {galaxy_3.num_asc / simulation_time}')
+    print(f'Number of associations in galaxy_5 born per Myr: {galaxy_5.num_asc / simulation_time}')
+    # average mass per association
+    for galaxy in [galaxy_1, galaxy_3, galaxy_5]:
+        ass_mass = np.array([])
+        num_snp = 0
+        min_ass_mass = np.inf
+        num_snp_min_ass = np.inf
+        for association in galaxy.associations:
+            ass_mass_new = np.sum(association.star_masses)
+            if ass_mass_new < min_ass_mass:
+                min_ass_mass = ass_mass_new
+                num_snp_min_ass = association.number_sn
+            ass_mass = np.concatenate((ass_mass, [ass_mass_new]))
+            num_snp += association.number_sn
+            #print(f'Average mass of progenitors in association: {np.mean(association.star_masses)}')
+        print(f'Average mass of associations in galaxy with {galaxy.star_formation_episodes} star formation episodes: {np.mean(ass_mass)}. Num SNPS: {num_snp}. Num associations: {len(galaxy.associations)}. Min association mass: {min_ass_mass}. Min association SNP count: {num_snp_min_ass}')
+        asc_mass_step = 5
+        bins = np.arange(8, 1000 + asc_mass_step, asc_mass_step)
+        hist_added_it, _ = np.histogram(ass_mass, bins=bins)
+        hist_added_it = hist_added_it / np.sum(hist_added_it)
+        bin_centers = (bins[:-1] + bins[1:]) / 2
+        bin_widths = np.diff(bins)
+        plt.figure(figsize=(10, 6))
+        plt.bar(bin_centers, hist_added_it, width=bin_widths, label='Modelled Associations', alpha=0.5)
+        plt.xlabel('Association mass (M$_\odot$)')
+        plt.ylabel('Frequency')
+        #plt.gca().yaxis.set_major_locator(MaxNLocator(integer=True))    # Set the y-axis to only use integer ticks
+        plt.title('Histogram of association masses shown for modelled and known associations.')
+        plt.legend()
+        plt.show()
+        plt.close()
+        
     #Galaxy(50)
 
 if __name__ == "__main__":

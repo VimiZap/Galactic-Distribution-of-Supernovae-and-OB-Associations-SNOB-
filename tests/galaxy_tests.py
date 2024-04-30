@@ -16,41 +16,44 @@ N = 10e4 # number of associations in the Galaxy
 T = 20 # simulation run time in Myrs
 star_formation_episodes = [1, 3, 5]
 C = [0.828, 0.95, 1.0] # values for the constant C for respectively 1, 3 and 5 star formation episodes
-
+    
 
 def plot_cum_snp_cluster_distr(galaxies, C=C):
-    """ Function to plot the cumulative distribution of steller clusters as function of number of snp's
+    """
+    Function to plot the cumulative distribution of stellar clusters as function of number of SNPs.
 
     Args:
-        galaxy: np.array storing the galaxies for different values of C, the number of star formation episodes
-        
-    Returns:
-        None. Saves a plot in the output folder
+        galaxies: list of Galaxy class instances, storing the galaxies for different values of C, the number of star formation episodes.
+        C: List of values representing the number of star formation episodes per galaxy.
 
+    Returns:
+        None. Saves a plot in the output folder.
     """
-    for i in range(len(C)):
-        print('i = ', i)
-        n = galaxies[i].num_asc
-        association_array_num_sn = []
-        for asc in galaxies[i].galaxy:
-            association_array_num_sn.append(asc.number_sn)
-        num_bins = int(np.ceil(max(association_array_num_sn))) # minimum number of stars = 1
-        counts, _ = np.histogram(association_array_num_sn, bins=range(1, num_bins, 1))
-        cumulative = (n - np.cumsum(counts))/n # cumulative distribution, normalized
-        #plt.plot(range(1, num_bins-1, 1), cumulative, label="Number of star formation episodes = " + str(C[i]))
-        plt.plot(range(1, num_bins-1, 1), cumulative, label= fr"{star_formation_episodes[i]} episodes. Total number of OB stars: {np.sum(association_array_num_sn):.2f}")
+    plt.figure(figsize=(10, 6))  # Adjust figure size as needed
+
+    for i, galaxy in enumerate(galaxies):
+        print(f'Number of associations in galaxy {i}: {galaxy.num_asc}')
+        association_array_num_sn = [asc.number_sn for asc in galaxy.associations]
+        num_bins = int(np.ceil(max(association_array_num_sn)) + 1)  # Adding 1 to include the maximum value
+
+        # Creating bins and histogram
+        counts, bin_edges = np.histogram(association_array_num_sn, bins=range(1, num_bins + 1))
+        cumulative = 1 - np.cumsum(counts) / galaxy.num_asc  # normalized cumulative distribution
+
+        plt.plot(bin_edges[:-1], cumulative, label=f"{C[i]} episodes. Total number of OB stars: {np.sum(association_array_num_sn):.2f}")
+
     plt.xscale("log")
-    plt.xlim(1, num_bins + 3000) # set the x axis limits
-    plt.ylim(0, 1) # set the y axis limits
+    plt.xlim(1, num_bins - 1)  # Adjust x-axis limits to exclude the last empty bin edge
+    plt.ylim(0, 1)  # set the y-axis limits
     plt.xlabel("Number of SNPs")
     plt.ylabel("Cumulative distribution. P(N > x)")
     plt.title("Monte Carlo simulation of temporal clustering of SNPs")
     plt.legend()
-    plt.savefig(f'{const.FOLDER_GALAXY_TESTS}/temporal_clustering.pdf')     # save plot in the output folder
+    plt.savefig(f'{const.FOLDER_GALAXY_TESTS}/temporal_clustering.pdf')  # Adjust path as necessary
     plt.close()
 
 
-def plot_sn_as_func_of_long(galaxy):
+def plot_sn_as_func_of_long(galaxy, sim_time, num_star_forming_episodes):
     """ Function to plot the probability density function of SNPs as function of longitude
     
     Args:
@@ -79,9 +82,9 @@ def plot_sn_as_func_of_long(galaxy):
     plt.xticks(np.linspace(0, 360, 13), x_ticks)
     plt.gca().xaxis.set_minor_locator(AutoMinorLocator(3)) 
     plt.ylabel("P(SN)")
-    plt.title("Probability density function of SNPs as function of longitude")   
+    plt.title(f"Probability density function of SNPs as function of longitude.\n Result after {sim_time} Myr and {num_star_forming_episodes} star formation episodes.")   
     plt.text(0.02, 0.95, fr'Number of associations: {galaxy.num_asc}', transform=plt.gca().transAxes, fontsize=8, color='black')
-    plt.text(0.02, 0.90, fr'Total number of supernovae progenitors: {num_sn}', transform=plt.gca().transAxes, fontsize=8, color='black')
+    plt.text(0.02, 0.90, fr'Total number of Supernovae: {num_sn}', transform=plt.gca().transAxes, fontsize=8, color='black')
     plt.ylim(0, max(rearanged_hist)*1.2) # set the y axis limits
     plt.xlim(0, 360) # so that the plot starts at 0 and ends at 360
     plt.savefig(f'{const.FOLDER_GALAXY_TESTS}/sn_as_func_of_long.pdf')     # save plot in the output folder
@@ -108,7 +111,7 @@ def plot_mass_distr(galaxy):
     number_sn = 0
     for asc in galaxy.associations:
         number_sn += asc.number_sn
-        drawn_masses = np.concatenate((drawn_masses, asc.supernovae_masses))
+        drawn_masses = np.concatenate((drawn_masses, asc.star_masses))
     mass_max = int(np.ceil(max(drawn_masses))) 
     mass_min = int(np.floor(min(drawn_masses))) # minimum number of stars = 0
     binwidth = 1
@@ -156,7 +159,7 @@ def plot_association_3d(ax, association, simulation_time):
     ax.set_xlabel('X (pc from AC.)')
     ax.set_ylabel('Y (pc from AC.)')
     ax.set_zlabel('Z (pc from AC.)')
-    ax.set_title(f"Position of upernova progenitors {simulation_time} Myr ago.")
+    ax.set_title(f"Position of Supernovae and OB stars {simulation_time} Myr ago.")
 
        
 def plot_diffusion_of_sns_3d():
@@ -223,7 +226,7 @@ def plot_age_mass_distribution():
     plt.close()
     
 
-def test_association_placement(read_data_from_file=True):
+def test_association_placement(read_data_from_file=True, readfile_effective_area=True):
     """ Function for testing the placement of the associations from the emissivity. Drawn using MC simulation
 
     Returns:
@@ -231,7 +234,7 @@ def test_association_placement(read_data_from_file=True):
     """
     logging.info("Testing montecarlo simulation of association placement")
     NUM_ASC = 15000 # number of associations to draw from the density distribution
-    x_grid, y_grid, z_grid, uniform_spiral_arm_density, emissivity = gdd.generate_coords_densities(read_data_from_file=read_data_from_file) # generate the coordinates and densities for the density distribution of the Milky Way
+    x_grid, y_grid, z_grid, uniform_spiral_arm_density, emissivity = gdd.generate_coords_densities(read_data_from_file=read_data_from_file, readfile_effective_area=readfile_effective_area) # generate the coordinates and densities for the density distribution of the Milky Way
     logging.info("Beginning to draw associations for uniform distribution")
     grid_index = gdd.monte_carlo_numpy_choise(uniform_spiral_arm_density, NUM_ASC) # draw the associations
     x = x_grid[grid_index] # get the x-values for the drawn associations
@@ -364,12 +367,12 @@ def plot_associations_from_galaxy(galaxy):
 
 
 def main():
-    #test_association_placement(read_data_from_file=True)
+    #test_association_placement(read_data_from_file=True, readfile_effective_area=True)
     #test_plot_density_distribution(read_data_from_file=True, plot_lines_of_sight=False) # test the density distribution of the Milky Way. Plots both the unweighted, analytical density distribution and the weighted, modelled emissivity from which the associations are drawn 
     #plot_diffusion_of_sns_3d() # plot the diffusion of SNP's in 3D to see how they diffuse away from the association centre with time
     #test_association_placement() # test the placement of the associations from the emissivity. Drawn using MC simulation
     #plot_age_mass_distribution() # highlight the relation between mass and expected lifetime of stars
-    length_sim_myr = 10
+    """ length_sim_myr = 5
     print('generating galaxy 1')
     galaxy_1 = galaxy.Galaxy(length_sim_myr, star_formation_episodes=1, read_data_from_file=True) # an array with n associations
     print('generating galaxy 2')
@@ -378,10 +381,13 @@ def main():
     galaxy_3 = galaxy.Galaxy(length_sim_myr, star_formation_episodes=5, read_data_from_file=True) # an array with n associations
     print('all galaxies generated')
     galaxies = np.array([galaxy_1, galaxy_2, galaxy_3])
-    plot_mass_distr(galaxy_1) # plot the probability distribution for the mass of SNP's. SNP's from a generated galaxy
-    plot_sn_as_func_of_long(galaxy_1) # plot the probability density function of SNPs as function of longitude. SNP's from a generated galaxy
-    plot_cum_snp_cluster_distr(galaxies) # plot the cumulative distribution of steller clusters as function of number of snp's. SNP's from a generated galaxies with different values of C
-    plot_associations_from_galaxy(galaxy_1) # plot the associations from the galaxy
+    plot_mass_distr(galaxy_1) # plot the probability distribution for the mass of SNP's. SNP's from a generated galaxy """
+    sim_time = 100
+    num_star_forming_episodes = 3
+    galaxy_4 = galaxy.Galaxy(sim_time, star_formation_episodes=num_star_forming_episodes, read_data_from_file=True) # an array with n associations
+    plot_sn_as_func_of_long(galaxy_4, sim_time, num_star_forming_episodes) # plot the probability density function of SNPs as function of longitude. SNP's from a generated galaxy
+    #plot_cum_snp_cluster_distr(galaxies) # plot the cumulative distribution of steller clusters as function of number of snp's. SNP's from a generated galaxies with different values of C
+    #plot_associations_from_galaxy(galaxy_1) # plot the associations from the galaxy
 
 if __name__ == "__main__":
     main()
