@@ -22,8 +22,7 @@ class Supernovae:
         Returns:
             None 
         """
-        if (simulation_time > association_creation_time):
-            raise ValueError("Simulation time can't be larger than snp creation time.")
+        
         self.__association_x = association_x
         self.__association_y = association_y
         self.__association_z = association_z
@@ -43,10 +42,14 @@ class Supernovae:
 
     @property
     def age(self):
+        if self.__age < 0:
+            return # a negative age means the snp has not been created yet, but is scheduled to be created in the future. It doesn't exist - pretend like it doesn't and pass
         return self.__age
 
     @property
     def expected_lifetime(self):
+        if self.__age < 0:
+            return # a negative age means the snp has not been created yet, but is scheduled to be created in the future. It doesn't exist - pretend like it doesn't and pass
         return self.__expected_lifetime
     
     @property
@@ -55,59 +58,81 @@ class Supernovae:
 
     @property
     def velocity(self):
+        if self.__age < 0:
+            return # a negative age means the snp has not been created yet, but is scheduled to be created in the future. It doesn't exist - pretend like it doesn't and pass
         return self.__one_dim_vel
     
     @property
     def mass(self):
+        if self.__age < 0:
+            return 0 # a negative age means the snp has not been created yet, but is scheduled to be created in the future. It doesn't exist - pretend like it doesn't and return 0
         return self.__sn_mass
     
     @property
     def x(self): 
+        if self.__age < 0:
+            return # a negative age means the snp has not been created yet, but is scheduled to be created in the future. It doesn't exist - pretend like it doesn't and pass
         return self.__sn_x
     
     @property
     def y(self): 
+        if self.__age < 0:
+            return # a negative age means the snp has not been created yet, but is scheduled to be created in the future. It doesn't exist - pretend like it doesn't and pass
         return self.__sn_y
     
     @property
     def z(self): 
+        if self.__age < 0:
+            return # a negative age means the snp has not been created yet, but is scheduled to be created in the future. It doesn't exist - pretend like it doesn't and pass
         return self.__sn_z
     
     @property
     def vel_theta_dir(self):
+        if self.__age < 0:
+            return # a negative age means the snp has not been created yet, but is scheduled to be created in the future. It doesn't exist - pretend like it doesn't and pass
         return self.__vel_theta_dir
     
     @property
     def vel_phi_dir(self):
+        if self.__age < 0:
+            return # a negative age means the snp has not been created yet, but is scheduled to be created in the future. It doesn't exist - pretend like it doesn't and pass
         return self.__vel_phi_dir
     
     @property
     def longitude(self):
+        if self.__age < 0:
+            return # a negative age means the snp has not been created yet, but is scheduled to be created in the future. It doesn't exist - pretend like it doesn't and pass
         return self.__long
     
     @property
     def exploded(self):
+        if self.__age < 0:
+            return # a negative age means the snp has not been created yet, but is scheduled to be created in the future. It doesn't exist - pretend like it doesn't and pass
         return self.__exploded
     
 
-    def _calculate_age(self, sim_time):
+    def _calculate_age(self, simulation_time):
         """ Function to calculate the age of the snp. The age is calculated at the given value for simulation_time.
         
         Args:
-            sim_time (int): The new simulation time in units of Myr. Simulation time counts down to zero from the creation time of the Galaxy.
+            simulation_time (int): The new simulation time in units of Myr. Simulation time counts down to zero from the creation time of the Galaxy.
             
         Returns:
             None
         """
-        if(sim_time > self.__snp_creation_time):
+        if(simulation_time > self.__snp_creation_time >= 0):
             raise ValueError("Simulation time can't be larger than snp creation time.")
         
         if not self.exploded: # only update the simulation time if the star has not exploded yet
-            time_since_snp_creation = self.snp_creation_time - sim_time # how many years ago the snp was created
+            time_since_snp_creation = self.snp_creation_time - simulation_time # how many years ago the snp was created
             if time_since_snp_creation >= self.expected_lifetime: # if True: the snp has exploded
                 self.__age = self.expected_lifetime
                 self.__exploded = True
-            else: # if False: the snp has not exploded
+                self.__sn_mass = 0 # the snp has exploded and has no mass left
+            elif self.snp_creation_time < 0: # if True: the snp has not been created yet
+                self.__age = self.snp_creation_time # the snp has not been created yet and naturally has no age
+                self.__exploded = False
+            else: # if False: the snp has not exploded 
                 self.__age = time_since_snp_creation
                 self.__exploded = False
 
@@ -115,6 +140,9 @@ class Supernovae:
     def _calculate_position(self):
         """ Function to calculate the position of the supernova. The position is calculated in Cartesian coordinates (x, y, z) (kpc) and the longitude (radians).
         Updates the private attributes __sn_x, __sn_y, __sn_z and __long."""
+        if self.__age < 0:
+            # a negative age means the snp has not been created yet, but is scheduled to be created in the future. Do not update the position
+            return
         r = self.__one_dim_vel * const.seconds_in_myr * const.km_in_kpc * self.age # radial distance travelled by the supernova in kpc
         self.__sn_x = r * np.sin(self.vel_theta_dir) * np.cos(self.vel_phi_dir) + self.__association_x # kpc
         self.__sn_y = r * np.sin(self.vel_theta_dir) * np.sin(self.vel_phi_dir) + self.__association_y # kpc
@@ -144,7 +172,9 @@ class Supernovae:
         Returns:
             None
         """
-
+        if self.age < 0:
+            # a negative age means the snp has not been created yet, but is scheduled to be created in the future. Do not plot it
+            pass
         if self.exploded:
             ax.scatter((self.x - self.__association_x) * 1e3, (self.y - self.__association_y) * 1e3, (self.z - self.__association_z) * 1e3, c='r', s=5)
         else:
@@ -152,4 +182,7 @@ class Supernovae:
     
     
     def print_sn(self):
+        if self.age < 0:
+            # a negative age means the snp has not been created yet, but is scheduled to be created in the future. Do not print it
+            pass
         print(f"SNP is located at xyz position ({self.x}, {self.y}, {self.z}). Mass: {self.mass}, lifetime: {self.age} yrs, bool_exploded: {self.exploded}.")

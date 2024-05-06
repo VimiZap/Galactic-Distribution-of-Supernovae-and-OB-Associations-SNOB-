@@ -119,46 +119,72 @@ class Galaxy():
         constant = 1.65 * 1.7e6 * 1.1e-3 # 1.1e-3 = f_SN = the fraction of stars that end their lives as core-collapse supernovae
         if N == None: # if N is not given, generate the range of N. N != None is interpreted as the user wants the number of associations for a specific N
             N = np.arange(n_min, n_max + 1) # default step size is 1. The range is inclusive of n_max
-            return constant / N**2
+            return constant / N**(1.8) ##########################################################################################################################################################################
         return int(np.ceil(constant / N**2))
     
     
-    def _association_distribution_normalized(self, n_min, n_max):
+    def _association_distribution_normalized(self, n_min, n_max, c):
         distribution = self._association_distribution(n_min, n_max)
         return distribution / np.sum(distribution)
     
     
-    def _calc_num_associations(self, n_min, n_max):
+    def _association_distribution_cumulative_distribution(self, n_min, n_max, c):
+        N = np.arange(n_min, n_max + 1)
+        distribution = c - 0.11 * np.log(N)
+        distribution = distribution #/ np.sum(distribution)
+        if np.min(distribution) < 0:
+            distribution += np.abs(np.min(distribution))
+            """ plt.plot(N, distribution)
+            plt.xscale('log')
+            plt.show() """
+        
+        return distribution / np.sum(distribution)
+    
+    def _calc_num_associations(self, n_min, n_max, c):
         N = np.arange(n_min, n_max + 1)
         # Using the normalized association distribution to draw N
-        distribution = self._association_distribution_normalized(n_min, n_max)
+        distribution = self._association_distribution_normalized(n_min, n_max, c)
+        #distribution = self._association_distribution_cumulative_distribution(n_min, n_max, c)
+        """ plt.plot(N, distribution)
+        plt.xscale('log')
+        plt.show()
+        plt.close()
+        plt.plot(N, distribution1)
+        plt.xscale('log')
+        plt.show()
+        plt.close() """
         # Draw the actual number of associations as given by a random multinomial distribution
         #num_snp_drawn = self.rng.choice(a=N, size=1000, p=distribution)
-        num_snp_drawn = np.array([])
+        num_snp_drawn = []
         num_snp_target = SNS_BIRTHRATE[self._star_formation_episodes_index]
         count = 0
-        print(f'number of star forming episodes: {self._star_formation_episodes}. n_min, n_max: {n_min, n_max}. num_snp_target: {num_snp_target}.')
+        #print(f'number of star forming episodes: {self._star_formation_episodes}. n_min, n_max: {n_min, n_max}. num_snp_target: {num_snp_target}.')
         min_num_snp = np.inf
         while np.sum(num_snp_drawn) < num_snp_target*0.99:
             count += 1
-            new_num_snp_drawn = self.rng.choice(a=N, size=self._star_formation_episodes, p=distribution)
-            new_num_snp_drawn = np.sum(new_num_snp_drawn, dtype=int)
-            new_num_snp_drawn = int(new_num_snp_drawn)
-            if new_num_snp_drawn < n_min*self._star_formation_episodes:
+            new_num_snp_drawn = self.rng.choice(a=N, size=1, p=distribution)
+            new_num_snp_drawn = np.ones(self._star_formation_episodes) * new_num_snp_drawn # As Mckee and Williams 1997 finds, the star forming episodes are of equal size most probably
+            #new_num_snp_drawn = np.sum(new_num_snp_drawn, dtype=int)
+            #new_num_snp_drawn = int(new_num_snp_drawn)
+            if np.sum(new_num_snp_drawn) < n_min*self._star_formation_episodes:
                 print('WTFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF')
-            if new_num_snp_drawn < min_num_snp:
-                min_num_snp = new_num_snp_drawn
-            if new_num_snp_drawn <= 2 & self._star_formation_episodes > 1:
+            if np.sum(new_num_snp_drawn) < min_num_snp:
+                min_num_snp = np.sum(new_num_snp_drawn)
+            if np.sum(new_num_snp_drawn) <= 2 & self._star_formation_episodes > 1:
                 raise ValueError('new_num_snp_drawn <= 2')
             #print('new_num_snp_drawn:', new_num_snp_drawn)
             #new_num_snp_drawn *= self._star_formation_episodes
             #print('new_num_snp_drawn:', new_num_snp_drawn)
-            diff = num_snp_target - np.sum(num_snp_drawn) - new_num_snp_drawn
+            """ diff = num_snp_target - np.sum(num_snp_drawn) - new_num_snp_drawn
             if diff < 0: 
                 print('diff:', diff)
-                print('count:', count)
+                print('count:', count) """
                 #new_num_snp_drawn = new_num_snp_drawn + diff
-            num_snp_drawn = np.concatenate((num_snp_drawn, [new_num_snp_drawn]))
+            #num_snp_drawn = np.concatenate((num_snp_drawn, [new_num_snp_drawn]))
+            num_snp_drawn.append(new_num_snp_drawn)
+            if count <= 10:
+                a=0
+                #print(f'num_snp_drawn: {num_snp_drawn}. np.sum(num_snp_drawn): {np.sum(num_snp_drawn)}.')
         print(f'count: {count}. num star formation episodes: {self._star_formation_episodes}. min_num_snp: {min_num_snp}. np.min(num_snp_drawn): {np.min(num_snp_drawn)}. np.max(num_snp_drawn): {np.max(num_snp_drawn)}.')
         return num_snp_drawn
         
@@ -191,21 +217,14 @@ class Galaxy():
         """
         n_min = 2
         n_max = 1870 #* self._star_formation_episodes
-        num_snp = self._calc_num_associations(n_min, n_max)
-        print(f'Number of associations: {len(num_snp)}. Number of SNPs: {np.sum(num_snp)}. Number of SNPs per association: {np.mean(num_snp)}. Number of star formation episodes: {self._star_formation_episodes}. Min num snp: {np.min(num_snp)}. Max num snp: {np.max(num_snp)}. Datatype: {num_snp.dtype}.')
+        num_snp = self._calc_num_associations(n_min, n_max, c)
+        #print(f'Number of associations: {len(num_snp)}. Number of SNPs: {np.sum(num_snp)}. Number of SNPs per association: {np.mean(num_snp)}. Number of star formation episodes: {self._star_formation_episodes}. Min num snp: {np.min(num_snp)}. Max num snp: {np.max(num_snp)}.')
         grid_indexes = self.rng.choice(a=len(self.emissivity), size=len(num_snp), p=self.emissivity) 
         xs = self.x_grid[grid_indexes] # get the x-values for the drawn associations
         ys = self.y_grid[grid_indexes] # get the y-values for the drawn associations
         zs = self.z_grid[grid_indexes] # get the z-values for the drawn associations
         for i in range(len(num_snp)):
-            self._galaxy.append(asc.Association(x=xs[i], y=ys[i], z=zs[i], association_creation_time=sim_time, c=c, n=int(num_snp[i]))) # add the association to the galaxy
-       
-        """ grid_indexes = self.rng.choice(a=len(self.emissivity), size=asc_birthrate, p=self.emissivity) 
-        xs = self.x_grid[grid_indexes] # get the x-values for the drawn associations
-        ys = self.y_grid[grid_indexes] # get the y-values for the drawn associations
-        zs = self.z_grid[grid_indexes] # get the z-values for the drawn associations
-        for i in range(asc_birthrate):
-                self._galaxy.append(asc.Association(x=xs[i], y=ys[i], z=zs[i], association_creation_time=sim_time, c=c)) # add the association to the galaxy """
+            self._galaxy.append(asc.Association(x=xs[i], y=ys[i], z=zs[i], association_creation_time=sim_time, c=c, n=num_snp[i])) # add the association to the galaxy
     
 
     def get_exploded_supernovae_masses(self):
@@ -248,7 +267,7 @@ def plot_temporal_clustering():
 
 def main():  
     plot_temporal_clustering()
-    simulation_time = 1
+    simulation_time = 100
     galaxy_1 = Galaxy(simulation_time, star_formation_episodes=1)
     galaxy_3 = Galaxy(simulation_time, star_formation_episodes=3)
     galaxy_5 = Galaxy(simulation_time, star_formation_episodes=5)
@@ -261,6 +280,7 @@ def main():
         num_snp = 0
         min_ass_mass = np.inf
         num_snp_min_ass = np.inf
+        ages_snps_in_association = 0
         for association in galaxy.associations:
             ass_mass_new = np.sum(association.star_masses)
             if ass_mass_new < min_ass_mass:
@@ -268,8 +288,13 @@ def main():
                 num_snp_min_ass = association.number_sn
             ass_mass = np.concatenate((ass_mass, [ass_mass_new]))
             num_snp += association.number_sn
+            for snp in association.supernovae:
+                snp_age = snp.age
+                if snp_age != None:
+                    ages_snps_in_association += snp_age
             #print(f'Average mass of progenitors in association: {np.mean(association.star_masses)}')
-        print(f'Average mass of associations in galaxy with {galaxy.star_formation_episodes} star formation episodes: {np.mean(ass_mass)}. Num SNPS: {num_snp}. Num associations: {len(galaxy.associations)}. Min association mass: {min_ass_mass}. Min association SNP count: {num_snp_min_ass}')
+        
+        print(f'Average mass of associations in galaxy with {galaxy.star_formation_episodes} star formation episodes: {np.mean(ass_mass)}. Num SNPS: {num_snp, np.sum(num_snp)}, len(ass_mass): {len(ass_mass)}. Num associations: {len(galaxy.associations)}. Min association mass: {min_ass_mass}. Min association SNP count: {num_snp_min_ass}. Average age for SNPS in association: {np.mean(ages_snps_in_association)}')
         asc_mass_step = 5
         bins = np.arange(8, 1000 + asc_mass_step, asc_mass_step)
         hist_added_it, _ = np.histogram(ass_mass, bins=bins)

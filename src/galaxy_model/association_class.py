@@ -9,7 +9,7 @@ class Association():
     imf = ut.imf_3(solar_masses) # the imf for the range 1 <= M/M_sun < 120
     rng = np.random.default_rng()
 
-    def __init__(self, x, y, z, association_creation_time, c, n=None):
+    def __init__(self, x, y, z, association_creation_time, c, n):
         """ Class to represent an association of supernovae progenitors. The association is created at a given position and time. 
         The number of SNPs in the association is calculated from the number of star formation episodes and IMF. 
         The SNPs are generated at the time of the association's creation.
@@ -31,7 +31,7 @@ class Association():
         self.__r = self._calculate_heliocentric_distance() # heliocentric distance of the association
         self.__association_creation_time = association_creation_time # The time when the association is created. Units of Myr
         self.__simulation_time = association_creation_time # when the association is created, the simulation time is the same as the creation time. Goes down to 0
-        self.__n = self._calculate_num_sn(c, n)
+        self.__n = n #self._calculate_num_sn(c, n)
         self._generate_sn_batch() # list containting all the supernovae progenitors in the association
 
     
@@ -65,7 +65,10 @@ class Association():
     
     @property
     def star_masses(self):
-        return self.__star_masses # list to store the masses of the supernovae progenitors in the association
+        star_masses = []
+        for snp in self.supernovae:
+            star_masses.append(snp.mass)
+        return star_masses 
     
 
     def _calculate_heliocentric_distance(self):
@@ -108,14 +111,31 @@ class Association():
         Returns:
             None
         """
-        sn_masses = self.rng.choice(self.solar_masses, size=self.__n, p=self.imf/np.sum(self.imf)) # draw random masses for the SNPs in the association from the IMF in the range 8 <= M/M_sun < 120
-        self.__star_masses = sn_masses
-        one_dim_velocities = self.rng.normal(loc=0, scale=2, size=self.__n) # Gaussian velocity distribution with a mean of 0 km/s and a standard deviation of 2 km/s
+        
+        size = np.sum(self.__n, dtype=int) # total number of SNPs in the association
+        try:
+            sn_masses = self.rng.choice(self.solar_masses, size=size, p=self.imf/np.sum(self.imf)) # draw random masses for the SNPs in the association from the IMF in the range 8 <= M/M_sun < 120
+        except TypeError:
+            print(f'TypeError: self.__n = {self.__n}, size = {size}')
+        #self.__star_masses = sn_masses
+        one_dim_velocities = self.rng.normal(loc=0, scale=2, size=size) # Gaussian velocity distribution with a mean of 0 km/s and a standard deviation of 2 km/s
         lifetimes = ut.lifetime_as_func_of_initial_mass(sn_masses)   # Units of Myr. Formula from Schulreich et al. (2018)
-        vel_theta_dirs = self.rng.uniform(0, np.pi, size=self.__n)   # Velocity dispersion shall be isotropic
-        vel_phi_dirs = self.rng.uniform(0, 2 * np.pi, size=self.__n) # Velocity dispersion shall be isotropic
-        self.__supernovae = [sn.Supernovae(self.x, self.y, self.z, self.__association_creation_time, self.__simulation_time, sn_masses[i], one_dim_velocities[i], 
-                                           lifetimes[i], vel_theta_dirs[i], vel_phi_dirs[i]) for i in range(self.__n)]
+        vel_theta_dirs = self.rng.uniform(0, np.pi, size=size)   # Velocity dispersion shall be isotropic
+        vel_phi_dirs = self.rng.uniform(0, 2 * np.pi, size=size) # Velocity dispersion shall be isotropic
+        self.__supernovae = []
+        snp_index = -1
+        for i in range(len(self.__n)):
+            #print('---------------------------------------------- i =', i, '----------------------------------------------')
+            for n in range(int(self.__n[i])): # self.__n[i] is the number of SNPs in the i-th star formation episode
+                # below: -4 * i is to take into account multiple star formation episodes. The first SNP is created at the time of the association's creation, and the rest are created at later times. 4 myrs between each star formation episode
+                #snp_index = (i + 1) * n
+                snp_index += 1
+                try:
+                    self.__supernovae.append(sn.Supernovae(self.x, self.y, self.z, self.__association_creation_time - 4 * i, self.__simulation_time, sn_masses[snp_index], one_dim_velocities[snp_index], 
+                                                   lifetimes[snp_index], vel_theta_dirs[snp_index], vel_phi_dirs[snp_index]))
+                except IndexError:
+                    print(f'IndexError: i = {i}, n = {n}, snp_index = {snp_index}, len(sn_masses) = {len(sn_masses)}, self.__n = {self.__n}')
+        #[sn.Supernovae(self.x, self.y, self.z, self.__association_creation_time, self.__simulation_time, sn_masses[i], one_dim_velocities[i], lifetimes[i], vel_theta_dirs[i], vel_phi_dirs[i]) for i in range(self.__n)]
     
 
     def update_sn(self, new_simulation_time): # update each individual SNP in the association
