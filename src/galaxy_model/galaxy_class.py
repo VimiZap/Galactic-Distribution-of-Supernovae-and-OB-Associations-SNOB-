@@ -160,9 +160,10 @@ class Galaxy():
         count = 0
         #print(f'number of star forming episodes: {self._star_formation_episodes}. n_min, n_max: {n_min, n_max}. num_snp_target: {num_snp_target}.')
         min_num_snp = np.inf
+        rng_1 = np.random.default_rng() # random number generator to be used for drawing association position
         while np.sum(num_snp_drawn) < num_snp_target*0.99:
             count += 1
-            new_num_snp_drawn = self.rng.choice(a=N, size=1, p=distribution)
+            new_num_snp_drawn = rng_1.choice(a=N, size=1, p=distribution)
             new_num_snp_drawn = np.ones(self._star_formation_episodes) * new_num_snp_drawn # As Mckee and Williams 1997 finds, the star forming episodes are of equal size most probably
             #new_num_snp_drawn = np.sum(new_num_snp_drawn, dtype=int)
             #new_num_snp_drawn = int(new_num_snp_drawn)
@@ -252,15 +253,16 @@ def plot_temporal_clustering():
     snps = np.arange(0, max_number_snp, 1)
     for i, c in enumerate(C):
         plt.plot(snps, c-0.11*np.log(snps), label=f'Number of star-forming episodes = {STAR_FORMATION_EPISODES[i]}')
-    plt.xlabel('$N_*^{\\text{SN}}$')
-    plt.ylabel('$P(> N_*^{\\text{SN}})$')
-    plt.title('Temporal clustering of supernovae progenitors')
+    plt.xlabel('$N_*^{\\text{SN}}$', fontsize=14)
+    plt.ylabel('P(> $N_*^{\\text{SN}})$', fontsize=14)
+    #plt.title('Temporal clustering of supernovae progenitors')
     plt.xscale('log')
     plt.xlim(1, max_number_snp)
     plt.ylim(0, 1.0)
     # Set y-axis ticks to increment by 0.1
     plt.yticks(np.arange(0, 1.1, 0.1))
-    plt.legend()
+    plt.legend(fontsize = 12)
+    plt.tick_params(axis='both', which='major', labelsize=14)
     plt.savefig(f'{const.FOLDER_GALAXY_TESTS}/temporal_clustering_analytical.pdf')
     plt.close()
 

@@ -2,10 +2,10 @@ import numpy as np
 import src.observational_data.firas_data as firas_data
 import src.utilities.constants as const
 import src.utilities.settings as settings
-import src.spiral_arm_model as sam
+import src.nii_intensities.spiral_arm_model as sam
 import matplotlib.pyplot as plt
 from matplotlib.ticker import AutoMinorLocator
-from src.chi_squared import interpolate_density_one_arm, calc_effective_area_one_arm
+from src.nii_intensities.chi_squared import interpolate_density_one_arm, calc_effective_area_one_arm
 import seaborn as sns
 import logging
 logging.basicConfig(level=logging.INFO)
@@ -108,21 +108,25 @@ def plot_test_start_angle_major_arms(filename_output=f'{const.FOLDER_MODELS_GALA
         sam.calc_modelled_intensity(readfile_effective_area=False, arm_angles=arm_angles)
         intensities_total = load_modelled_data()
         reduced_chi_squared_value = reduced_chi_squared(expanded_firas_intensity, expanded_firas_variance, intensities_total)
-        label = f'$\\theta_{{NC}}$: {np.round(np.degrees(arm_angles[0]), 0)}°, $\\theta_{{P}}$: {np.round(np.degrees(arm_angles[1]), 0)}°, $\\theta_{{SA}}$: {np.round(np.degrees(arm_angles[2]), 0)}°, $\\theta_{{SC}}$: {np.round(np.degrees(arm_angles[3]), 0)}°. Reduced $\\chi^2$: {reduced_chi_squared_value:.2f}'
+        label = f'$\\theta_{{\mathrm{{NC}}}}$ = {np.round(np.degrees(arm_angles[0]), 0)}°, $\\theta_{{\mathrm{{P}}}}$ = {np.round(np.degrees(arm_angles[1]), 0)}°, $\\theta_{{\mathrm{{SA}}}}$ = {np.round(np.degrees(arm_angles[2]), 0)}°, $\\theta_{{\mathrm{{SC}}}}$ = {np.round(np.degrees(arm_angles[3]), 0)}°. Reduced $\\chi^2$ = {reduced_chi_squared_value:.2f}'
         plt.plot(np.linspace(0, 360, len(longitudes)), intensities_total, label=label, color=colors[i], linestyle=linestyles[i], linewidth=LINEWIDTH)
     # Redefine the x-axis labels to match the values in longitudes
     x_ticks = (180, 150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210, 180)
     plt.xticks(np.linspace(0, 360, 13), x_ticks)
     plt.gca().xaxis.set_minor_locator(AutoMinorLocator(3)) 
     plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
-    plt.ylim(top=TOP)
-    plt.xlabel("Galactic longitude l (degrees)")
-    plt.ylabel("Line intensity in erg cm$^{-2}$ s$^{-1}$ sr$^{-1}$")
-    plt.title("Modelled intensity of the Galactic disk")
+    plt.xlabel("Galactic longitude $l$ (degrees)", fontsize=14)
+    plt.ylabel("Intensity (erg cm$^{-2}$ s$^{-1}$ sr$^{-1}$)", fontsize=14)
+    #plt.title("Modelled intensity of the Galactic disk")
     # Add parameter values as text labels
-    plt.text(0.02, 0.95, fr'$H_\rho$ = {const.h_spiral_arm} kpc & $\sigma_A$ = {const.sigma_arm} kpc', transform=plt.gca().transAxes, fontsize=8, color='black')
-    plt.text(0.02, 0.9, fr'NII Luminosity = {const.total_galactic_n_luminosity:.2e} erg/s', transform=plt.gca().transAxes, fontsize=8, color='black')
-    plt.legend()
+    fontsize_in_ax_text = 12
+    #plt.text(0.02, 0.95, fr'$H_\rho$ = {const.h_spiral_arm} kpc & $\sigma_{{\mathrm{{A}}}}$ = {const.sigma_arm} kpc', transform=plt.gca().transAxes, fontsize=fontsize_in_ax_text, color='black')
+    #plt.text(0.02, 0.9, fr'NII Luminosity = {const.total_galactic_n_luminosity:.2e} erg/s', transform=plt.gca().transAxes, fontsize=fontsize_in_ax_text, color='black')
+    plt.xlim(0, 360)
+    plt.ylim(bottom=0, top=2.2e-4)
+    plt.gca().yaxis.get_offset_text().set_fontsize(14)
+    plt.tick_params(axis='both', which='major', labelsize=14)
+    plt.legend(fontsize = fontsize_in_ax_text)
     plt.savefig(filename_output)
     plt.close()
 
@@ -152,21 +156,25 @@ def plot_test_pitch_angle_major_arms(filename_output=f'{const.FOLDER_MODELS_GALA
         sam.calc_modelled_intensity(readfile_effective_area=False, pitch_angles=pitch_angles_to_check[i])
         intensities_total = load_modelled_data()
         reduced_chi_squared_value = reduced_chi_squared(expanded_firas_intensity, expanded_firas_variance, intensities_total)
-        label = f'$p_{{NC}}: {np.round(np.degrees(pitch_angles_to_check[i][0]), 2)}°, p_{{P}}: {np.round(np.degrees(pitch_angles_to_check[i][1]), 2)}°, p_{{SA}}: {np.round(np.degrees(pitch_angles_to_check[i][2]), 2)}°, p_{{SC}}: {np.round(np.degrees(pitch_angles_to_check[i][3]), 2)}°. \\text{{Reduced }} \\chi^2: {reduced_chi_squared_value:.2f}$'
+        label = f'$p_{{\mathrm{{NC}}}}$ = {np.round(np.degrees(pitch_angles_to_check[i][0]), 2)}°, $p_{{\mathrm{{P}}}}$ = {np.round(np.degrees(pitch_angles_to_check[i][1]), 2)}°, $p_{{\mathrm{{SA}}}}$ = {np.round(np.degrees(pitch_angles_to_check[i][2]), 2)}°, $p_{{\mathrm{{SC}}}}$ = {np.round(np.degrees(pitch_angles_to_check[i][3]), 2)}°. Reduced $\\chi^2$ = {reduced_chi_squared_value:.2f}'
         plt.plot(np.linspace(0, 360, len(longitudes)), intensities_total, label=label, color=colors[i], linestyle=linestyles[i], linewidth=LINEWIDTH)
     # Redefine the x-axis labels to match the values in longitudes
     x_ticks = (180, 150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210, 180)
     plt.xticks(np.linspace(0, 360, 13), x_ticks)
     plt.gca().xaxis.set_minor_locator(AutoMinorLocator(3)) 
     plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
-    plt.ylim(top=TOP)
-    plt.xlabel("Galactic longitude l (degrees)")
-    plt.ylabel("Line intensity in erg cm$^{-2}$ s$^{-1}$ sr$^{-1}$")
-    plt.title("Modelled intensity of the Galactic disk")
+    plt.xlabel("Galactic longitude $l$ (degrees)", fontsize=14)
+    plt.ylabel("Intensity (erg cm$^{-2}$ s$^{-1}$ sr$^{-1}$)", fontsize=14)
+    #plt.title("Modelled intensity of the Galactic disk")
     # Add parameter values as text labels
-    plt.text(0.02, 0.95, fr'$H_\rho$ = {const.h_spiral_arm} kpc & $\sigma_A$ = {const.sigma_arm} kpc', transform=plt.gca().transAxes, fontsize=8, color='black')
-    plt.text(0.02, 0.9, fr'NII Luminosity = {const.total_galactic_n_luminosity:.2e} erg/s', transform=plt.gca().transAxes, fontsize=8, color='black')
-    plt.legend()
+    fontsize_in_ax_text = 12
+    #plt.text(0.02, 0.95, fr'$H_\rho$ = {const.h_spiral_arm} kpc & $\sigma_{{\mathrm{{A}}}}$ = {const.sigma_arm} kpc', transform=plt.gca().transAxes, fontsize=14, color='black')
+    #plt.text(0.02, 0.9, fr'NII Luminosity = {const.total_galactic_n_luminosity:.2e} erg/s', transform=plt.gca().transAxes, fontsize=14, color='black')
+    plt.xlim(0, 360)
+    plt.ylim(bottom=0, top=2.2e-4)
+    plt.gca().yaxis.get_offset_text().set_fontsize(14)
+    plt.tick_params(axis='both', which='major', labelsize=14)
+    plt.legend(fontsize = fontsize_in_ax_text)
     plt.savefig(filename_output)
     plt.close()
 
@@ -195,21 +203,25 @@ def plot_test_fractional_contribution(filename_output=f'{const.FOLDER_MODELS_GAL
         sam.calc_modelled_intensity(readfile_effective_area=False, fractional_contribution=fractional_contribution_to_check[i])
         intensities_total = load_modelled_data()
         reduced_chi_squared_value = reduced_chi_squared(expanded_firas_intensity, expanded_firas_variance, intensities_total)
-        label = f'f_NC: {fractional_contribution_to_check[i][0]}, f_P: {fractional_contribution_to_check[i][1]}, f_SA: {fractional_contribution_to_check[i][2]}, f_SC: {fractional_contribution_to_check[i][3]}. Reduced $\\chi^2$: {reduced_chi_squared_value:.2f}'
+        label = f'$f_{{\mathrm{{NC}}}}$ = {fractional_contribution_to_check[i][0]}, $f_{{\mathrm{{P}}}}$ = {fractional_contribution_to_check[i][1]}, $f_{{\mathrm{{SA}}}}$ = {fractional_contribution_to_check[i][2]}, $f_{{\mathrm{{SC}}}}$ = {fractional_contribution_to_check[i][3]:.2f}. Reduced $\\chi^2$ = {reduced_chi_squared_value:.2f}'
         plt.plot(np.linspace(0, 360, len(longitudes)), intensities_total, label=label, color=colors[i], linestyle=linestyles[i], linewidth=LINEWIDTH)
     # Redefine the x-axis labels to match the values in longitudes
     x_ticks = (180, 150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210, 180)
     plt.xticks(np.linspace(0, 360, 13), x_ticks)
     plt.gca().xaxis.set_minor_locator(AutoMinorLocator(3)) 
     plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
-    plt.ylim(top=TOP)
-    plt.xlabel("Galactic longitude l (degrees)")
-    plt.ylabel("Line intensity in erg cm$^{-2}$ s$^{-1}$ sr$^{-1}$")
-    plt.title("Modelled intensity of the Galactic disk")
+    plt.xlabel("Galactic longitude $l$ (degrees)", fontsize=14)
+    plt.ylabel("Intensity (erg cm$^{-2}$ s$^{-1}$ sr$^{-1}$)", fontsize=14)
+    #plt.title("Modelled intensity of the Galactic disk")
     # Add parameter values as text labels
-    plt.text(0.02, 0.95, fr'$H_\rho$ = {const.h_spiral_arm} kpc & $\sigma_A$ = {const.sigma_arm} kpc', transform=plt.gca().transAxes, fontsize=8, color='black')
-    plt.text(0.02, 0.9, fr'NII Luminosity = {const.total_galactic_n_luminosity:.2e} erg/s', transform=plt.gca().transAxes, fontsize=8, color='black')
-    plt.legend()
+    fontsize_in_ax_text = 12
+    #plt.text(0.02, 0.95, fr'$H_\rho$ = {const.h_spiral_arm} kpc & $\sigma_{{\mathrm{{A}}}}$ = {const.sigma_arm} kpc', transform=plt.gca().transAxes, fontsize=14, color='black')
+    #plt.text(0.02, 0.9, fr'NII Luminosity = {const.total_galactic_n_luminosity:.2e} erg/s', transform=plt.gca().transAxes, fontsize=14, color='black')
+    plt.xlim(0, 360)
+    plt.ylim(bottom=0, top=2.0e-4)
+    plt.gca().yaxis.get_offset_text().set_fontsize(14)
+    plt.tick_params(axis='both', which='major', labelsize=14)
+    plt.legend(fontsize = fontsize_in_ax_text)
     plt.savefig(filename_output)
     plt.close()
 
@@ -230,25 +242,30 @@ def plot_test_sigma_arm(filename_output=f'{const.FOLDER_MODELS_GALAXY}/test_sigm
     # parameters for the plot:
     longitudes = np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/longitudes.npy')
     colors = sns.color_palette('bright', 5)
-    sigma_arm_to_check = [0.25, 0.4, 0.5, 0.6, 0.75]
+    sigma_arm_to_check = [0.25, 0.40, 0.50, 0.60, 0.75]
     for i in range(len(sigma_arm_to_check)):
         sam.calc_modelled_intensity(readfile_effective_area=False, sigma_arm=sigma_arm_to_check[i])
         intensities_total = load_modelled_data()
         reduced_chi_squared_value = reduced_chi_squared(expanded_firas_intensity, expanded_firas_variance, intensities_total)
-        label = f'$\sigma_a$: {sigma_arm_to_check[i]} kpc. Reduced $\\chi^2$: {reduced_chi_squared_value:.2f}'
+        label = f'$\sigma_{{\mathrm{{A}}}}$ = {sigma_arm_to_check[i]:.2f} kpc. Reduced $\\chi^2$ = {reduced_chi_squared_value:.2f}'
         plt.plot(np.linspace(0, 360, len(longitudes)), intensities_total, label=label, color=colors[i], linestyle=linestyles[i], linewidth=LINEWIDTH)
     # Redefine the x-axis labels to match the values in longitudes
     x_ticks = (180, 150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210, 180)
     plt.xticks(np.linspace(0, 360, 13), x_ticks)
     plt.gca().xaxis.set_minor_locator(AutoMinorLocator(3)) 
     plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
-    plt.xlabel("Galactic longitude l (degrees)")
-    plt.ylabel("Line intensity in erg cm$^{-2}$ s$^{-1}$ sr$^{-1}$")
-    plt.title("Modelled intensity of the Galactic disk")
+    plt.xlabel("Galactic longitude $l$ (degrees)", fontsize=14)
+    plt.ylabel("Intensity (erg cm$^{-2}$ s$^{-1}$ sr$^{-1}$)", fontsize=14)
+    #plt.title("Modelled intensity of the Galactic disk")
     # Add parameter values as text labels
-    plt.text(0.02, 0.95, fr'$H_\rho$ = {const.h_spiral_arm} kpc', transform=plt.gca().transAxes, fontsize=8, color='black')
-    plt.text(0.02, 0.9, fr'NII Luminosity = {const.total_galactic_n_luminosity:.2e} erg/s', transform=plt.gca().transAxes, fontsize=8, color='black')
-    plt.legend()
+    fontsize_in_ax_text = 12
+    #plt.text(0.02, 0.95, fr'$H_\rho$ = {const.h_spiral_arm} kpc & $\sigma_{{\mathrm{{A}}}}$ = {const.sigma_arm} kpc', transform=plt.gca().transAxes, fontsize=14, color='black')
+    #plt.text(0.02, 0.9, fr'NII Luminosity = {const.total_galactic_n_luminosity:.2e} erg/s', transform=plt.gca().transAxes, fontsize=14, color='black')
+    plt.xlim(0, 360)
+    plt.ylim(bottom=0, top=2.2e-4)
+    plt.gca().yaxis.get_offset_text().set_fontsize(14)
+    plt.tick_params(axis='both', which='major', labelsize=14)
+    plt.legend(fontsize = fontsize_in_ax_text)
     plt.savefig(filename_output)
     plt.close()
 
@@ -274,20 +291,25 @@ def plot_test_h_arm(filename_output=f'{const.FOLDER_MODELS_GALAXY}/test_h_arm.pd
         sam.calc_modelled_intensity(readfile_effective_area=False, h=h_arm_to_check[i])
         intensities_total = load_modelled_data()
         reduced_chi_squared_value = reduced_chi_squared(expanded_firas_intensity, expanded_firas_variance, intensities_total)
-        label = f'H$_\\rho$: {h_arm_to_check[i]} kpc. Reduced $\\chi^2$: {reduced_chi_squared_value:.2f}'
+        label = f'H$_\\rho$ = {h_arm_to_check[i]} kpc. Reduced $\\chi^2$ = {reduced_chi_squared_value:.2f}'
         plt.plot(np.linspace(0, 360, len(longitudes)), intensities_total, label=label, color=colors[i], linestyle=linestyles[i], linewidth=LINEWIDTH)
     # Redefine the x-axis labels to match the values in longitudes
     x_ticks = (180, 150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210, 180)
     plt.xticks(np.linspace(0, 360, 13), x_ticks)
     plt.gca().xaxis.set_minor_locator(AutoMinorLocator(3)) 
     plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
-    plt.xlabel("Galactic longitude l (degrees)")
-    plt.ylabel("Line intensity in erg cm$^{-2}$ s$^{-1}$ sr$^{-1}$")
-    plt.title("Modelled intensity of the Galactic disk")
+    plt.xlabel("Galactic longitude $l$ (degrees)", fontsize=14)
+    plt.ylabel("Intensity (erg cm$^{-2}$ s$^{-1}$ sr$^{-1}$)", fontsize=14)
+    #plt.title("Modelled intensity of the Galactic disk")
     # Add parameter values as text labels
-    plt.text(0.02, 0.95, fr'$H_\rho$ = {const.h_spiral_arm} kpc', transform=plt.gca().transAxes, fontsize=8, color='black')
-    plt.text(0.02, 0.9, fr'NII Luminosity = {const.total_galactic_n_luminosity:.2e} erg/s', transform=plt.gca().transAxes, fontsize=8, color='black')
-    plt.legend()
+    fontsize_in_ax_text = 12
+    #plt.text(0.02, 0.95, fr'$H_\rho$ = {const.h_spiral_arm} kpc & $\sigma_{{\mathrm{{A}}}}$ = {const.sigma_arm} kpc', transform=plt.gca().transAxes, fontsize=14, color='black')
+    #plt.text(0.02, 0.9, fr'NII Luminosity = {const.total_galactic_n_luminosity:.2e} erg/s', transform=plt.gca().transAxes, fontsize=14, color='black')
+    plt.xlim(0, 360)
+    plt.ylim(bottom=0, top=2.2e-4)
+    plt.gca().yaxis.get_offset_text().set_fontsize(14)
+    plt.tick_params(axis='both', which='major', labelsize=14)
+    plt.legend(fontsize = fontsize_in_ax_text, loc='upper right')
     plt.savefig(filename_output)
     plt.close()
 
@@ -309,7 +331,7 @@ def plot_test_devoid_region_sagittarius(filename_output=f'{const.FOLDER_MODELS_G
     longitudes = np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/longitudes.npy')
     colors = sns.color_palette('bright', 5)
     rho_min_sagittarius_to_check = [5.1, 5.3, 5.5]
-    rho_max_sagittarius_to_check = [7, 6.8, 7.3]
+    rho_max_sagittarius_to_check = [7.0, 6.8, 7.3]
     sigma_devoid_to_check = [0.25, 0.3, 0.4]
     transverse_distances, transverse_densities_initial = sam.generate_transverse_spacing_densities(const.sigma_arm) 
     # calculate initial intensities:
@@ -320,21 +342,25 @@ def plot_test_devoid_region_sagittarius(filename_output=f'{const.FOLDER_MODELS_G
         sam.calc_modelled_intensity(readfile_effective_area=True, interpolate_all_arms=False, calc_gum_cyg=False)
         intensities_total = load_modelled_data()
         reduced_chi_squared_value = reduced_chi_squared(expanded_firas_intensity, expanded_firas_variance, intensities_total)
-        label = f'$\\rho_{{min}} = {rho_min_sagittarius_to_check[i]}, \\rho_{{max}} = {rho_max_sagittarius_to_check[i]}, \\sigma = {sigma_devoid_to_check[i]}. \\text{{Reduced }} \\chi^2: {reduced_chi_squared_value:.2f}$'
+        label = f'$\\rho_{{\mathrm{{min}}}}$ = {rho_min_sagittarius_to_check[i]}, $\\rho_{{\mathrm{{max}}}}$ = {rho_max_sagittarius_to_check[i]:.1f}, $\\sigma_{{\mathrm{{d}}}}$ = {sigma_devoid_to_check[i]}. Reduced $\\chi^2$ = {reduced_chi_squared_value:.2f}'
         plt.plot(np.linspace(0, 360, len(longitudes)), intensities_total, label=label, color=colors[i], linestyle=linestyles[i], linewidth=LINEWIDTH)
     # Redefine the x-axis labels to match the values in longitudes
     x_ticks = (180, 150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210, 180)
     plt.xticks(np.linspace(0, 360, 13), x_ticks)
     plt.gca().xaxis.set_minor_locator(AutoMinorLocator(3)) 
     plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
-    plt.ylim(top=TOP)
-    plt.xlabel("Galactic longitude l (degrees)")
-    plt.ylabel("Line intensity in erg cm$^{-2}$ s$^{-1}$ sr$^{-1}$")
-    plt.title("Modelled intensity of the Galactic disk")
+    plt.xlabel("Galactic longitude $l$ (degrees)", fontsize=14)
+    plt.ylabel("Intensity (erg cm$^{-2}$ s$^{-1}$ sr$^{-1}$)", fontsize=14)
+    #plt.title("Modelled intensity of the Galactic disk")
     # Add parameter values as text labels
-    plt.text(0.02, 0.95, fr'$H_\rho$ = {const.h_spiral_arm} kpc', transform=plt.gca().transAxes, fontsize=8, color='black')
-    plt.text(0.02, 0.9, fr'NII Luminosity = {const.total_galactic_n_luminosity:.2e} erg/s', transform=plt.gca().transAxes, fontsize=8, color='black')
-    plt.legend()
+    fontsize_in_ax_text = 12
+    #plt.text(0.02, 0.95, fr'$H_\rho$ = {const.h_spiral_arm} kpc & $\sigma_{{\mathrm{{A}}}}$ = {const.sigma_arm} kpc', transform=plt.gca().transAxes, fontsize=14, color='black')
+    #plt.text(0.02, 0.9, fr'NII Luminosity = {const.total_galactic_n_luminosity:.2e} erg/s', transform=plt.gca().transAxes, fontsize=14, color='black')
+    plt.xlim(0, 360)
+    plt.ylim(bottom=0, top=1.8e-4)
+    plt.gca().yaxis.get_offset_text().set_fontsize(14)
+    plt.tick_params(axis='both', which='major', labelsize=14)
+    plt.legend(fontsize = fontsize_in_ax_text)
     plt.savefig(filename_output)
     plt.close()
 
@@ -368,22 +394,50 @@ def plot_test_max_angle_local_arm(filename_output=f'{const.FOLDER_MODELS_GALAXY}
         sam.calc_modelled_intensity(readfile_effective_area=True, interpolate_all_arms=False, calc_gum_cyg=False)
         intensities_total = load_modelled_data()
         reduced_chi_squared_value = reduced_chi_squared(expanded_firas_intensity, expanded_firas_variance, intensities_total)
-        label = f'$\\theta_{{max}} = {np.round(np.degrees(theta_max_to_check[i]), 0)}. \\text{{Reduced }} \\chi^2: {reduced_chi_squared_value:.2f}$'
+        label = f'$\\theta_{{\mathrm{{max}}}}$ = {np.round(np.degrees(theta_max_to_check[i]), 0):.0f}$^{{\circ}}$. Reduced $\\chi^2$ = {reduced_chi_squared_value:.2f}'
         plt.plot(np.linspace(0, 360, len(longitudes)), intensities_total, label=label, color=colors[i], linestyle=linestyles[i], linewidth=LINEWIDTH)
     # Redefine the x-axis labels to match the values in longitudes
     x_ticks = (180, 150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210, 180)
     plt.xticks(np.linspace(0, 360, 13), x_ticks)
     plt.gca().xaxis.set_minor_locator(AutoMinorLocator(3)) 
     plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
-    plt.xlabel("Galactic longitude l (degrees)")
-    plt.ylabel("Line intensity in erg cm$^{-2}$ s$^{-1}$ sr$^{-1}$")
-    plt.title("Modelled intensity of the Galactic disk")
+    plt.xlabel("Galactic longitude $l$ (degrees)", fontsize=14)
+    plt.ylabel("Intensity (erg cm$^{-2}$ s$^{-1}$ sr$^{-1}$)", fontsize=14)
+    #plt.title("Modelled intensity of the Galactic disk")
     # Add parameter values as text labels
-    plt.text(0.02, 0.95, fr'$H_\rho$ = {const.h_spiral_arm} kpc', transform=plt.gca().transAxes, fontsize=8, color='black')
-    plt.text(0.02, 0.9, fr'NII Luminosity = {const.total_galactic_n_luminosity:.2e} erg/s', transform=plt.gca().transAxes, fontsize=8, color='black')
-    plt.legend()
+    fontsize_in_ax_text = 12
+    #plt.text(0.02, 0.95, fr'$H_\rho$ = {const.h_spiral_arm} kpc & $\sigma_{{\mathrm{{A}}}}$ = {const.sigma_arm} kpc', transform=plt.gca().transAxes, fontsize=14, color='black')
+    #plt.text(0.02, 0.9, fr'NII Luminosity = {const.total_galactic_n_luminosity:.2e} erg/s', transform=plt.gca().transAxes, fontsize=14, color='black')
+    plt.xlim(0, 360)
+    plt.ylim(bottom=0, top=1.8e-4)
+    plt.gca().yaxis.get_offset_text().set_fontsize(14)
+    plt.tick_params(axis='both', which='major', labelsize=14)
+    plt.legend(fontsize = fontsize_in_ax_text)
     plt.savefig(filename_output)
     plt.close()
+
+
+def chi_squared_with_and_without_local_arm_devoid_region():
+    """ Function to calculate the chi-squared values with and without the local arm
+    """
+    settings.add_devoid_region_sagittarius = False
+    settings.add_local_arm_to_intensity_plot = False
+    expanded_firas_intensity, expanded_firas_variance = load_firas_data()
+    sam.calc_modelled_intensity(readfile_effective_area=False)
+    intensities_no_local_or_devoid = load_modelled_data()
+    reduced_chi_squared_no_local_or_devoid = reduced_chi_squared(expanded_firas_intensity, expanded_firas_variance, intensities_no_local_or_devoid)
+    settings.add_local_arm_to_intensity_plot = True
+    sam.calc_modelled_intensity(readfile_effective_area=False)
+    intensities_local = load_modelled_data()
+    reduced_chi_squared_value_local = reduced_chi_squared(expanded_firas_intensity, expanded_firas_variance, intensities_local)
+    settings.add_devoid_region_sagittarius = True
+    sam.calc_modelled_intensity(readfile_effective_area=False)
+    intensities_total = load_modelled_data()
+    reduced_chi_squared_value_total = reduced_chi_squared(expanded_firas_intensity, expanded_firas_variance, intensities_total)
+    logging.info(f"Reduced chi-squared value with no local arm or devoid region: {reduced_chi_squared_no_local_or_devoid:.2f}")
+    logging.info(f"Reduced chi-squared value with local arm: {reduced_chi_squared_value_local:.2f}")
+    logging.info(f"Reduced chi-squared value with local arm and devoid region: {reduced_chi_squared_value_total:.2f}")
+    return
 
 
 def main():
@@ -394,6 +448,7 @@ def main():
     plot_test_h_arm()
     plot_test_devoid_region_sagittarius()
     plot_test_max_angle_local_arm()
+    chi_squared_with_and_without_local_arm_devoid_region()
     return
 
 

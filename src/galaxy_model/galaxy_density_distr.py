@@ -2,7 +2,7 @@ import numpy as np
 import logging
 import os
 logging.basicConfig(level=logging.INFO) 
-import src.spiral_arm_model as sam
+import src.nii_intensities.spiral_arm_model as sam
 import src.utilities.utilities as ut
 import src.utilities.constants as const
 from pathlib import Path
@@ -60,7 +60,7 @@ def interpolate_density(x_grid, y_grid, h=const.h_lyc, sigma_arm=const.sigma_arm
 
 
 @ut.timing_decorator
-def generate_coords_densities(plane = 1000, transverse = 20, half_edge = 25, readfile_effective_area=True, read_data_from_file=True):
+def generate_coords_densities(plane = 1000, transverse = 20, half_edge = 40, readfile_effective_area=True, read_data_from_file=True):
     """ Function to generate the coordinates and densities for the density distribution of the Milky Way
 
     Args:

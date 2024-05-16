@@ -15,6 +15,10 @@ tau = 0.15
 plt.plot(x, gaussian(x, sigma), label='Gaussian')
 plt.plot(x, exponential(x, tau), label='Exponential')
 plt.axvline(x = sigma, color = 'black', linestyle="--", label = 'axvline - full height')
+#plt.xlabel('$\\rho_{\mathrm{max}}$')
+plt.ylabel('$\\rho_{\mathrm{min}}$')
+rho_max = 0.15
+plt.xlabel(f'$\\rho_{{\\mathrm{{max}}}} = {rho_max}$')
 plt.legend()
 plt.show()
 plt.close()

@@ -5,16 +5,17 @@ from matplotlib.ticker import MaxNLocator
 import numpy as np
 import src.observational_data.obs_utilities as obs_ut
 import src.utilities.utilities as ut
-import src.spiral_arm_model as sam
+import src.nii_intensities.spiral_arm_model as sam
 import src.utilities.constants as const
 import src.galaxy_model.galaxy_class as gal
 import src.galaxy_model.association_class as asc
-import src.local_arm as la
 from matplotlib.ticker import AutoMinorLocator
 import logging
 import numpy as np
 logging.basicConfig(level=logging.INFO)
 rng = np.random.default_rng()
+
+SLOPE = 1_8 # slope for the power law distribution of the number of stars in the associations. Corresponds to alpha = 0.8
 
 
 def modelled_data(galaxy):
@@ -570,19 +571,19 @@ def plot_modelled_and_known_associations(modelled_galaxy, step=0.5, endpoint=25)
     add_associations_to_ax(ax, x_added, y_added, 'Modelled associations', 'darkgreen', s=40)
     add_heliocentric_circles_to_ax(ax, step=step, linewidth=1)
     add_spiral_arms_to_ax(ax, linewidth=3)
-    add_spiral_arm_names_to_ax(ax, fontsize=20)
+    add_spiral_arm_names_to_ax(ax, fontsize=25)
     #add_local_arm_to_ax(ax)
     ax.scatter(0, const.r_s, color='red', marker='o', label='Sun', s=45, zorder=11)
     ax.scatter(0, 0, color='black', marker='o', s=50, zorder=11)
-    ax.text(-1, 0.5, 'Galactic centre', fontsize=20, zorder=7)
+    ax.text(-0.38, 0.5, 'GC', fontsize=35, zorder=7)
     #plt.title(f'Distribution of known and modelled associations in the Galactic plane. \n Galaxy generated {sim_time} Myrs ago')
-    plt.xlabel('$x$ (kpc)', fontsize=25)
-    plt.ylabel('$y$ (kpc)', fontsize=25)
+    plt.xlabel('$x$ (kpc)', fontsize=35)
+    plt.ylabel('$y$ (kpc)', fontsize=35)
     plt.xlim(-7.5, 7.5)
     plt.ylim(-2, 12)
     plt.gca().set_aspect('equal', adjustable='box')
-    plt.tick_params(axis='both', which='major', labelsize=20)
-    legend = plt.legend(framealpha=0.9, fontsize=25)
+    plt.tick_params(axis='both', which='major', labelsize=35)
+    legend = plt.legend(framealpha=0.9, fontsize=30, loc='upper right')
     legend.set_zorder(50)
     plt.grid(True, zorder=-10)
     plt.rc('font', size=50) # increase the font size
@@ -724,7 +725,7 @@ def plot_avg_asc_mass_hist(modelled_galaxy, num_iterations: int, star_formation_
         None. Saves the plot
     """
     logging.info('Plotting average association mass histogram')
-    bin_max_mass = 3000
+    bin_max_mass = 2000
     bins, hist_known_mean, hist_added_mean = calc_avg_asc_mass_hist(modelled_galaxy, num_iterations=num_iterations, bin_max_mass=bin_max_mass)
     hist_added_mean = hist_added_mean / np.sum(hist_added_mean) 
     hist_known_mean = hist_known_mean / np.sum(hist_known_mean)
@@ -840,8 +841,6 @@ def plot_age_hist_known_modelled(modelled_galaxy):
     print('------------------------------------- Number of associations: ', len(age_modelled))
     plot_age_hist(age_known, age_modelled, filename=f'histogram_age_known_modelled_asc_{SLOPE}.pdf')
 
-
-SLOPE = 1_8
  
 def main():
     step = 0.5

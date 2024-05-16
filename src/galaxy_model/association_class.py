@@ -128,7 +128,6 @@ class Association():
             #print('---------------------------------------------- i =', i, '----------------------------------------------')
             for n in range(int(self.__n[i])): # self.__n[i] is the number of SNPs in the i-th star formation episode
                 # below: -4 * i is to take into account multiple star formation episodes. The first SNP is created at the time of the association's creation, and the rest are created at later times. 4 myrs between each star formation episode
-                #snp_index = (i + 1) * n
                 snp_index += 1
                 try:
                     self.__supernovae.append(sn.Supernovae(self.x, self.y, self.z, self.__association_creation_time - 4 * i, self.__simulation_time, sn_masses[snp_index], one_dim_velocities[snp_index], 
