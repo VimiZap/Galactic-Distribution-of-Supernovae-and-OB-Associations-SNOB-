@@ -137,16 +137,6 @@ def plot_mass_distr(galaxy):
     plt.text(0.02, 0.95, fr'Total number of supernovae progenitors: {number_sn}', transform=plt.gca().transAxes, fontsize=8, color='black')
     plt.savefig(f'{const.FOLDER_GALAXY_TESTS}/sn_mass_distribution.pdf')     # save plot in the output folder
     plt.close()
-    # plot histogram of the mass distribution of the SNPs; like, the total number of stars with a given mass
-    plt.hist(drawn_masses, bins=bins, histtype='step', color='blue', label='Histogram over the drawn masses in modelled Galaxy')
-    plt.xscale("log")
-    plt.yscale("log")
-    plt.xlim(mass_min, mass_max + 30) 
-    plt.xlabel("Mass of SN progenitor (M$_\odot$)")
-    plt.ylabel("Number of stars with a given mass")
-    plt.title("Histogram over the drawn masses in modelled Galaxy")
-    plt.savefig(f'{const.FOLDER_GALAXY_TESTS}/sn_mass_distribution_hist.pdf')     # save plot in the output folder
-    plt.close()
 
 
 def plot_association_3d(ax, association, simulation_time):
