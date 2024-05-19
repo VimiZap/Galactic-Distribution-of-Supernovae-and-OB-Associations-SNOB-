@@ -66,7 +66,7 @@ def load_modelled_data(filename_arm_intensities='intensities_per_arm_b_max_5.npy
     """
     intensities_per_arm = np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/{filename_arm_intensities}') 
     intensities_modelled = np.sum(intensities_per_arm[:4], axis=0) # sum the intensities of the four spiral arms
-    if settings.add_local_arm_to_intensity_plot == True: # add the local arm contribution
+    if settings.add_local_arm == True: # add the local arm contribution
         try: 
             intensities_modelled += intensities_per_arm[4]
         except: 
@@ -421,12 +421,12 @@ def chi_squared_with_and_without_local_arm_devoid_region():
     """ Function to calculate the chi-squared values with and without the local arm
     """
     settings.add_devoid_region_sagittarius = False
-    settings.add_local_arm_to_intensity_plot = False
+    settings.add_local_arm = False
     expanded_firas_intensity, expanded_firas_variance = load_firas_data()
     sam.calc_modelled_intensity(readfile_effective_area=False)
     intensities_no_local_or_devoid = load_modelled_data()
     reduced_chi_squared_no_local_or_devoid = reduced_chi_squared(expanded_firas_intensity, expanded_firas_variance, intensities_no_local_or_devoid)
-    settings.add_local_arm_to_intensity_plot = True
+    settings.add_local_arm = True
     sam.calc_modelled_intensity(readfile_effective_area=False)
     intensities_local = load_modelled_data()
     reduced_chi_squared_value_local = reduced_chi_squared(expanded_firas_intensity, expanded_firas_variance, intensities_local)

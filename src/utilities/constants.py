@@ -61,7 +61,7 @@ beta = -0.932
 r_s = 8.5            # kpc, estimate for distance from the Sun to the Galactic center. Same value the atuhors used
 rho_min_spiral_arm = np.array([3.35, 3.71, 3.56, 3.67])           
 arm_angles = np.radians([44.4, 120, 218.6, 330.3])
-pitch_angles= np.radians([11.43, 9.84, 10.38, 10.54]) # best fir to new r_s
+pitch_angles= np.radians([11.43, 9.84, 10.38, 10.54]) 
 fractional_contribution = [0.1977, 0.2091, 0.2120, 0.2017] 
  """
 

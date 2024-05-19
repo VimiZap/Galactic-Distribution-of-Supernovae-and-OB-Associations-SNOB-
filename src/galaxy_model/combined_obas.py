@@ -289,8 +289,8 @@ def plot_avg_asc_mass_hist(modelled_galaxy, num_iterations: int, star_formation_
     bin_centers = (bins[:-1] + bins[1:]) / 2
     bin_widths = np.diff(bins)
     plt.figure(figsize=(10, 6))
-    plt.bar(bin_centers, hist_known_mean, width=bin_widths, label='Known Associations', alpha=0.5)
-    plt.bar(bin_centers, hist_added_mean, width=bin_widths, label='Modelled Associations', alpha=0.5)
+    plt.bar(bin_centers, hist_known_mean, width=bin_widths, label='Known Associations', alpha=0.7, edgecolor='black')
+    plt.bar(bin_centers, hist_added_mean, width=bin_widths, label='Modelled Associations', alpha=0.7, edgecolor='black')
     plt.xlabel('Association mass (M$_\odot$)', fontsize=12)
     plt.xlim(0, bin_max_mass)
     plt.ylabel('Frequency', fontsize=12)
@@ -298,6 +298,7 @@ def plot_avg_asc_mass_hist(modelled_galaxy, num_iterations: int, star_formation_
     #plt.title('Histogram of association masses shown for modelled and known associations.')
     plt.legend(fontsize=12)
     plt.tick_params(axis='both', which='major', labelsize=12)
+    plt.yscale('log')
     plt.gca().xaxis.set_minor_locator(AutoMinorLocator(10)) 
     plt.savefig(f'{const.FOLDER_OBSERVATIONAL_PLOTS}/asc_mass_hist_{star_formation_episodes}_num_iterations_{num_iterations}_sim_time_{sim_time}_{SLOPE}.pdf')
     plt.close()
@@ -316,8 +317,8 @@ def plot_age_hist(age_data_known, age_data_modelled, filename, bin_max_age: int 
     bin_max_age = np.max(age_data_modelled)
     bins = np.arange(0, bin_max_age + binwidth, binwidth)
     plt.figure(figsize=(10, 6))
-    plt.hist(age_data_known, bins=bins, label='Known associations', alpha=0.5)
-    plt.hist(age_data_modelled, bins=bins, label='Modelled associations', alpha=0.5)
+    plt.hist(age_data_known, bins=bins, label='Known associations', alpha=0.7, zorder=5, edgecolor='black')
+    plt.hist(age_data_modelled, bins=bins, label='Modelled associations', alpha=0.7, zorder=4, edgecolor='black')
     #plt.title('Histogram of ages of OB associations')
     plt.xlabel('Age (Myr)', fontsize=12)
     plt.xlim(0, bin_max_age)
@@ -348,8 +349,6 @@ def plot_age_hist_known_modelled(modelled_galaxy):
     modelled_asc_distance_mask = asc_modelled_radial_distances <= 2.5 # mask for the modelled associations which are within 2.5 kpc
     modelled_asc_mask_combined = modelled_asc_exist_mask & modelled_asc_distance_mask
     age_modelled = age_modelled[modelled_asc_mask_combined] # remove modelled associations which have no stars anymore
-    #age_modelled = age_modelled[asc_modelled_radial_distances < 3] # remove modelled associations which are further away than 3 kpc
-    print('------------------------------------- Number of associations: ', len(age_modelled))
     plot_age_hist(age_known, age_modelled, filename=f'histogram_age_known_modelled_asc_{SLOPE}.pdf')
 
 
@@ -387,8 +386,9 @@ def plot_distance_hist(heliocentric_distance_known, heliocentric_distance_modell
     hist_central_x_val = bins[:-1] + step / 2 # central x values for each bin
     # Make the histogram    
     plt.figure(figsize=(10, 6))
-    plt.bar(hist_central_x_val, hist_known, width=step, alpha=0.5, label='Known associations')
-    plt.bar(hist_central_x_val, hist_modelled, width=step, alpha=0.5, label='Modelled associations')
+    plt.bar(hist_central_x_val, hist_known, width=step, alpha=0.7, label='Known associations', zorder=5, edgecolor='black')
+    plt.bar(hist_central_x_val, hist_modelled, width=step, alpha=0.7, label='Modelled associations', zorder=4, edgecolor='black')
+    plt.bar(hist_central_x_val, hist_modelled + hist_known, width=step, alpha=0.7, label='Total', zorder=3, edgecolor='black')
     #plt.title('Radial distribution of OB association surface density')
     plt.xlabel('Heliocentric distance r (kpc)', fontsize=12)
     plt.xlim(0, endpoint)
@@ -418,7 +418,6 @@ def plot_distance_hist_known_modelled(modelled_galaxy, endpoint=2.5):
     masses_asc_modelled = np.array([np.sum(asc.star_masses) for asc in modelled_associations])
     modelled_asc_mask = np.array([masses > 7 for masses in masses_asc_modelled]) # mask for the modelled associations with mass greater than 7 solar masses. > 7 to avoid rounding errors in the mass calculation, and this mask is to remove associations for which all SNPs have exploded
     distance_modelled = distance_modelled[modelled_asc_mask] # remove modelled associations which have no stars anymore
-    print('------------------------------------- Number of associations: ', len(distance_modelled))
     plot_distance_hist(heliocentric_distance_known=distance_known, heliocentric_distance_modelled=distance_modelled, filename=f'histogram_dist_known_modelled_asc_{SLOPE}.pdf', endpoint=endpoint)
 
 
@@ -429,7 +428,7 @@ def main():
     galaxy_1 = gal.Galaxy(sim_time, read_data_from_file=True, star_formation_episodes=1)
     galaxy_3 = gal.Galaxy(sim_time, read_data_from_file=True, star_formation_episodes=3)
     galaxy_5 = gal.Galaxy(sim_time, read_data_from_file=True, star_formation_episodes=5)
-    plot_modelled_and_known_associations(galaxy_5, step=step, endpoint=25) 
+    #plot_modelled_and_known_associations(galaxy_5, step=step, endpoint=25) 
     plot_avg_asc_mass_hist(galaxy_1, num_iterations=num_iterations, star_formation_episodes=1, sim_time=sim_time)
     plot_avg_asc_mass_hist(galaxy_3, num_iterations=num_iterations, star_formation_episodes=3, sim_time=sim_time)
     plot_avg_asc_mass_hist(galaxy_5, num_iterations=num_iterations, star_formation_episodes=5, sim_time=sim_time)

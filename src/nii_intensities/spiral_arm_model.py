@@ -542,7 +542,7 @@ def plot_modelled_intensity_per_arm(filename_output = f'{const.FOLDER_MODELS_GAL
     plt.plot(np.linspace(0, 360, len(longitudes)), intensities_per_arm[3], label=f"SC. f={fractional_contribution[3]}", color=colors[3])
     intensities_total = np.sum(intensities_per_arm[:4], axis=0)
     # Data for the local arm ang gum cygnus regoions are saved in separate files. To change the devoid region, the spiral arms must be recalculated
-    if settings.add_local_arm_to_intensity_plot == True:
+    if settings.add_local_arm == True:
         try: # check if the local arm has been generated or not
             plt.plot(np.linspace(0, 360, len(longitudes)), intensities_per_arm[4], label=f"Local arm. f={fractional_contribution[4]}", color=colors[4])
             intensities_total += intensities_per_arm[4]
@@ -629,7 +629,7 @@ def spiral_arms_schematic(linewidth=3, filename=f'{const.FOLDER_MODELS_GALAXY}/s
 def main() -> None:
     logging.info("Starting main function")
     settings.add_gum_cygnus = False
-    settings.add_local_arm_to_intensity_plot = False
+    settings.add_local_arm = False
     settings.add_devoid_region_sagittarius = False
     test_max_b()
     b_max = 5
@@ -640,7 +640,7 @@ def main() -> None:
     settings.add_gum_cygnus = True
     calc_modelled_intensity(readfile_effective_area=False, b_max=b_max)
     plot_modelled_intensity_per_arm(filename_output=f'{const.FOLDER_MODELS_GALAXY}/modelled_intensity_four_arms_gum_cygnus.pdf', filename_intensity_data=filename_intensity_data)
-    settings.add_local_arm_to_intensity_plot = True
+    settings.add_local_arm = True
     calc_modelled_intensity(readfile_effective_area=False, b_max=b_max)
     plot_modelled_intensity_per_arm(filename_output=f'{const.FOLDER_MODELS_GALAXY}/modelled_intensity_five_arms_gum_cygnus.pdf', filename_intensity_data=filename_intensity_data)
     settings.add_devoid_region_sagittarius = True

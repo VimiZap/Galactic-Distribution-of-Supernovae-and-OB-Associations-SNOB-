@@ -128,7 +128,7 @@ def load_modelled_data(filename_arm_intensities='intensities_per_arm_b_max_5.npy
     """
     intensities_per_arm = np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/{filename_arm_intensities}') 
     intensities_modelled = np.sum(intensities_per_arm[:4], axis=0) # sum the intensities of the four spiral arms
-    if settings.add_local_arm_to_intensity_plot == True: # add the local arm contribution
+    if settings.add_local_arm == True: # add the local arm contribution
         try: 
             intensities_modelled += intensities_per_arm[4]
         except: 

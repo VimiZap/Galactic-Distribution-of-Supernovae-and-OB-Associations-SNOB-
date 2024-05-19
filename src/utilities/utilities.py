@@ -72,6 +72,7 @@ def height_distribution(z, sigma):
 
     Args:
         z: height above the Galactic plane
+        sigma: 
     Returns:
         height distribution of the disk at a height z above the Galactic plane
     """
@@ -84,7 +85,7 @@ def running_average(data, window_size):
     Args: 
             data: 1D np.array with data
             window_size: int, the size of the window used to calculate the running average. Denotes the number of points for each window
-        Returns:
+    Returns:
             1D np.array with the running average of the data
     """
     array_running_averaged = []

@@ -57,12 +57,6 @@ def calc_modelled_intensity(b_max = 5):
     return
 
 
-# Function to change the size of the exponent
-def resize_exponent(event):
-    plt.gca().yaxis.get_offset_text().set_size(30)  # Set the size of the exponent
-    plt.draw()
-
-
 def plot_axisymmetric():
     filename_output =  f'{const.FOLDER_MODELS_GALAXY}/axisymmetric_modelled_emissivity_h_2.4.pdf'
     longitudes = np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/axisymmetric_longitudes.npy')
