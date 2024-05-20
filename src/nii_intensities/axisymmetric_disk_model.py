@@ -6,11 +6,14 @@ logging.basicConfig(level=logging.INFO)
 import observational_data.firas_data as firas_data
 import src.utilities.constants as const
 from matplotlib.ticker import AutoMinorLocator
+from pathlib import Path
 
 
 def calc_modelled_intensity(b_max = 5):
     logging.info("Running calc_modelled_intensity() for axisymmetric model")
     logging.info("Calculating coordinates")
+    # check if the folder exists, if not create it
+    Path(const.FOLDER_GALAXY_DATA).mkdir(parents=True, exist_ok=True)
     # Calculate coordinates    
     dr = 0.01   # increments in dr (kpc). For the spiral arm model, 0.01 kpc was used, but seems like 0.1 kpc is enough for the axisymmetric model
     dl = 0.2   # increments in dl (degrees)
@@ -58,6 +61,9 @@ def calc_modelled_intensity(b_max = 5):
 
 
 def plot_axisymmetric():
+    logging.info("Plotting the modelled intensity for the axisymmetric model")
+    # check if the output folder exists, if not create it
+    Path(const.FOLDER_MODELS_GALAXY).mkdir(parents=True, exist_ok=True)
     filename_output =  f'{const.FOLDER_MODELS_GALAXY}/axisymmetric_modelled_emissivity_h_2.4.pdf'
     longitudes = np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/axisymmetric_longitudes.npy')
     intensities = np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/axisymmetric_intensities.npy')

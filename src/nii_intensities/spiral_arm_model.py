@@ -458,13 +458,13 @@ def calc_modelled_emissivity(readfile_effective_area=True, interpolate_all_arms=
     return  
 
 
-def calc_modelled_intensity(readfile_effective_area=True, interpolate_all_arms=True, calc_gum_cyg=True, recalculate_coordinates=False, b_max=5, db_above_1_deg=0.2, fractional_contribution=const.fractional_contribution, h=const.h_spiral_arm, sigma_arm=const.sigma_arm, arm_angles=const.arm_angles, pitch_angles=const.pitch_angles):
+def calc_modelled_intensity(readfile_effective_area=True, interpolate_all_arms=True, calc_gum_cyg=False, recalculate_coordinates=False, b_max=5, db_above_1_deg=0.2, fractional_contribution=const.fractional_contribution, h=const.h_spiral_arm, sigma_arm=const.sigma_arm, arm_angles=const.arm_angles, pitch_angles=const.pitch_angles):
     """ Function to calculate the modelled intensity of the Milky Way. The intensity is calculated for each spiral arm and saved to disk. The intensity is in units of erg/s/cm^2/sr/s
     
     Args:
         readfile_effective_area: If True, the effective areas are read from a file. If False, the effective areas are calculated. Default is True
         interpolate_all_arms: If True, the densities for each spiral arm are interpolated. Default is True
-        calc_gum_cyg: If True, the intensity for the Gum and Cygnus regions are calculated. Default is True
+        calc_gum_cyg: If True, the intensity for the Gum and Cygnus regions are calculated. Default is False
         recalculate_coordinates: If True, the galactic coordinates are recalculated. Default is False
         b_max: Maximum angular distance from the Galactic plane. Default is 5
         db_above_1_deg: Increment in angular distance from the plane above 1 degree. Default is 0.1
@@ -508,7 +508,7 @@ def calc_modelled_intensity(readfile_effective_area=True, interpolate_all_arms=T
     b_filename = str(b_max).replace(".", "_")
     filename_intensity_data = f'{const.FOLDER_GALAXY_DATA}/intensities_per_arm_b_max_{b_filename}.npy'
     np.save(filename_intensity_data, intensities_per_arm) # saving the same array we are plotting usually. Sum over all spiral arms to get one longitudinal map. With running average
-    if settings.add_gum_cygnus == True and calc_gum_cyg == True:
+    if calc_gum_cyg == True:
         logging.info("Calculating the intensity for the Gum and Cygnus regions")
         gum_cygnus.generate_gum_cygnus()
     return
@@ -527,6 +527,8 @@ def plot_modelled_intensity_per_arm(filename_output = f'{const.FOLDER_MODELS_GAL
     Returns:
         None: The plot is saved to disk
     """
+    # check if the output folder exists, if not create it
+    Path(const.FOLDER_MODELS_GALAXY).mkdir(parents=True, exist_ok=True)
     # plot the FIRAS data for the NII 205 micron line
     bin_edges_line_flux, bin_centre_line_flux, line_flux, line_flux_error = firas_data.firas_data_for_plotting()
     plt.figure(figsize=(10, 6))

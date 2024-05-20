@@ -60,7 +60,7 @@ def interpolate_density(x_grid, y_grid, h=const.h_lyc, sigma_arm=const.sigma_arm
 
 
 @ut.timing_decorator
-def generate_coords_densities(plane = 1000, transverse = 20, half_edge = 40, readfile_effective_area=True, read_data_from_file=True):
+def generate_coords_densities(plane=1000, transverse=20, half_edge=40, readfile_effective_area=True, read_data_from_file=True):
     """ Function to generate the coordinates and densities for the density distribution of the Milky Way
 
     Args:

@@ -1,5 +1,5 @@
 - venv is activated if it says (.venv) in the terminal
-- make sure the interpreter is selected for the .venv and not the global
+- make sure the Python interpreter is selected for the .venv and not the global one
 
 to activate venv: 
 source .venv/bin/activate  # Unix/Linux/macOS
@@ -8,15 +8,14 @@ source .venv/bin/activate  # Unix/Linux/macOS
 to deactivate venv:
 deactivate
 
+to create venv: 
+- run: python3 -m venv .venv (linux)
+- run: python -m venv venv (windows)
+
 to remove venv:
 - deactive it first
 - run: rm -rf .venv (linux)
 - run: rmdir /s /q venv (windows)
-
-
-to create venv: 
-- run: python3 -m venv .venv (linux)
-- run: python -m venv venv (windows)
 
 to install project as package:
 - have a setup.py located in project root

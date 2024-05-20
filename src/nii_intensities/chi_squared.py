@@ -496,7 +496,7 @@ def optimize_fractional_contribution_four_spiral_arms(arm_angles=const.arm_angle
     """ Function to optimize the fractional contribution of the spiral arms. The function will try different values for the fractional contribution in the range +- 0.1 around the existing value, and calculate the chi-squared value for each value.
     The fractional contribution that gives the lowest chi-squared value will be returned.
 
-    Args:
+    Args:install
         arm_angles (list, optional): Starting angles for the spiral arms. Defaults to arm_angles.
         pitch_angles (list, optional): Pitch angles for the spiral arms. Defaults to pitch_angles.
         fractional_contribution (list, optional): Fractional contribution of each spiral arm. Defaults to fractional_contribution.
@@ -712,7 +712,7 @@ def optimize_local_arm_theta_max(arm_angles=const.arm_angles, pitch_angles=const
     return np.radians(best_theta_max)
 
 
-def run_tests(delta):
+def run_tests(num_iterations=10):
     """
     Function to run all the optimization tests
     """
@@ -729,10 +729,10 @@ def run_tests(delta):
     # calculate the gum-cygnus OBA:
     gum_cygnus.generate_gum_cygnus() # to ensure the files exist before running the optimization tests
     # Run the optimization tests
-    for i in range(10):
+    for i in range(num_iterations):
         print(f'Iteration: {i + 1}')
         best_rho_min, best_rho_max, best_sigma_devoid = optimize_saggitarus_devoid_region(arm_angles=best_arm_angles, pitch_angles=best_pitch_angles, fractional_contribution=best_fractional_contribution, h_spiral_arm=best_h_spiral_arm, sigma_arm=best_sigma_arm, rho_min_sagittarius=best_rho_min, rho_max_sagittarius=best_rho_max, sigma_devoid=best_sigma_devoid, theta_max_local=best_theta_max)
-        best_arm_angles = optimize_spiral_arm_start_angle(delta=delta, arm_angles=best_arm_angles, pitch_angles=best_pitch_angles, fractional_contribution=best_fractional_contribution, h_spiral_arm=best_h_spiral_arm, sigma_arm=best_sigma_arm, rho_min_sagittarius=best_rho_min, rho_max_sagittarius=best_rho_max, sigma_devoid=best_sigma_devoid, theta_max_local=best_theta_max)
+        best_arm_angles = optimize_spiral_arm_start_angle(delta=1, arm_angles=best_arm_angles, pitch_angles=best_pitch_angles, fractional_contribution=best_fractional_contribution, h_spiral_arm=best_h_spiral_arm, sigma_arm=best_sigma_arm, rho_min_sagittarius=best_rho_min, rho_max_sagittarius=best_rho_max, sigma_devoid=best_sigma_devoid, theta_max_local=best_theta_max)
         best_pitch_angles = optimize_spiral_arm_pitch_angle(delta=0.1, arm_angles=best_arm_angles, pitch_angles=best_pitch_angles, fractional_contribution=best_fractional_contribution, h_spiral_arm=best_h_spiral_arm, sigma_arm=best_sigma_arm, rho_min_sagittarius=best_rho_min, rho_max_sagittarius=best_rho_max, sigma_devoid=best_sigma_devoid, theta_max_local=best_theta_max)
         best_sigma_arm = optimize_sigma_arm(arm_angles=best_arm_angles, pitch_angles=best_pitch_angles, fractional_contribution=best_fractional_contribution, h_spiral_arm=best_h_spiral_arm, sigma_arm=best_sigma_arm, rho_min_sagittarius=best_rho_min, rho_max_sagittarius=best_rho_max, sigma_devoid=best_sigma_devoid, theta_max_local=best_theta_max)
         best_h_spiral_arm = optimize_spiral_arm_h(arm_angles=best_arm_angles, pitch_angles=best_pitch_angles, fractional_contribution=best_fractional_contribution, h_spiral_arm=best_h_spiral_arm, sigma_arm=best_sigma_arm, rho_min_sagittarius=best_rho_min, rho_max_sagittarius=best_rho_max, sigma_devoid=best_sigma_devoid, theta_max_local=best_theta_max)
@@ -812,11 +812,9 @@ def read_best_parameters(filename):
 
 
 def main():
-    #run_tests(delta=1)
+    run_tests(delta=1)
     plot_bins_excluded_from_fiting()
 
 
 if __name__ == '__main__':
     main()
-
-

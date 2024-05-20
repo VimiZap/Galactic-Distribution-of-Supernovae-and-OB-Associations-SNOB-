@@ -213,5 +213,4 @@ if __name__ == '__main__':
     #test_plot_sphere()
     #plot_gum_cyg()
     #plot_modelled_intensity_gum_cygnus()
-    #test_resolution()
     #cygnus()
