@@ -428,7 +428,7 @@ def main():
     galaxy_1 = gal.Galaxy(sim_time, read_data_from_file=True, star_formation_episodes=1)
     galaxy_3 = gal.Galaxy(sim_time, read_data_from_file=True, star_formation_episodes=3)
     galaxy_5 = gal.Galaxy(sim_time, read_data_from_file=True, star_formation_episodes=5)
-    #plot_modelled_and_known_associations(galaxy_5, step=step, endpoint=25) 
+    plot_modelled_and_known_associations(galaxy_5, step=step, endpoint=25) 
     plot_avg_asc_mass_hist(galaxy_1, num_iterations=num_iterations, star_formation_episodes=1, sim_time=sim_time)
     plot_avg_asc_mass_hist(galaxy_3, num_iterations=num_iterations, star_formation_episodes=3, sim_time=sim_time)
     plot_avg_asc_mass_hist(galaxy_5, num_iterations=num_iterations, star_formation_episodes=5, sim_time=sim_time)
