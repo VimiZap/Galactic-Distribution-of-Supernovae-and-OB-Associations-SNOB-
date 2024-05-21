@@ -29,7 +29,7 @@ class Galaxy():
     emissivity = None
     
     
-    def __init__(self, sim_time_duration, read_data_from_file = True, star_formation_episodes=1):
+    def __init__(self, sim_time_duration, read_data_from_file = True, star_formation_episodes=5):
         """ Class to represent the galaxy. The galaxy is created at a given time and contains a number of associations.
         
         Args:
@@ -115,7 +115,6 @@ class Galaxy():
     
 
     def _association_distribution(self, n_min, n_max, alpha = 0.8):
-        # it is assumed n_min and n_max are adjusted for the numbner of star forming episodes
         constant = 1.65 * 1.7e6 * 1.1e-3 # 1.1e-3 = f_SN = the fraction of stars that end their lives as core-collapse supernovae
         N = np.arange(n_min, n_max + 1) # default step size is 1. The range is inclusive of n_max
         distribution = constant / N**(1 + alpha)
