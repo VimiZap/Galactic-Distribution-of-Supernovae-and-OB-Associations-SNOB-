@@ -205,7 +205,7 @@ def combine_modelled_and_known_associations(modelled_associations, step=0.5, end
     return known_associations, associations_added
 
 
-def plot_modelled_and_known_associations(modelled_galaxy, step=0.5, endpoint=25):
+def plot_added_and_known_associations(modelled_galaxy, step=0.5, endpoint=25):
     """ Plot the modelled and known associations together
     
     Args:
@@ -332,7 +332,7 @@ def plot_age_hist(age_data_known, age_data_modelled, filename, bin_max_age: int 
     plt.close()
 
 
-def plot_age_hist_known_modelled(modelled_galaxy):
+def plot_age_hist_known_modelled(modelled_galaxy, step=0.5, endpoint=2.5):
     """ Plot the histogram of the ages of known and modelled associations within 2.5 kpc
 
     Returns:
@@ -341,15 +341,16 @@ def plot_age_hist_known_modelled(modelled_galaxy):
     logging.info('Plotting age histogram of known and modelled associations')
     modelled_associations = modelled_galaxy.associations
     known_associations = known_associations_to_association_class()
+    known_associations, associations_added = combine_modelled_and_known_associations(modelled_associations, step, endpoint)
     age_known = np.array([asc.age for asc in known_associations])
-    age_modelled = np.array([asc.age for asc in modelled_associations])
-    masses_asc_modelled = np.array([np.sum(asc.star_masses) for asc in modelled_associations])
-    modelled_asc_exist_mask = np.array([masses > 7 for masses in masses_asc_modelled]) # mask for the modelled associations with mass greater than 7 solar masses. > 7 to avoid rounding errors in the mass calculation, and this mask is to remove associations for which all SNPs have exploded
-    asc_modelled_radial_distances = np.array([np.sqrt(asc.x**2 + (asc.y - const.r_s)**2 + asc.z**2) for asc in modelled_associations])
-    modelled_asc_distance_mask = asc_modelled_radial_distances <= 2.5 # mask for the modelled associations which are within 2.5 kpc
-    modelled_asc_mask_combined = modelled_asc_exist_mask & modelled_asc_distance_mask
-    age_modelled = age_modelled[modelled_asc_mask_combined] # remove modelled associations which have no stars anymore
-    plot_age_hist(age_known, age_modelled, filename=f'histogram_age_known_modelled_asc_{SLOPE}.pdf')
+    age_added = np.array([asc.age for asc in associations_added])
+    masses_asc_added = np.array([np.sum(asc.star_masses) for asc in associations_added])
+    added_asc_exist_mask = np.array([masses > 7 for masses in masses_asc_added]) # mask for the modelled associations with mass greater than 7 solar masses. > 7 to avoid rounding errors in the mass calculation, and this mask is to remove associations for which all SNPs have exploded
+    asc_added_radial_distances = np.array([np.sqrt(asc.x**2 + (asc.y - const.r_s)**2 + asc.z**2) for asc in associations_added])
+    added_asc_distance_mask = asc_added_radial_distances <= 2.5 # mask for the modelled associations which are within 2.5 kpc
+    added_asc_mask_combined = added_asc_exist_mask & added_asc_distance_mask
+    age_added = age_added[added_asc_mask_combined] # remove modelled associations which have no stars anymore
+    plot_age_hist(age_known, age_added, filename=f'histogram_age_known_modelled_asc_{SLOPE}.pdf')
 
 
 def area_per_bin(bins):
@@ -401,7 +402,7 @@ def plot_distance_hist(heliocentric_distance_known, heliocentric_distance_modell
     return bins, hist_known
 
 
-def plot_distance_hist_known_modelled(modelled_galaxy, endpoint=2.5):
+def plot_distance_hist_known_added(modelled_galaxy, step=0.5, endpoint=2.5):
     """ Plot the histogram of the radial distances of known and modelled associations
     
     Args:
@@ -412,13 +413,14 @@ def plot_distance_hist_known_modelled(modelled_galaxy, endpoint=2.5):
     """
     logging.info('Plotting distance histogram of known and modelled associations')
     modelled_associations = modelled_galaxy.associations
-    known_associations = known_associations_to_association_class()
+    #known_associations = known_associations_to_association_class()
+    known_associations, associations_added = combine_modelled_and_known_associations(modelled_associations, step, endpoint)
     distance_known = np.array([asc.r for asc in known_associations])
-    distance_modelled = np.array([asc.r for asc in modelled_associations])
-    masses_asc_modelled = np.array([np.sum(asc.star_masses) for asc in modelled_associations])
-    modelled_asc_mask = np.array([masses > 7 for masses in masses_asc_modelled]) # mask for the modelled associations with mass greater than 7 solar masses. > 7 to avoid rounding errors in the mass calculation, and this mask is to remove associations for which all SNPs have exploded
-    distance_modelled = distance_modelled[modelled_asc_mask] # remove modelled associations which have no stars anymore
-    plot_distance_hist(heliocentric_distance_known=distance_known, heliocentric_distance_modelled=distance_modelled, filename=f'histogram_dist_known_modelled_asc_{SLOPE}.pdf', endpoint=endpoint)
+    distance_added = np.array([asc.r for asc in associations_added])
+    masses_asc_added = np.array([np.sum(asc.star_masses) for asc in associations_added])
+    added_asc_mask = np.array([masses > 7 for masses in masses_asc_added]) # mask for the modelled associations with mass greater than 7 solar masses. > 7 to avoid rounding errors in the mass calculation, and this mask is to remove associations for which all SNPs have exploded
+    distance_added = distance_added[added_asc_mask] # remove modelled associations which have no stars anymore
+    plot_distance_hist(heliocentric_distance_known=distance_known, heliocentric_distance_modelled=distance_added, filename=f'histogram_dist_known_modelled_asc_{SLOPE}.pdf', endpoint=endpoint)
 
 
 def main():
@@ -428,11 +430,11 @@ def main():
     galaxy_1 = gal.Galaxy(sim_time, read_data_from_file=True, star_formation_episodes=1)
     galaxy_3 = gal.Galaxy(sim_time, read_data_from_file=True, star_formation_episodes=3)
     galaxy_5 = gal.Galaxy(sim_time, read_data_from_file=True, star_formation_episodes=5)
-    plot_modelled_and_known_associations(galaxy_5, step=step, endpoint=25) 
+    plot_added_and_known_associations(galaxy_5, step=step, endpoint=25) 
     plot_avg_asc_mass_hist(galaxy_1, num_iterations=num_iterations, star_formation_episodes=1, sim_time=sim_time)
     plot_avg_asc_mass_hist(galaxy_3, num_iterations=num_iterations, star_formation_episodes=3, sim_time=sim_time)
     plot_avg_asc_mass_hist(galaxy_5, num_iterations=num_iterations, star_formation_episodes=5, sim_time=sim_time)
-    plot_distance_hist_known_modelled(galaxy_5)
+    plot_distance_hist_known_added(galaxy_5)
     plot_age_hist_known_modelled(galaxy_5)
 
 

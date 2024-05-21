@@ -21,8 +21,6 @@ def my_data_for_stat():
     """
     file_path = f'{const.FOLDER_OBSERVATIONAL_DATA}/Overview of know OB associations.xlsx' 
     data = pd.read_excel(file_path)
-    data = data.iloc[3:7]
-
     association_name = data['Name']
     n = data['Number of stars']
     min_mass = data['Min mass']
@@ -123,7 +121,7 @@ def stat_known_associations(num_iterations = 10):
         'Std Stars Still Existing': std_stars_still_existing
     }, index=association_name)
     # Save the DataFrame to a CSV file
-    df.to_csv(f'{const.FOLDER_OBSERVATIONAL_DATA}/statistics_known_associations_orion.csv')
+    df.to_csv(f'{const.FOLDER_OBSERVATIONAL_DATA}/statistics_known_associations.csv')
     return
 
  
