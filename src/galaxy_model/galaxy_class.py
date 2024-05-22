@@ -200,7 +200,7 @@ def plot_temporal_clustering():
     max_number_snp = 10e3
     snps = np.arange(0, max_number_snp, 1)
     for i, c in enumerate(C):
-        plt.plot(snps, c-0.11*np.log(snps), label=f'Number of star-forming episodes = {STAR_FORMATION_EPISODES[i]}')
+        plt.plot(snps, c-0.11*np.log(snps), label=f'Number of star forming episodes = {STAR_FORMATION_EPISODES[i]}')
     plt.xlabel('$N_*^{\\text{SN}}$', fontsize=14)
     plt.ylabel('P(> $N_*^{\\text{SN}})$', fontsize=14)
     #plt.title('Temporal clustering of supernovae progenitors')
