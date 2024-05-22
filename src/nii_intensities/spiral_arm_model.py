@@ -605,7 +605,7 @@ def spiral_arms_schematic(linewidth=3, filename=f'{const.FOLDER_MODELS_GALAXY}/s
     colors = sns.color_palette('bright', 7)
     rho_min_array = const.rho_min_spiral_arm
     rho_max_array = const.rho_max_spiral_arm
-    spiral_arm_names = ['NC', 'P', 'SA', 'SC', 'Local arm']
+    spiral_arm_names = ['NC', 'P', 'SA', 'SC', 'Local Arm']
     plt.figure(figsize=(6, 6))
     for i in range(len(const.arm_angles)):
         # generate the spiral arm medians
@@ -652,6 +652,6 @@ def main() -> None:
 
 if __name__ == "__main__":
     logging.info("Starting main function")
-    #spiral_arms_schematic()
+    spiral_arms_schematic()
     main()
 
