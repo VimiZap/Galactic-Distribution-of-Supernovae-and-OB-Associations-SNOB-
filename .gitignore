@@ -1,6 +1,5 @@
-galaxy_data/
 galaxy_data
 .venv/
-.gitignore
-old_tests/
+*.egg-info
+*.egg
 data/chi_square_tests

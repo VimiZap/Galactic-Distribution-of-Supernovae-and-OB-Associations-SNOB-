@@ -1,12 +1,18 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='ViktorMasterThesis',
+    name='SNOB',
     version='0.1',
     packages=find_packages(),
     install_requires=[
-        # list your project's dependencies here
-        # e.g., 'numpy>=1.19',
+        'astropy>=6.0.1',
+        'matplotlib>=3.8.4',
+        'numpy>=1.24.2',
+        'pandas>=2.0.1',
+        'pyvo>=1.5.1',
+        'scipy>=1.14.1',
+        'seaborn>=0.13.2',
+        'setuptools>=65.5.0',
     ],
     # Additional metadata about your package
     author='Viktor Mikalsen',
