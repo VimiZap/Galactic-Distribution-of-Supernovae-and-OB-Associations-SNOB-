@@ -13,6 +13,7 @@ setup(
         'scipy>=1.14.1',
         'seaborn>=0.13.2',
         'setuptools>=65.5.0',
+        'openpyxl>=3.1.5'
     ],
     # Additional metadata about your package
     author='Viktor Mikalsen',

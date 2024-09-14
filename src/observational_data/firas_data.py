@@ -6,7 +6,7 @@ import logging
 logging.basicConfig(level=logging.INFO) 
 from src.utilities import utilities as ut
 import src.utilities.constants as const
-
+from pathlib import Path
 
 def calc_hist_1d(data):
     """ Calculate the 1D histogram of the N+ line intensity vs Galactic longitude based on data shared by Fixsen. The data is given in the form of a histogram.
@@ -41,6 +41,8 @@ def plot_data_from_fixsen():
     Returns:
         None. Saves the plot.
     """
+    # check if the output folder exists, if not create it
+    Path(const.FOLDER_OBSERVATIONAL_PLOTS).mkdir(parents=True, exist_ok=True)
     # Load data from the text file
     data = np.loadtxt(f'{const.FOLDER_OBSERVATIONAL_DATA}/N+.txt')
     data = data[np.abs(data[:, 1]) <= 5]    
@@ -115,6 +117,8 @@ def plot_firas_nii_line():
     Returns:
         None. Saves the plot.
     """
+    # check if the output folder exists, if not create it
+    Path(const.FOLDER_OBSERVATIONAL_PLOTS).mkdir(parents=True, exist_ok=True)
     bin_edges_line_flux, bin_centre_line_flux, line_flux, line_flux_error = firas_data_for_plotting() # retrieve the data from the .fits file
     plt.figure(figsize=(10, 6))
     plt.stairs(values=line_flux, edges=bin_edges_line_flux, fill=False, color='black') # plot the observed intensity
@@ -155,7 +159,11 @@ def find_firas_intensity_at_central_long(long):
     Returns:
         float, the intensity of the N+ line at the given longitude.
     """
-    fits_file = fits.open(f'{const.FOLDER_OBSERVATIONAL_DATA}/lambda_firas_lines_1999_galplane.fits')
+    try:
+        fits_file = fits.open(f'{const.FOLDER_OBSERVATIONAL_DATA}/lambda_firas_lines_1999_galplane.fits')
+    except:
+        logging.error("The .fits file could not be opened. Check if the file is in the correct folder.")
+        return
     data_hdu = fits_file[12] 
     data = data_hdu.data
     gal_lon = data['GAL_LON'][0] 

@@ -79,10 +79,9 @@ def generate_coords_densities(plane=1000, transverse=20, half_edge=40, readfile_
     # check if the folder exists, if not create it
     Path(const.FOLDER_GALAXY_DATA).mkdir(parents=True, exist_ok=True)
     if read_data_from_file == True:
-        if os.path.exists(f'{const.FOLDER_GALAXY_DATA}/sim_x_grid.npy'):
-            logging.info("File sm_x_grid.npy exists in the folder")
-        else:
-            raise FileNotFoundError("File sm_x_grid.npy does not exist in the folder. Set read_data_from_file to False when calling the Galaxy class to generate the data")
+        if not os.path.exists(f'{const.FOLDER_GALAXY_DATA}/sim_x_grid.npy'):
+            logging.warning("Data for simulating the Galaxy has not been generated. Generating it now.")
+            generate_coords_densities(plane=plane, transverse=transverse, half_edge=half_edge, readfile_effective_area=readfile_effective_area, read_data_from_file=False)
         logging.info("Reading the density distribution of the Milky Way from file")
         x_grid = np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/sim_x_grid.npy')
         y_grid = np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/sim_y_grid.npy')
@@ -100,7 +99,11 @@ def generate_coords_densities(plane=1000, transverse=20, half_edge=40, readfile_
     uniform_spiral_arm_density_total /= uniform_spiral_arm_density_total.max() # normalize the density to unity
     # Either read or calculate the effective area per spiral arm
     if readfile_effective_area == True:
-        effective_area = np.load(f'{const.FOLDER_GALAXY_DATA}/effective_area_per_spiral_arm.npy')
+        try:
+            effective_area = np.load(f'{const.FOLDER_GALAXY_DATA}/effective_area_per_spiral_arm.npy')
+        except:
+            logging.warning("File effective_area_per_spiral_arm.npy does not exist in the folder. Calculating the effective area per spiral arm")
+            effective_area = sam.calc_effective_area_per_spiral_arm(readfile_effective_area=readfile_effective_area)
     elif readfile_effective_area == False:
         effective_area = sam.calc_effective_area_per_spiral_arm(readfile_effective_area=readfile_effective_area)
     else:

@@ -94,7 +94,7 @@ def intensity(longitudes, densities, central_long, window_size=5):
     return rearanged_intensity
 
 
-def calc_effective_area(radius, distance_r=0, position_l=0, position_b=0):
+def calc_effective_area(radius):
     logging.info('Calculating the effective area of the Gum Nebula and Cygnus Loop')
     d_x = 70 / 3000 # distance between each interpolated point in the x direction. 70 kpc is the diameter of the Milky Way, 1000 is the number of points
     d_y = 70 / 3000 # distance between each interpolated point in the y direction. 70 kpc is the diameter of the Milky Way, 1000 is the number of points
@@ -145,47 +145,6 @@ def generate_gum_cygnus():
     cygnus()
 
 
-def test_plot_sphere():
-    r_centre = 5
-    l_centre = np.radians(80)
-    b_centre = np.radians(0)
-    radius = 4
-    r_sphere, l_sphere, b_sphere, density, l_step = generate_uniform_sphere(radius, r_centre, l_centre, b_centre, resolution=100)
-    x_sphere, y_sphere, z_sphere = spherical_to_cartesian(r_sphere, l_sphere, b_sphere)
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    ax.scatter(x_sphere, y_sphere, z_sphere, c=density, cmap='viridis')
-    ax.scatter(0, 0, 0, c='red', marker='o', label='Center')
-    ax.scatter(0, const.r_s, 0, c='blue', marker='o', label='Sun')
-    ax.set_xlabel('X')
-    ax.set_ylabel('Y')
-    ax.set_zlabel('Z')
-    ax.set_aspect('equal')
-    plt.legend()
-    plt.show()
-
-
-def plot_gum_cyg():
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    resolution = 80
-    r_cyg, l_cyg, b_cyg, density_cygnus = cygnus(resolution=resolution)
-    r_gum, l_gum, b_gum, density_gum = gum(resolution=resolution)
-    print('shape density_gum: ', density_gum.shape)
-    """ x_cygnus, y_cygnus, z_cygnus = spherical_to_cartesian(r_cyg, l_cyg, b_cyg)
-    x_gum, y_gum, z_gum = spherical_to_cartesian(r_gum, l_gum, b_gum)
-    ax.scatter(x_gum, y_gum, z_gum, c=density_gum, cmap='viridis')
-    ax.scatter(x_cygnus, y_cygnus, z_cygnus, c=density_cygnus, cmap='viridis')
-    ax.scatter(0, 0, 0, c='red', marker='o', label='Center')
-    ax.scatter(0, const.r_s, 0, c='blue', marker='o', label='Sun')
-    ax.set_xlabel('X')
-    ax.set_ylabel('Y')
-    ax.set_zlabel('Z')
-    ax.set_aspect('equal')
-    plt.legend()
-    plt.show() """
-
-
 def plot_modelled_intensity_gum_cygnus(filename_output = f'{const.FOLDER_MODELS_GALAXY}/gym_cygnus_test.pdf'):
     # plot the FIRAS data for the NII 205 micron line
     bin_edges_line_flux, bin_centre_line_flux, line_flux, line_flux_error = firas_data.firas_data_for_plotting()
@@ -196,8 +155,6 @@ def plot_modelled_intensity_gum_cygnus(filename_output = f'{const.FOLDER_MODELS_
     _, _, _, gum_intensity = gum()
     total_intensity = cyg_intensity + gum_intensity
     num_longs = len(np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/longitudes.npy'))
-    #plt.plot(np.linspace(0, 360, len(cyg_intensity)), cyg_intensity, label='Cygnus Loop')
-    #plt.plot(np.linspace(0, 360, len(gum_intensity)), gum_intensity, label='Gum Nebula')
     plt.plot(np.linspace(0, 360, len(total_intensity)), total_intensity, label='Local OBA')
     # Redefine the x-axis labels to match the values in longitudes
     x_ticks = (180, 150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210, 180)
@@ -210,7 +167,3 @@ def plot_modelled_intensity_gum_cygnus(filename_output = f'{const.FOLDER_MODELS_
 
 if __name__ == '__main__':
     generate_gum_cygnus()
-    #test_plot_sphere()
-    #plot_gum_cyg()
-    #plot_modelled_intensity_gum_cygnus()
-    #cygnus()

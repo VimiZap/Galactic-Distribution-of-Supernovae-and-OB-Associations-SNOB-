@@ -246,8 +246,13 @@ def calc_effective_area_per_spiral_arm(h=const.h_spiral_arm, sigma_arm=const.sig
     # check if the folder exists, if not create it
     Path(const.FOLDER_GALAXY_DATA).mkdir(parents=True, exist_ok=True)
     if readfile_effective_area == True:
-        effective_area = np.load(filepath)
-        return effective_area
+        try:
+            effective_area = np.load(filepath)
+            return effective_area
+        except:
+            logging.warning("The file with the effective area for each spiral arm does not exist. Calculating the effective area instead.")
+            readfile_effective_area = False
+            effective_area = calc_effective_area_per_spiral_arm(h, sigma_arm, arm_angles, pitch_angles, readfile_effective_area)
     elif readfile_effective_area == False:
         transverse_distances, transverse_densities_initial = generate_transverse_spacing_densities(sigma_arm) 
         d_x = 70 / 3000 # distance between each interpolated point in the x direction. 70 kpc is the diameter of the Milky Way, 3000 is the number of points
@@ -346,6 +351,8 @@ def calculate_galactic_coordinates(b_max=0.5, db_above_1_deg = 0.2, b_min=0.01, 
     Returns:
         None. Saves the radial distances, longitudes, latitudes, dr, dl, latitudinal cosinus, z_grid, height_distribution_values, rho_coords_galaxy, theta_coords_galaxy, x_grid, y_grid to disk
     """
+    # check if the folder exists, if not create it
+    Path(const.FOLDER_GALAXY_DATA).mkdir(parents=True, exist_ok=True)
     logging.info("Calculating the galactic coordinates")
     # Calculate coordinates
     dr = 0.2   # increments in dr (kpc):
@@ -536,7 +543,7 @@ def plot_modelled_intensity_per_arm(filename_output = f'{const.FOLDER_MODELS_GAL
     plt.errorbar(bin_centre_line_flux, line_flux, yerr=line_flux_error,fmt='none', ecolor='black', capsize=0, elinewidth=1)
     # plot the modelled intensity
     intensities_per_arm = np.load(filename_intensity_data)
-    longitudes = np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/longitudes.npy')
+    longitudes = np.load(f'{const.FOLDER_GALAXY_DATA}/longitudes.npy')
     colors = sns.color_palette('bright', 7)
     plt.plot(np.linspace(0, 360, len(longitudes)), intensities_per_arm[0], label=f"NC. f={fractional_contribution[0]}", color=colors[0])
     plt.plot(np.linspace(0, 360, len(longitudes)), intensities_per_arm[1], label=f"P. $\ $ f={fractional_contribution[1]}", color=colors[1])
@@ -554,11 +561,17 @@ def plot_modelled_intensity_per_arm(filename_output = f'{const.FOLDER_MODELS_GAL
         try: # check if the gum-cygnus regions have been generated
             gum = np.load(f'{const.FOLDER_GALAXY_DATA}/intensities_gum.npy')
             cygnus = np.load(f'{const.FOLDER_GALAXY_DATA}/intensities_cygnus.npy')
-            gum_cygnus = gum + cygnus
-            plt.plot(np.linspace(0, 360, len(longitudes)), gum_cygnus, label=f"Local OBA.", color=colors[5])
-            intensities_total += gum_cygnus
+            gum_cygnus_data = gum + cygnus
+            plt.plot(np.linspace(0, 360, len(longitudes)), gum_cygnus_data, label=f"Local OBA.", color=colors[5])
+            intensities_total += gum_cygnus_data
         except: # if not, raise a warning
-            logging.warning("The Gum and Cygnus regions were not included in the model. They may not have been generated. Skipping this part of the plot. Try calling the function 'gum' and 'cygnus' in gum_cygnus.py first")
+            logging.warning("The Gum and Cygnus regions were not included in the model. Generating them now.")
+            gum_cygnus.generate_gum_cygnus()
+            gum = np.load(f'{const.FOLDER_GALAXY_DATA}/intensities_gum.npy')
+            cygnus = np.load(f'{const.FOLDER_GALAXY_DATA}/intensities_cygnus.npy')
+            gum_cygnus_data = gum + cygnus
+            plt.plot(np.linspace(0, 360, len(longitudes)), gum_cygnus_data, label=f"Local OBA.", color=colors[5])
+            intensities_total += gum_cygnus_data
     plt.plot(np.linspace(0, 360, len(longitudes)), intensities_total, label="Total intensity", color=colors[6])
     # Redefine the x-axis labels to match the values in longitudes
     x_ticks = (180, 150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210, 180)
@@ -602,6 +615,8 @@ def spiral_arms_schematic(linewidth=3, filename=f'{const.FOLDER_MODELS_GALAXY}/s
     Returns:
         None
     """
+    # check if the output folder exists, if not create it
+    Path(const.FOLDER_MODELS_GALAXY).mkdir(parents=True, exist_ok=True)
     colors = sns.color_palette('bright', 7)
     rho_min_array = const.rho_min_spiral_arm
     rho_max_array = const.rho_max_spiral_arm

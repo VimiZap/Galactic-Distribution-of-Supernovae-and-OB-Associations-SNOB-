@@ -207,7 +207,6 @@ def calc_effective_area_one_arm(h=const.h_spiral_arm, sigma_arm=const.sigma_arm,
     if arm_index is None:
         raise ValueError("The arm index must be provided. Exiting...")
     
-    #logging.info("Calculating the effective area for one spiral arm")
     filepath = f'{const.FOLDER_GALAXY_DATA}/effective_area_per_spiral_arm.npy'
     transverse_distances, transverse_densities_initial = sam.generate_transverse_spacing_densities(sigma_arm) 
     d_x = 70 / 3000 # distance between each interpolated point in the x direction. 70 kpc is the diameter of the Milky Way, 3000 is the number of points
@@ -226,7 +225,11 @@ def calc_effective_area_one_arm(h=const.h_spiral_arm, sigma_arm=const.sigma_arm,
     interpolated_density = griddata((x, y), density_spiral_arm, (grid_x, grid_y), method='cubic', fill_value=0)
     interpolated_density[interpolated_density < 0] = 0 # set all negative values to 0
     # add the interpolated density to the total galactic density 
-    effective_area = np.load(filepath)
+    try:
+        effective_area = np.load(filepath)
+    except:
+        logging.warning("The effective area file does not exist. Creating a new one...")
+        effective_area = sam.calc_effective_area_per_spiral_arm(h=const.h_spiral_arm, sigma_arm=const.sigma_arm, arm_angles=const.arm_angles, pitch_angles=const.pitch_angles, readfile_effective_area=True)
     effective_area[arm_index] = np.sum(interpolated_density) * d_x * d_y
     np.save(filepath, effective_area)
     return effective_area
@@ -800,19 +803,8 @@ def plot_bins_excluded_from_fiting(filename_output = f'{const.FOLDER_MODELS_GALA
     plt.close()
 
 
-def read_best_parameters(filename):
-    df = pd.read_csv(filename, sep=',')
-    print(df.head())
-    # printing all columns of the dataframe 
-    print(df.columns.tolist()) 
-    smallest_chi_squared = df[' Chi-squared'].min()
-    best_parameters = df[df[' Chi-squared'] == smallest_chi_squared]
-    print(best_parameters)
-    print(smallest_chi_squared)
-
-
 def main():
-    run_tests(delta=1)
+    run_tests()
     plot_bins_excluded_from_fiting()
 
 

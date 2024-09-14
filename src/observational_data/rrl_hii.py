@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import obs_utilities as obs_ut
 import src.utilities.constants as const
-
+from pathlib import Path
 
 CATALOGUE = 'J/ApJS/165/338'
 TABLE = 'table1'
@@ -16,6 +16,8 @@ def plot_rrl_hii_data():
         2D np.array with the data. The first column contains the Galactic longitude, the second column contains the Galactic latitude
 
     """
+    # check if the output folder exists, if not create it
+    Path(const.FOLDER_OBSERVATIONAL_PLOTS).mkdir(parents=True, exist_ok=True)
     tap_records = obs_ut.get_catalogue_data(CATALOGUE, TABLE, ['GLON', 'GLAT'])
     glat_data = tap_records['GLAT'].data
     glon_data = tap_records['GLON'].data

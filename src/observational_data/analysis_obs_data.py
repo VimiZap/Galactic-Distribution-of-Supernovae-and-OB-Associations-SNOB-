@@ -7,7 +7,7 @@ import numpy as np
 logging.basicConfig(level=logging.INFO)
 rng = np.random.default_rng()
 from src.galaxy_model.combined_obas import calc_snps_known_association
-
+from pathlib import Path
 
 def my_data_for_stat():
     """ Get the data on the know associations for the simulation
@@ -26,7 +26,6 @@ def my_data_for_stat():
     min_mass = data['Min mass']
     max_mass = data['Max mass']
     age = data['Age(Myr)']
-    print(association_name, n, min_mass, max_mass, age)
     return association_name, n, min_mass, max_mass, age
 
 
@@ -121,6 +120,8 @@ def stat_known_associations(num_iterations = 10):
         'Std Stars Still Existing': std_stars_still_existing
     }, index=association_name)
     # Save the DataFrame to a CSV file
+    # check if the output folder exists, if not create it
+    Path(const.FOLDER_OBSERVATIONAL_PLOTS).mkdir(parents=True, exist_ok=True)
     df.to_csv(f'{const.FOLDER_OBSERVATIONAL_DATA}/statistics_known_associations.csv')
     return
 

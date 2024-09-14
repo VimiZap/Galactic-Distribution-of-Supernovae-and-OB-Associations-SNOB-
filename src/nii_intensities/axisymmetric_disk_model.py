@@ -1,9 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import utilities.utilities as ut
+import src.utilities.utilities as ut
 import logging
 logging.basicConfig(level=logging.INFO)
-import observational_data.firas_data as firas_data
+import src.observational_data.firas_data as firas_data
 import src.utilities.constants as const
 from matplotlib.ticker import AutoMinorLocator
 from pathlib import Path
