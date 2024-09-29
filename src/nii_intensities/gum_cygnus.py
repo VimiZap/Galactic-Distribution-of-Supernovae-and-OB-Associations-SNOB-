@@ -6,6 +6,7 @@ from matplotlib.ticker import AutoMinorLocator
 import src.observational_data.firas_data as firas_data
 from scipy.interpolate import griddata
 import logging
+from pathlib import Path
 logging.basicConfig(level=logging.INFO)
 
 
@@ -112,6 +113,8 @@ def calc_effective_area(radius):
 
 
 def cygnus():
+    # check if the folder exists, if not create it
+    Path(const.FOLDER_GALAXY_DATA).mkdir(parents=True, exist_ok=True)
     cygnus_distance = 1.45 # kpc
     cygnus_long = np.radians(80)
     cygnus_lat = np.radians(0)
@@ -126,6 +129,8 @@ def cygnus():
 
 
 def gum():
+    # check if the folder exists, if not create it
+    Path(const.FOLDER_GALAXY_DATA).mkdir(parents=True, exist_ok=True)
     # Gum parameters
     gum_distance = 0.33 # kpc
     gum_long = np.radians(262)
@@ -148,22 +153,32 @@ def generate_gum_cygnus():
 def plot_modelled_intensity_gum_cygnus(filename_output = f'{const.FOLDER_MODELS_GALAXY}/gym_cygnus_test.pdf'):
     # plot the FIRAS data for the NII 205 micron line
     bin_edges_line_flux, bin_centre_line_flux, line_flux, line_flux_error = firas_data.firas_data_for_plotting()
+    plt.figure(figsize=(10, 6))
     plt.stairs(values=line_flux, edges=bin_edges_line_flux, fill=False, color='black')
     plt.errorbar(bin_centre_line_flux, line_flux, yerr=line_flux_error,fmt='none', ecolor='black', capsize=0, elinewidth=1)
     # gum, cygnus data
     _, _, _, cyg_intensity = cygnus()
     _, _, _, gum_intensity = gum()
     total_intensity = cyg_intensity + gum_intensity
-    num_longs = len(np.lib.format.open_memmap(f'{const.FOLDER_GALAXY_DATA}/longitudes.npy'))
     plt.plot(np.linspace(0, 360, len(total_intensity)), total_intensity, label='Local OBA')
     # Redefine the x-axis labels to match the values in longitudes
     x_ticks = (180, 150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210, 180)
     plt.xticks(np.linspace(0, 360, 13), x_ticks)
     plt.gca().xaxis.set_minor_locator(AutoMinorLocator(3)) 
     plt.ticklabel_format(style='sci', axis='y', scilimits=(0,0))
+    plt.xlabel("Galactic longitude $l$ (degrees)", fontsize=14)
+    plt.ylabel("Intensity (erg cm$^{-2}$ s$^{-1}$ sr$^{-1}$)", fontsize=14)
+    fontsize_in_ax_text = 12
+    plt.text(0.02, 0.95, fr'$H_\rho$ = {const.h_spiral_arm} kpc & $\sigma_{{\mathrm{{A}}}}$ = {const.sigma_arm} kpc', transform=plt.gca().transAxes, fontsize=fontsize_in_ax_text, color='black')
+    plt.text(0.02, 0.9, fr'NII Luminosity = {const.total_galactic_n_luminosity:.2e} erg/s', transform=plt.gca().transAxes, fontsize=fontsize_in_ax_text, color='black')
+    plt.xlim(0, 360)
+    plt.ylim(bottom=0)
+    plt.gca().yaxis.get_offset_text().set_fontsize(14)
+    plt.tick_params(axis='both', which='major', labelsize=14)
+    plt.legend(fontsize = fontsize_in_ax_text)
     plt.legend()
     plt.show()
 
 
 if __name__ == '__main__':
-    generate_gum_cygnus()
+    plot_modelled_intensity_gum_cygnus()

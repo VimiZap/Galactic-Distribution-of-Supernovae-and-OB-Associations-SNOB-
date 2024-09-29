@@ -33,7 +33,7 @@ theta_start_local = np.radians(55.1) # degrees to radians
 theta_max_local = np.radians(107) # degrees to radians
 rho_min_local = 8.21 # kpc
 rho_max_local = rho_min_local * np.exp(np.tan(pitch_local) * (theta_max_local - theta_start_local))
-# add the local arm to the spiral arm parameters. If the local arm is not to be included, the following lines should be commented out
+# add the local arm to the spiral arm parameters. If the local arm is not to be included, change settings.py
 rho_min_spiral_arm = np.concatenate((rho_min_spiral_arm, [rho_min_local]))
 rho_max_spiral_arm = np.concatenate((rho_max_spiral_arm, [rho_max_local]))
 arm_angles = np.concatenate((arm_angles, [theta_start_local]))
@@ -56,14 +56,6 @@ m_lim_imf_powerlaw = np.array([0.01, 0.08, 0.5, 1, 120]) # mass in solar masses.
 # paramanters for the power law describing lifetime as function of mass. Schulreich et al. (2018)
 tau_0 = 1.6e8 * 1.65 # fits better with the data for he higher masses, though the slope is still too shallow
 beta = -0.932
-
-""" # Parameters for the ymw16 galaxy model
-r_s = 8.5            # kpc, estimate for distance from the Sun to the Galactic center. Same value the atuhors used
-rho_min_spiral_arm = np.array([3.35, 3.71, 3.56, 3.67])           
-arm_angles = np.radians([44.4, 120, 218.6, 330.3])
-pitch_angles= np.radians([11.43, 9.84, 10.38, 10.54]) 
-fractional_contribution = [0.1977, 0.2091, 0.2120, 0.2017] 
- """
 
 # Folder locations
 FOLDER_GALAXY_DATA = 'galaxy_data'

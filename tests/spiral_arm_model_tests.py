@@ -16,7 +16,18 @@ LINEWIDTH = 1 # linewidth for the plots
 NUM_FITTED_PARAMETERS = 40 # number of fitted parameters in the model
 linestyles = [(0, (3, 5, 1, 5, 1, 5)), (0, (1, 1)), (5, (10, 3)), (0, (3, 1, 1, 1, 1, 1)), (0, (3, 1, 1, 1))] # https://matplotlib.org/stable/gallery/lines_bars_and_markers/linestyles.html for reference
 
-
+"""
+    This module contains functions to test the spiral arm model by varying the parameters of the model and plotting the resulting N II intensity. The tests are:
+    - The start angle of the major arms
+    - The pitch angle of the major arms
+    - The fractional contribution of the major arms
+    - The width of the spiral arms
+    - The scale height of the spiral arms
+    - Parameters for the devoid region of Sagittarius-Carina
+    - Max angle of the local arm
+    Finally, we calculate the reduced chi-squared value for the case without the local arm and the devoid region of Sagittarius-Carina included in the model,
+    for the case where we add only the local arm and also for the case where both are included.
+"""
 def reduced_chi_squared(observational_data, observational_data_variance, modelled_data):
     """ Function to calculate the chi-squared value of the modelled data compared to the observational data
 
@@ -441,6 +452,7 @@ def chi_squared_with_and_without_local_arm_devoid_region():
 
 
 def main():
+    # Important! Run src.nii_intensities.spiral_arm_model.py before running this script
     plot_test_start_angle_major_arms()
     plot_test_pitch_angle_major_arms()
     plot_test_fractional_contribution()

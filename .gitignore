@@ -1,5 +1,6 @@
 galaxy_data
 venv
+.venv
 *.egg-info
 data/chi_square_tests
 data/plots

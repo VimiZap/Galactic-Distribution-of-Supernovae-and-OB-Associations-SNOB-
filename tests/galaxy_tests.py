@@ -375,7 +375,6 @@ def main():
     plot_mass_distr(galaxy_1) # plot the probability distribution for the mass of SNP's. SNP's from a generated galaxy
     plot_sn_as_func_of_long(galaxy_1, length_sim_myr, num_star_forming_episodes=5) # plot the probability density function of SNPs as function of longitude. SNP's from a generated galaxy
     plot_associations_from_galaxy(galaxy_1) # plot the associations from the galaxy
-    # Old shit meant to calculate the resulting clustering of stars, but doesn't really work.. 
     galaxy_2 = galaxy.Galaxy(length_sim_myr, star_formation_episodes=3, read_data_from_file=True) # an array with n associations
     galaxy_3 = galaxy.Galaxy(length_sim_myr, star_formation_episodes=5, read_data_from_file=True) # an array with n associations
     galaxies = np.array([galaxy_1, galaxy_2, galaxy_3])
